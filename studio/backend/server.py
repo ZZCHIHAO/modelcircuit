@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 from studio_core.examples import example_graph
 from studio_core.python_io import export_python, import_python, python_profile
 from studio_core.schema import validate_graph
+from studio_core.tensor_specs import require_executable_profile
 from studio_core.experiment_spec import validate_classification_config
 from worker import experiment_worker
 
@@ -87,6 +88,7 @@ class RunManager:
         record["events"] = record["events"][-512:]
 
     def submit(self, graph, config):
+        require_executable_profile(graph)
         if not isinstance(config, dict):
             raise ValueError("config must be an object")
         report = validate_graph(graph)

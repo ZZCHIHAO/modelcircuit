@@ -127,6 +127,8 @@ def _export_output_mode(definition):
 
 
 def python_profile(graph):
+    from .tensor_specs import require_executable_profile
+    require_executable_profile(graph)
     scopes = [graph] + [definition['graph'] for definition in graph.get('definitions', [])]
     if graph.get('resource_profile') == 'hardware-v5':
         return 'vision-pytorch-v5'

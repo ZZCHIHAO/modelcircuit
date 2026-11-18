@@ -86,6 +86,8 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
     gradients describe that selected epoch's last optimization minibatch.
     """
     from .experiment_spec import checkpoint_signature, model_digest, validate_classification_config
+    from .tensor_specs import require_executable_profile
+    require_executable_profile(graph)
     config = validate_classification_config(config)
     from .execution_policy import check_config_batch
     check_config_batch(graph, config["batch_size"])

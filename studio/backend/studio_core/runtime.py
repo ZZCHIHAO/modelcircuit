@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from .schema import prepare_graph, resource_limits, graph_resource_limits
+from .tensor_specs import require_executable_profile
 from .execution_policy import check_input_batches, check_config_batch, hardware_memory_errors
 from .shape_rules import CNN_PARAMETERS, cnn_output_shape
 from .operator_runtime import make_operator, _Add, _Concat, _Multiply
@@ -145,6 +146,7 @@ class _GraphModule(nn.Module):
 
 def build_model(graph, device="cpu", capture=True, *, memory_report=None):
     """Create one module per instance on an explicit CPU or single CUDA device."""
+    require_executable_profile(graph)
     if type(capture) is not bool:
         raise ValueError("capture must be a boolean")
     device = torch.device(device)
@@ -262,6 +264,7 @@ def run_experiment(graph, config, progress=None, cancelled=None):
     metadata records original shapes/counts and any truncation. Model forward
     itself always returns complete tensors.
     """
+    require_executable_profile(graph)
     config = _config(config)
     check_config_batch(graph, config['batch_size'])
 
