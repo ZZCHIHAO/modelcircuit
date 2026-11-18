@@ -2,6 +2,8 @@
 
 ## 2026-11-18 · S6 CSV 数值回归
 
+`v0.6.0-alpha.2` 交付单个 Windows EXE，双击 `studio/启动模路.cmd`，训练设备在应用内选择。统一的工作区目录为 `%LOCALAPPDATA%\ModelCircuitStudio-S6`。PyTorch 每次训练使用 CPU 或一张 CUDA GPU。
+
 `v0.6.0-alpha.1` 增加第二个任务适配器 `regression-v1`。可在原生工作台加载 CSV 并训练、评估和续训。选择 CPU 或一张 CUDA 卡。数据配置与任务一起保存在工作区，模型通过受限 Python 接口往返。新增分库与 CPU 版 SVC、SVR。入口、运行范围和验收步骤见 [S6 指南](native/S6_REGRESSION_GUIDE.md)及 [S6 验收](native/S6_VERIFICATION.md)。历史 S4/S5 记录如下。
 
 ## 2026-11-18：S5 源码阶段验收

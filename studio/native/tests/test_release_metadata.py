@@ -18,6 +18,9 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_valid_variants(self):
         require_runtime_variant('CPU', '2.6.0+cpu')
         require_runtime_variant('CUDA', '2.6.0+cu124')
+        require_runtime_variant('Unified', '2.6.0+cu124')
+        with self.assertRaisesRegex(ValueError, 'Unified build'):
+            require_runtime_variant('Unified', '2.6.0+cpu')
         with self.assertRaises(ValueError):
             require_runtime_variant('OTHER', '2.6.0+cpu')
 
