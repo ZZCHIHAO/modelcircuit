@@ -55,4 +55,4 @@ def tensor_nbytes(spec, *, batch_size=None):
 def require_executable_profile(graph):
     """Do not let static v2 validation imply support in a v1 consumer."""
     if isinstance(graph, dict) and graph.get('schema_version') == 2:
-        raise ValueError('tensor-v1 graphs currently support static validation only; execution and Python export are not enabled')
+        raise ValueError('tensor-v1 is not supported by the legacy synthetic runner; select a real classification task')

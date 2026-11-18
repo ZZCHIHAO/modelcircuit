@@ -7,6 +7,7 @@ import math
 import re
 
 from studio_core.ports import output_port_ids, parse_source
+from studio_core.tensor_specs import normalize_tensor_spec
 
 IDENTIFIER=re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -150,12 +151,32 @@ class EditableCommands:
             else:self.remove(ref)
 
     @command
-    def add_input(self,identifier_value,shape,name=None,dtype='float32'):
-        _input_id(identifier_value);shape=shape_value(shape)
-        require(dtype=='float32','Only float32 tensor inputs are supported')
+    def add_input(self,identifier_value,shape,name=None,dtype='float32',*,axes=None,batch_axis=None):
+        _input_id(identifier_value)
+        if self.graph['schema_version']==2:
+            from .chip_library import legacy_tensor_port
+            defaults=legacy_tensor_port({'shape':shape_value(shape)}) if axes is None else {'axes':axes,'batch_axis':batch_axis}
+            contract=self._tensor_contract({'shape':shape,'dtype':dtype,**defaults})
+        else:
+            require(dtype=='float32' and axes is None and batch_axis is None,'Only float32 tensor inputs are supported in schema 1')
+            contract={'shape':shape_value(shape),'dtype':dtype}
         require(not any(item['id']==identifier_value for item in self.scope['inputs']),'Input already exists')
-        self.scope['inputs'].append({'id':identifier_value,'name':name or identifier_value,'shape':shape,'dtype':dtype})
+        self.scope['inputs'].append({'id':identifier_value,'name':name or identifier_value,**contract})
         self._changed();return 'input:'+identifier_value
+
+    def _tensor_contract(self,spec):
+        require(self.graph['schema_version']==2,'Tensor input contracts require schema 2')
+        contract=normalize_tensor_spec(spec)
+        if contract['batch_axis']==0 and contract['shape'][0] is not None:
+            require(contract['shape'][0]<=self.graph['resource_batch_bound'],'Fixed batch exceeds resource_batch_bound')
+        return contract
+
+    @command
+    def set_tensor_input(self,identifier_value,spec):
+        contract=self._tensor_contract(spec)
+        port=self._node('input:'+identifier_value)
+        if any(port.get(key)!=value for key,value in contract.items()):
+            port.update(contract);self._changed()
 
     @command
     def rename_input(self,old_id,new_id):
@@ -177,6 +198,9 @@ class EditableCommands:
         shape=shape_value(shape)
         port=next((item for item in self.scope['inputs'] if item['id']==identifier_value),None)
         require(port is not None,'Unknown input: '+identifier_value)
+        if self.graph['schema_version']==2:
+            return self.set_tensor_input(identifier_value, {'shape':shape,'dtype':port['dtype'],
+                'axes':port['axes'],'batch_axis':port['batch_axis']})
         if port.get('shape')!=shape:port['shape']=shape;self._changed()
 
     @command
@@ -263,7 +287,11 @@ class EditableCommands:
                     require(param_id in {item['id'] for item in nested.get('public_parameters',[])},'Unknown nested public parameter')
                 child.setdefault('params',{})[param_id]=deepcopy(declarations[key]['default'])
         for child in children.values():
-            if child['kind']!='chip':_primitive(child)
+            if child['kind']=='chip':continue
+            if self.graph['schema_version']==2:
+                from studio_core.tensor_ops import normalize_tensor_operator
+                normalize_tensor_operator(child['kind'],child.get('params',{}))
+            else:_primitive(child)
         if encoded(definition.get('public_parameters',[]))==encoded(parameters) and encoded(definition.get('bindings',{}))==encoded(bindings):
             return
         removed={item['id'] for item in definition.get('public_parameters',[])}-declarations.keys()
@@ -280,7 +308,8 @@ class EditableCommands:
         fake={'inputs':deepcopy(scope['inputs']),'instances':[{'id':'binding_validation','kind':'chip','definition_id':definition_id,'params':{}}],
               'calls':[],'outputs':[{'id':'value','source':'input:'+scope['inputs'][0]['id']}]}
         from studio_core.schema import graph_resource_limits
-        resolved=_resolve_scope(fake,definitions,budget=_Budget(graph_resource_limits(self.graph)))
+        resolved=_resolve_scope(fake,definitions,budget=_Budget(graph_resource_limits(self.graph),
+                                                                  tensor_contracts=self.graph['schema_version']==2))
         def validate_nested(current):
             for instance in current['instances']:
                 if instance['kind']=='chip':
@@ -295,7 +324,8 @@ class EditableCommands:
     def import_chip(self,path):
         from .chip_library import import_bundle
         policy={key:self.graph[key] for key in ('resource_profile','resource_batch_bound') if key in self.graph}
-        definitions,definition_id=import_bundle(path,self.graph.get('definitions',[]),resource_policy=policy)
+        definitions,definition_id=import_bundle(path,self.graph.get('definitions',[]),resource_policy=policy,
+                                                tensor_project=self.graph['schema_version']==2)
         if definitions!=self.graph.get('definitions',[]):self.graph['definitions']=definitions;self._changed()
         return definition_id
 

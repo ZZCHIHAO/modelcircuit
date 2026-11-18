@@ -9,6 +9,7 @@ from .tensor_specs import require_executable_profile
 from .execution_policy import check_input_batches, check_config_batch, hardware_memory_errors
 from .shape_rules import CNN_PARAMETERS, cnn_output_shape
 from .operator_runtime import make_operator, _Add, _Concat, _Multiply
+from .tensor_ops import make_tensor_operator
 
 MAX_OUTPUT_PREVIEW_ELEMENTS = 4096
 MAX_OUTPUT_PREVIEW_PER_TENSOR = 256
@@ -55,19 +56,31 @@ class _ExecutionBudget:
         self.total += elements
 
 
+def _require_finite(value, source):
+    # A scalar reduction avoids allocating a boolean mask the size of the tensor.
+    low, high = torch.aminmax(value.detach())
+    if not bool(torch.isfinite(low) & torch.isfinite(high)):
+        raise ValueError(source + ': tensor contains non-finite values')
+
+
 class _GraphModule(nn.Module):
-    def __init__(self, graph, limits=None, capture=True):
+    def __init__(self, graph, limits=None, capture=True, *, tensor_contracts=False, capture_policy=None):
         super().__init__()
         self.graph = graph
         self.limits = limits if limits is not None else graph_resource_limits(graph)
         self.capture = capture
+        self.tensor_contracts = tensor_contracts
+        self.capture_policy = capture_policy
+        self.last_probes = {}
         self.register_buffer("_device_anchor", torch.empty(0), persistent=False)
         self.components = nn.ModuleDict()
         self.last_values = {}
         for instance in graph["instances"]:
             kind, params = instance["kind"], instance.get("params", {})
             if kind == "chip":
-                component = _GraphModule(instance["_graph"], self.limits, capture)
+                component = _GraphModule(instance["_graph"], self.limits, capture, tensor_contracts=tensor_contracts)
+            elif self.tensor_contracts:
+                component = make_tensor_operator(kind, params)
             else: component = make_operator(kind, params)
             if instance.get("frozen", False): component.requires_grad_(False)
             self.components[instance["id"]] = component
@@ -77,37 +90,74 @@ class _GraphModule(nn.Module):
             raise ValueError("capture must be a boolean")
         self.capture = enabled
         self.last_values = {}
+        self.last_probes = {}
         for component in self.components.values():
             if isinstance(component, _GraphModule): component.set_capture(enabled)
         return self
 
     def forward(self, **inputs):
-        check_input_batches(inputs, self.limits)
-        return self._execute(inputs, _ExecutionBudget(self.limits))
+        if not self.tensor_contracts:
+            check_input_batches(inputs, self.limits)
+            return self._execute(inputs, _ExecutionBudget(self.limits))
+        collector = None
+        self.last_probes = {}
+        if self.tensor_contracts and self.capture and self.capture_policy is not None:
+            from .probe_capture import make_capture
+            collector = make_capture(self.capture_policy, self.graph)
+        result = self._execute(inputs, _ExecutionBudget(self.limits), collector=collector)
+        if collector is not None:
+            self.last_probes = collector.results
+        return result
 
-    def _execute(self, inputs, budget):
+    def _execute(self, inputs, budget, *, prefix='', collector=None):
         self.last_values = {}
+        legacy_capture = self.capture and not self.tensor_contracts
+        specs = self.graph.get('_tensor_specs', {})
+        concrete_batch = None
         expected = {p["id"] for p in self.graph["inputs"]}
         if inputs.keys() != expected:
             raise ValueError("Input names must be exactly: " + ", ".join(sorted(expected)))
         for port in self.graph["inputs"]:
             value, shape = inputs[port["id"]], port["shape"]
-            if not isinstance(value, torch.Tensor) or value.device != self._device_anchor.device or value.dtype != torch.float32:
-                raise ValueError("Input " + port["id"] + " must be a float32 tensor on " + str(self._device_anchor.device))
+            dtype = port['dtype'] if self.tensor_contracts else 'float32'
+            torch_dtype = torch.bool if dtype == 'bool' else torch.float32
+            if not isinstance(value, torch.Tensor) or value.device != self._device_anchor.device or value.dtype != torch_dtype:
+                raise ValueError("Input " + prefix + port["id"] + " must be a " + dtype + " tensor on " + str(self._device_anchor.device))
             if value.ndim != len(shape) or any(dim is not None and value.shape[i] != dim for i, dim in enumerate(shape)):
-                raise ValueError("Input shape mismatch for " + port["id"] + ": expected " + str(shape) + ", received " + str(list(value.shape)))
+                raise ValueError("Input shape mismatch for " + prefix + port["id"] + ": expected " + str(shape) + ", received " + str(list(value.shape)))
+            if self.tensor_contracts and port['batch_axis'] == 0:
+                actual_batch = value.shape[0]
+                if not 1 <= actual_batch <= self.limits.batch_bound:
+                    raise ValueError('Input ' + prefix + port['id'] + ' batch must be between 1 and resource_batch_bound (' + str(self.limits.batch_bound) + ')')
+                if concrete_batch is not None and actual_batch != concrete_batch:
+                    raise ValueError('Input ' + prefix + port['id'] + ' batch does not match the other batch-bearing inputs')
+                concrete_batch = actual_batch
+            if self.tensor_contracts and not prefix and dtype == 'float32':
+                _require_finite(value, 'input:' + port['id'])
             budget.add(value.numel())
         values = {"input:" + key: value for key, value in inputs.items()}
-        observed = {key: value.detach().clone() for key, value in values.items()} if self.capture else {}
+        if collector is not None:
+            for source, tensor in values.items():
+                collector.observe(prefix + source, tensor, specs[source])
+        observed = {key: value.detach().clone() for key, value in values.items()} if legacy_capture else {}
         instances = {instance["id"]: instance for instance in self.graph["instances"]}
         for call in self.graph["_ordered_calls"]:
             component = self.components[call["instance_id"]]
+            instance = instances[call['instance_id']]
             arguments = {key: values[source] for key, source in call["inputs"].items()}
-            estimated_elements = _output_elements(component, arguments, instances[call["instance_id"]])
+            source = "call:" + call["id"]
+            estimated_elements = None if self.tensor_contracts else _output_elements(component, arguments, instance)
             if estimated_elements is not None:
                 budget.check(estimated_elements)
             if isinstance(component, _GraphModule):
-                value = component._execute(arguments, budget)
+                child_prefix = prefix + source + '/' if self.tensor_contracts else ''
+                value = (component._execute(arguments, budget, prefix=child_prefix, collector=collector)
+                         if self.tensor_contracts else component._execute(arguments, budget))
+            elif self.tensor_contracts:
+                try:
+                    value = component(**arguments)
+                except ValueError as error:
+                    raise ValueError(prefix + source + ': ' + str(error)) from error
             elif "a" in arguments:
                 value = component(**arguments)
             else:
@@ -117,9 +167,8 @@ class _GraphModule(nn.Module):
                     if isinstance(component, nn.BatchNorm2d):
                         raise ValueError("call:" + call["id"] + ": " + str(error)) from error
                     raise
-            source = "call:" + call["id"]
             outputs = value if isinstance(component, _GraphModule) else {"out": value}
-            if self.capture and isinstance(component, _GraphModule):
+            if legacy_capture and isinstance(component, _GraphModule):
                 observed.update({source + "/" + key: child for key, child in component.last_values.items()})
             child_sources = {output["id"]: output["source"] for output in component.graph["outputs"]} if isinstance(component, _GraphModule) else {}
             measured, snapshots = set(), {}
@@ -133,31 +182,45 @@ class _GraphModule(nn.Module):
                 if charge_key not in measured:
                     budget.add(tensor.numel())
                     measured.add(charge_key)
-                if self.capture and id(tensor) not in snapshots:
+                if legacy_capture and id(tensor) not in snapshots:
                     child_snapshot = component.last_values.get(child_sources[port]) if port in child_sources else None
                     snapshots[id(tensor)] = child_snapshot if child_snapshot is not None else tensor.detach().clone()
                 refs = ([source] if len(outputs) == 1 else []) + [source + ":" + port]
+                if self.tensor_contracts:
+                    typed = specs[refs[-1]]
+                    wanted_shape = tuple(concrete_batch if dim is None else dim for dim in typed['shape'])
+                    wanted_dtype = torch.bool if typed['dtype'] == 'bool' else torch.float32
+                    if tensor.shape != wanted_shape or tensor.dtype != wanted_dtype or tensor.device != self._device_anchor.device:
+                        raise ValueError(prefix + refs[-1] + ': runtime output does not match its tensor contract')
+                    if wanted_dtype == torch.float32 and instance['kind'] not in (
+                            'chip', 'MaskApply', 'AxisRename', 'Identity', 'Permute', 'Reshape', 'Select', 'BroadcastTo'):
+                        _require_finite(tensor, prefix + refs[-1])
                 for ref in refs:
                     values[ref] = tensor
-                    if self.capture: observed[ref] = snapshots[id(tensor)]
+                    if legacy_capture: observed[ref] = snapshots[id(tensor)]
+                    if collector is not None and instance['kind'] != 'MaskApply':
+                        collector.observe(prefix + ref, tensor, specs[ref])
         self.last_values = observed
         return {output["id"]: values[output["source"]] for output in self.graph["outputs"]}
 
 
-def build_model(graph, device="cpu", capture=True, *, memory_report=None):
+def build_model(graph, device="cpu", capture=True, *, memory_report=None, capture_policy=None):
     """Create one module per instance on an explicit CPU or single CUDA device."""
-    require_executable_profile(graph)
     if type(capture) is not bool:
         raise ValueError("capture must be a boolean")
     device = torch.device(device)
     if device.type not in ("cpu", "cuda"):
         raise ValueError("Graph execution supports CPU or a single CUDA device")
     resolved, _, _ = prepare_graph(graph)
+    typed = resolved['schema_version'] == 2
+    if capture_policy is not None and not typed:
+        raise ValueError('capture_policy requires a tensor-v1 graph')
     if graph.get('resource_profile') == 'hardware-v5' and memory_report is None:
         from .memory_admission import admit_memory
-        memory_report = admit_memory(resolved, device, capture=capture)
+        memory_report = admit_memory(resolved, device, capture=capture and (not typed or capture_policy is not None))
     try:
-        model = _GraphModule(resolved, graph_resource_limits(graph), capture).to(device)
+        model = _GraphModule(resolved, graph_resource_limits(graph), capture,
+                             tensor_contracts=typed, capture_policy=capture_policy).to(device)
     except (MemoryError, torch.OutOfMemoryError) as error:
         if graph.get('resource_profile') == 'hardware-v5':
             raise ValueError('Hardware memory allocation failed while constructing model on ' + str(device) + ': ' + str(error)) from error

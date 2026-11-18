@@ -161,10 +161,14 @@ class ChipControls:
             with dpg.group(horizontal=True, parent=parent):
                 dpg.add_text("输入", color=BLUE)
                 name = dpg.add_input_text(default_value=identifier, width=140)
-                shape = dpg.add_input_text(default_value=json.dumps(item.get("shape"), ensure_ascii=False), width=210)
-                self.interface_widgets[("input", identifier)] = {"id": name, "shape": shape}
+                if self.document.graph['schema_version']==2:
+                    fields=self.tensor_panel.fields(item)
+                else:
+                    fields={'shape': dpg.add_input_text(default_value=json.dumps(item.get('shape'), ensure_ascii=False), width=210)}
+                self.interface_widgets[("input", identifier)] = {"id": name, **fields}
                 dpg.add_button(label="改 ID", callback=self.guarded(self._interface_rename, "input", identifier))
-                dpg.add_button(label="改形状", callback=self.guarded(self._interface_shape, identifier))
+                dpg.add_button(label="应用契约" if self.document.graph['schema_version']==2 else "改形状",
+                               callback=self.guarded(self._interface_shape, identifier))
                 dpg.add_button(label="删除", callback=self.guarded(self._interface_remove, "input", identifier))
         dpg.add_separator(parent=parent)
         for item in self._scope()["outputs"]:
@@ -202,6 +206,9 @@ class ChipControls:
         return self._chip_action(lambda: method(identifier, value))
 
     def _interface_shape(self, identifier, **_):
+        if self.document.graph['schema_version']==2:
+            fields={key:value for key,value in self.interface_widgets[('input',identifier)].items() if key!='id'}
+            return self._chip_action(lambda: self.document.set_tensor_input(identifier,self.tensor_panel.read(fields)))
         value = json.loads(dpg.get_value(self.interface_widgets[("input", identifier)]["shape"]))
         return self._chip_action(lambda: self.document.set_input_shape(identifier, value))
 

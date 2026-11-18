@@ -54,7 +54,13 @@ def _structure(graph):
     """Check storage types, permitting algorithmically invalid editable drafts."""
     _json_values(graph)
     _require(type(graph) is dict, "Graph document must be an object")
-    _require(type(graph.get("schema_version")) is int and graph["schema_version"] == 1, "Graph schema_version must equal 1")
+    version=graph.get('schema_version')
+    _require(type(version) is int and version in (1,2), 'Graph schema_version must equal 1 or 2')
+    if version==2:
+        _require(graph.get('capability_profile')=='tensor-v1' and graph.get('resource_profile')=='hardware-v5',
+                 'Schema 2 requires tensor-v1 and hardware-v5')
+    else:
+        _require('capability_profile' not in graph,'Capability profile requires schema 2')
     _require(type(graph.get("id")) is str, "Graph id must be a string")
     _require(type(graph.get("revision")) is int and graph["revision"] >= 1, "Graph revision must be a positive integer")
     profile=graph.get('resource_profile')
@@ -85,6 +91,9 @@ def _structure(graph):
         for port in scope["inputs"]:
             _require("shape" not in port or type(port["shape"]) is list, "Input shape must be a list")
             _require("dtype" not in port or type(port["dtype"]) is str, "Input dtype must be a string")
+            _require('axes' not in port or type(port['axes']) is list, 'Input axes must be a list')
+            _require('batch_axis' not in port or port['batch_axis'] is None or type(port['batch_axis']) is int,
+                     'Input batch_axis must be an integer or null')
         for instance in scope["instances"]:
             _require(type(instance.get("kind")) is str and type(instance.get("params", {})) is dict, "Instance kind/params have invalid storage types")
             _require("definition_id" not in instance or type(instance["definition_id"]) is str, "Instance definition_id must be a string")
@@ -162,6 +171,7 @@ class Document(ComponentInsertion, EditableCommands):
         candidate = example_graph() if graph is None else graph
         _structure(candidate)
         self.graph = deepcopy(candidate)
+        self.attention_probe_requests = []
         self.trail = []
         self.selected = None
         self._scope_override = _SCOPE_UNSET
@@ -372,6 +382,9 @@ class Document(ComponentInsertion, EditableCommands):
         else:
             _source(source)
             if call["inputs"].get(port) != source:
+                if self.graph['schema_version']==2:
+                    from .tensor_panel import check_connection
+                    check_connection(self, call, port, source)
                 call["inputs"][port] = source
                 self._changed()
 
@@ -433,6 +446,16 @@ class Document(ComponentInsertion, EditableCommands):
         self._changed()
         return self.selected
 
+    @command
+    def copy_call(self, call_id):
+        original = self._instance(self._call(call_id)['instance_id'])
+        instance = deepcopy(original)
+        instance['id'] = _unique(self.scope['instances'], original['id'] + '_copy')
+        self.scope['instances'].append(instance)
+        ref = self.share(call_id)
+        self.selected_call['instance_id'] = instance['id']
+        return ref
+
     def remove(self, ref):
         node = self._node(ref)
         kind = ref.split(":", 1)[0]
@@ -486,14 +509,14 @@ class Document(ComponentInsertion, EditableCommands):
             # Use the definition's declared default dimensions, not the concrete
             # outer call's overrides, when inferring reusable boundaries.
             from studio_core.schema import prepare_graph
+            from .chip_library import graph_settings, project_requirements
             definitions=deepcopy(self.graph['definitions'])
-            temporary={'schema_version':1,'resource_profile':self.graph.get('resource_profile','s1'),
+            temporary={**graph_settings(project_requirements(self.graph)),
                        'id':'encapsulation','revision':1,**deepcopy(current_scope),'definitions':definitions}
-            if temporary['resource_profile']=='s1':temporary.pop('resource_profile')
-            if 'resource_batch_bound' in self.graph:
-                temporary['resource_batch_bound']=self.graph['resource_batch_bound']
-            _,scope_shapes,_=prepare_graph(temporary)
-        else:scope_shapes=report['shapes']
+            resolved,scope_shapes,_=prepare_graph(temporary)
+            specs=resolved.get('_tensor_specs',{})
+        else:
+            scope_shapes=report['shapes'];specs=report.get('tensor_specs',{})
         for call in calls:
             for port, source in list(call["inputs"].items()):
                 source_kind,source_owner,_=parse_source(source)
@@ -505,7 +528,8 @@ class Document(ComponentInsertion, EditableCommands):
                     boundary[source] = identifier
                     original = input_sources.get(source, {})
                     inputs.append({"id": identifier, "name": original.get("name", source),
-                                   "shape": list(scope_shapes[source]), "dtype": original.get("dtype", "float32")})
+                                   "shape": list(scope_shapes[source]), "dtype": original.get("dtype", "float32"),
+                                   **deepcopy(specs.get(source, {}))})
                 call["inputs"][port] = "input:" + boundary[source]
         _require(bool(inputs), "A chip must expose at least one boundary input")
         for source in outputs.values():_require(source in scope_shapes,'Unknown or ambiguous exposed output source')
@@ -532,6 +556,9 @@ class Document(ComponentInsertion, EditableCommands):
                                 "calls": [{"id": "project", "instance_id": "dense", "inputs": {"x": "input:x"}, "position": {"x": 220, "y": 140}},
                                           {"id": "activate", "instance_id": "activation", "inputs": {"x": "call:project"}, "position": {"x": 500, "y": 140}}],
                                 "outputs": [{"id": "out", "source": "call:activate"}]}}
+        if self.graph['schema_version'] == 2:
+            from .chip_library import normalize_legacy_scope
+            normalize_legacy_scope(definition['graph'])
         self.graph.setdefault("definitions", []).append(definition)
         ref = self._append("chip", id)
         self._changed()

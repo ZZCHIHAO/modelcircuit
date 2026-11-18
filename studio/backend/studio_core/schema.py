@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from .operators import operator_kinds, operator_spec
 from .operator_rules import normalize_operator, infer_operator, _parameter_count, _buffer_shapes
 from .ports import parse_source, output_port_ids, output_mode
+from .tensor_ops import TENSOR_KINDS, infer_tensor_operator, normalize_tensor_operator, tensor_input_ports, tensor_parameter_count
 from .tensor_specs import SPEC_FIELDS, TensorSpecError, normalize_tensor_spec
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -187,10 +188,11 @@ def _shape(value, node_id, limits=None):
     return list(value)
 
 
-def _primitive(instance):
+def _primitive(instance, *, tensor_contracts=False):
     kind, params, identifier = instance["kind"], instance.get("params", {}), instance["id"]
     try:
-        normalized = normalize_operator(kind, params)
+        normalize = normalize_tensor_operator if tensor_contracts else normalize_operator
+        normalized = normalize(kind, params)
     except ValueError as error:
         raise GraphError(str(error), identifier, getattr(error, "field", None) or "params") from None
     # Old non-CNN graphs preserve omitted params and defaults in resolved JSON.
@@ -211,11 +213,11 @@ def _port_spec(port, budget):
 
 def _resolve_scope(graph, definitions, stack=(), budget=None):
     _require(isinstance(graph, dict), "graph must be an object")
-    inputs = _items(graph, "inputs")
+    budget = budget if budget is not None else _Budget()
+    _items(graph, "inputs", allow_empty=budget.tensor_contracts)
     instances = _items(graph, "instances", allow_empty=True)
     _items(graph, "calls", allow_empty=True)
     _items(graph, "outputs")
-    budget = budget if budget is not None else _Budget()
     budget.resolve(graph)
     graph = copy.deepcopy(graph)
     inputs, instances = graph["inputs"], graph["instances"]
@@ -244,13 +246,14 @@ def _resolve_scope(graph, definitions, stack=(), budget=None):
         __dict__ __weakref__ __annotations__ __module__ __doc__ __call__ __contains__
         __getitem__ __setitem__ __delitem__ __iter__ __len__ __getattr__ __dir__
     """.split())
+    allowed_kinds = PRIMITIVES | {'chip'} | (TENSOR_KINDS.keys() if budget.tensor_contracts else set())
     for instance in instances:
         identifier, kind = instance["id"], instance.get("kind")
         _require(identifier not in reserved, "Instance identifier conflicts with a PyTorch module attribute", identifier, "id")
-        _require(isinstance(kind, str) and kind in PRIMITIVES | {"chip"}, "Unsupported instance kind: " + str(kind), identifier, "kind")
+        _require(isinstance(kind, str) and kind in allowed_kinds, "Unsupported instance kind: " + str(kind), identifier, "kind")
         _require(type(instance.get("frozen", False)) is bool, "frozen must be a boolean", identifier, "frozen")
         if kind != "chip":
-            _primitive(instance)
+            _primitive(instance, tensor_contracts=budget.tensor_contracts)
             continue
         definition_id = instance.get("definition_id")
         _require(isinstance(definition_id, str) and definition_id in definitions, "Unknown chip definition: " + str(definition_id), identifier, "definition_id")
@@ -286,7 +289,7 @@ def _resolve_scope(graph, definitions, stack=(), budget=None):
                 # Unknown names are validated after overrides, never ignored.
                 target.setdefault("params", {})[parameter_id] = copy.deepcopy(defaults[parameter])
         if "in_features" in defaults:
-            ports = _items(chip_graph, "inputs")
+            ports = _items(chip_graph, "inputs", allow_empty=budget.tensor_contracts)
             if len(ports) == 1:
                 _shape(ports[0].get("shape"), ports[0]["id"], budget.limits)
                 ports[0]["shape"][-1] = defaults["in_features"]
@@ -319,6 +322,30 @@ def _check_source_reference(source, inputs, calls, instances, node_id):
         _require(port in ports, "Unknown output port in tensor source: " + source, node_id, "inputs")
 
 
+def _check_mask_routes(graph, calls, instances):
+    """The internal -inf score type cannot leave this scope or feed other ops."""
+    masked = {identifier for identifier, call in calls.items()
+              if instances[call['instance_id']]['kind'] == 'MaskApply'}
+    if not masked:
+        return
+    consumed = set()
+    for call in calls.values():
+        for port, reference in call['inputs'].items():
+            source, identifier, _ = parse_source(reference)
+            if source == 'call' and identifier in masked:
+                instance = instances[call['instance_id']]
+                _require(port == 'x' and instance['kind'] == 'Softmax' and instance['params']['dim'] == -1,
+                         'A masked score must go directly into Softmax(dim=-1)', call['id'], 'inputs')
+                consumed.add(identifier)
+    for output in graph['outputs']:
+        source, identifier, _ = parse_source(output['source'])
+        _require(source != 'call' or identifier not in masked,
+                 'A masked score cannot be a graph or chip output', output['id'], 'source')
+    for identifier in calls:
+        if identifier in masked and identifier not in consumed:
+            raise GraphError('MaskApply must feed a Softmax(dim=-1) call', identifier, 'inputs')
+
+
 def _infer(graph, budget=None):
     budget = budget if budget is not None else _Budget()
     budget.infer(graph)
@@ -343,7 +370,7 @@ def _infer(graph, budget=None):
             _, subtotal = _infer(instance["_graph"], budget)
             count += subtotal
         else:
-            count += _parameter_count(kind, params)
+            count += (tensor_parameter_count if budget.tensor_contracts else _parameter_count)(kind, params)
         if budget.limits.max_parameters is not None:
             _require(count <= budget.limits.max_parameters, "Model parameter budget exceeded (maximum " + str(budget.limits.max_parameters) + ")", instance["id"], "resource_limits")
     for call in pending:
@@ -352,7 +379,11 @@ def _infer(graph, budget=None):
         args = call.get("inputs")
         _require(isinstance(args, dict), "Call inputs must be an object", identifier, "inputs")
         instance = instances[call["instance_id"]]
-        names = {p["id"] for p in instance["_graph"]["inputs"]} if instance["kind"] == "chip" else set(operator_spec(instance["kind"]).input_ports)
+        kind = instance['kind']
+        if kind == 'chip':
+            names = {port['id'] for port in instance['_graph']['inputs']}
+        else:
+            names = set(tensor_input_ports(kind) if budget.tensor_contracts else operator_spec(kind).input_ports)
         _require(args.keys() == names, "Call arguments must be exactly: " + ", ".join(sorted(names)), identifier, "inputs")
         position = call.get("position")
         if position is not None:
@@ -362,6 +393,8 @@ def _infer(graph, budget=None):
             _check_source_reference(source, shapes, calls, instances, call["id"])
     for item in graph["outputs"]:
         _check_source_reference(item.get("source"), shapes, calls, instances, item["id"])
+    if budget.tensor_contracts:
+        _check_mask_routes(graph, calls, instances)
     while pending:
         ready = [c for c in pending if all(s in shapes for s in c["inputs"].values())]
         _require(bool(ready), "Graph contains a call dependency cycle", pending[0]["id"], "inputs")
@@ -390,33 +423,15 @@ def _infer(graph, budget=None):
                 if specs is not None:
                     output_specs = {port['id']: actual_graph['_tensor_specs'][port['source']] for port in chip_graph['outputs']}
             else:
-                if spec_args is not None:
-                    template = next(iter(spec_args.values()))
-                    for operand in spec_args.values():
-                        _require(operand['dtype'] == 'float32', f'{kind} requires float32 input', identifier, 'inputs')
-                        _require(operand['axes'] == template['axes'] and operand['batch_axis'] == template['batch_axis'],
-                                 f'{kind} inputs must have matching axes and batch placement', identifier, 'inputs')
-                    rank = len(template['shape'])
-                    if kind in ('Conv2d', 'BatchNorm2d', 'MaxPool2d', 'AdaptiveAvgPool2d'):
-                        _require(template['batch_axis'] == 0 and rank == 4,
-                                 f'{kind} requires an explicit batch axis in a rank-four tensor', identifier, 'inputs')
-                    if kind == 'Linear' and template['batch_axis'] == 0:
-                        _require(rank > 1, 'Linear cannot consume the batch axis as features', identifier, 'inputs')
-                    if kind == 'LayerNorm' and template['batch_axis'] == 0:
-                        dimensions = params['normalized_shape']
-                        normalized_rank = len(dimensions) if isinstance(dimensions, list) else 1
-                        _require(normalized_rank < rank, 'LayerNorm cannot normalize across the batch axis', identifier, 'params')
-                    if kind == 'Concat' and template['batch_axis'] == 0:
-                        dim = params.get('dim', -1)
-                        _require(dim not in (0, -rank), 'Concat cannot change the batch axis in tensor-v1', identifier, 'params')
                 try:
-                    output, _ = infer_operator(kind, params, args)
+                    if spec_args is None:
+                        output, _ = infer_operator(kind, params, args)
+                    else:
+                        output_spec = infer_tensor_operator(kind, params, spec_args)
+                        output_specs = {'out': output_spec}
+                        output = output_spec['shape']
                 except ValueError as error:
                     raise GraphError(str(error), identifier, getattr(error, "field", None) or "inputs") from None
-                if specs is not None:
-                    _require(len(output) == len(template['axes']),
-                             f'{kind} changes rank without an explicit output axis contract', identifier, 'params')
-                    output_specs = {'out': {**template, 'shape': list(output)}}
             if kind != "chip":
                 outputs = {"out": list(output)}
             unique_shapes = set()

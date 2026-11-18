@@ -51,17 +51,19 @@ POLICY_HELPER = '''def _check_execution_policy(*inputs):
 
 def parse_policy(node):
     """Require a literal with unique, exact keys; ast.literal_eval loses duplicates."""
-    if not isinstance(node, ast.Dict) or len(node.keys) not in (1, 2):
+    if not isinstance(node, ast.Dict) or len(node.keys) not in (1, 2, 3):
         raise ValueError('MLFORGE_EXECUTION_POLICY must be an exact literal policy dictionary')
     try:
         keys = [ast.literal_eval(key) for key in node.keys]
-        if any(type(key) is not str for key in keys) or len(set(keys)) != len(keys) or set(keys) not in ({'resource_profile'}, {'resource_profile', 'resource_batch_bound'}):
+        if any(type(key) is not str for key in keys) or len(set(keys)) != len(keys) or set(keys) not in ({'resource_profile'}, {'resource_profile', 'resource_batch_bound'}, {'resource_profile', 'resource_batch_bound', 'capability_profile'}):
             raise ValueError('Invalid policy keys')
         value = ast.literal_eval(node)
     except (ValueError, TypeError, SyntaxError, RecursionError):
         raise ValueError('MLFORGE_EXECUTION_POLICY requires literal resource_profile/resource_batch_bound') from None
     if value['resource_profile'] not in (None, 'classification-v2', 'vision-v4', 'hardware-v5'):
         raise ValueError('Unsupported MLFORGE_EXECUTION_POLICY resource_profile')
+    if 'capability_profile' in value and (value['capability_profile'] != 'tensor-v1' or value['resource_profile'] != 'hardware-v5'):
+        raise ValueError('Unsupported tensor execution policy')
     from .schema import graph_resource_limits
     graph_resource_limits(value)
     return value

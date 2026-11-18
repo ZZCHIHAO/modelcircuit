@@ -36,34 +36,24 @@ class TensorSpecsTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 normalize_tensor_spec({**valid, **invalid})
 
-    def test_static_boolean_forward_is_valid_but_legacy_consumers_refuse(self):
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
-
-        from server import RunManager
-        from studio_core.python_io import export_python
+    def test_boolean_contract_is_valid_and_runs_without_a_batch(self):
+        import torch
         from studio_core.runtime import build_model
 
-        mask = spec([1, 1, 4, 4], ['mask_batch', 'head', 'query', 'key'], 'bool', None)
+        mask = spec([4, 1, 4, 4], ['mask_group', 'head', 'query', 'key'], 'bool', None)
         graph = tensor_graph(mask)
         original = deepcopy(graph)
         report = validate_graph(graph)
         self.assertTrue(report['valid'], report)
         self.assertEqual(report['tensor_specs']['input:x'], mask)
-        self.assertEqual(report['shapes']['input:x'], [1, 1, 4, 4])
+        self.assertEqual(report['shapes']['input:x'], [4, 1, 4, 4])
         self.assertEqual(graph, original)
-        with self.assertRaisesRegex(ValueError, 'tensor-v1'):
-            export_python(graph)
-        with self.assertRaisesRegex(ValueError, 'tensor-v1'):
-            build_model(graph)
-        with TemporaryDirectory() as temporary:
-            manager = RunManager(Path(temporary) / 'runs')
-            try:
-                with self.assertRaisesRegex(ValueError, 'static validation only'):
-                    manager.submit(graph, {})
-                self.assertEqual(manager.runs, {})
-            finally:
-                manager.close()
+        model = build_model(graph)
+        value = torch.zeros(mask['shape'], dtype=torch.bool)
+        self.assertIs(model(x=value)['out'], value)
+        self.assertEqual(model.last_values, {})
+        with self.assertRaisesRegex(ValueError, 'bool'):
+            model(x=value.float())
 
     def test_nested_contract_propagates_boolean_type_and_checks_axes(self):
         mask = spec([1, 1, 4, 4], ['mask_batch', 'head', 'query', 'key'], 'bool', None)
@@ -128,3 +118,13 @@ class TensorSpecsTests(unittest.TestCase):
         self.assertTrue(report['valid'], report)
         self.assertNotIn('tensor_specs', report)
         self.assertEqual(report['shapes']['input:x'], [None, 4])
+
+    def test_public_legacy_fields_do_not_opt_in_to_typed_execution(self):
+        import torch
+        from studio_core.runtime import build_model
+
+        graph = dict(id='old', revision=1, schema_version=1, _tensor_specs={},
+                     **forwarding(dict(shape=[None, 4], dtype='float32')))
+        model = build_model(graph)
+        model(x=torch.ones(1, 4))
+        self.assertIn('input:x', model.last_values)

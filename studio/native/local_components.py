@@ -115,10 +115,10 @@ class LocalComponentIndex:
             raise ValueError('Local component configuration must be an object')
         _json_values(config)
         payload = self._entries[identifier]['payload']
-        policy = ({key: value for key, value in payload['requirements'].items() if key != 'operator_set'}
-                  if payload['chip_format_version'] == 2 else {'resource_profile': 'classification-v2'})
+        requirements = payload.get('requirements', {'operator_set': 'vision-ops-v4',
+                                                     'resource_profile': 'classification-v2'})
         definitions = deepcopy(payload['definitions'])
         definition = next(item for item in definitions if item['id'] == payload['definition_id'])
         entry = {'kind': 'chip', 'definition_id': payload['definition_id'], 'params': deepcopy(config)}
-        _check_entry(definition, entry, definitions, policy)
-        return ComponentBundle(entry, definitions, {'operator_set': 'vision-ops-v4', **policy})
+        _check_entry(definition, entry, definitions, requirements)
+        return ComponentBundle(entry, definitions, deepcopy(requirements))
