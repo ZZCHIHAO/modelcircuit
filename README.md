@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**版本：`v0.4.0-alpha.1`，S4 Windows 本地便携预览。** 版本标识见 [VERSION](VERSION)，逐版变化见 [更新记录](CHANGELOG.md)。完整产品验收后才使用 `v1.0.0`。当前主入口是 Windows / Dear PyGui 桌面应用，已完成的真实数据任务仍以分类为主。
+**版本：`v0.5.0-alpha.1` 源码预览；已验收便携包为 `v0.4.0-alpha.1`。** 本次增加后端张量静态校验。版本标识见 [VERSION](VERSION)，逐版变化见 [更新记录](CHANGELOG.md)。完整产品验收后才使用 `v1.0.0`。当前主入口是 Windows / Dear PyGui 桌面应用，已完成的真实数据任务仍以分类为主。
 
 本仓库目前为个人私有仓库，仅所有者访问，未添加协作者。新产品名为 ModelCircuit Studio；源码中的 `MLForgeStudio`、`studio/`、启动脚本及历史验收名称暂时保留，以便核对已有工程和测试。根目录的上游包版本 `1.0.4` **不代表本产品的发行版本**。
 

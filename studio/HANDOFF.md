@@ -1,5 +1,9 @@
 # 新对话交接：模路 S4 桌面交付与 S5 起点
 
+## 2026-11-18：S5 张量静态契约首个源码预览
+
+`v0.5.0-alpha.1` 已完成计划 T0 的后端静态范围。schema v2 / `tensor-v1` 接受 float32 和 bool 的显式张量契约，旧 schema v1 保持独立路径。未接入 v2 执行、导出和桌面编辑；下一步 T1 新增有限张量算子与参数源。CPU 环境 backend 327 通过 + 1 权限跳过，native 265 通过。便携版继续使用 S4 的 `v0.4.0-alpha.1`；S4 交付已提交私库 PR #1。本节覆盖下方历史状态。
+
 ## 2026-11-18：S4 本地便携交付
 
 先读 [S4 桌面交付说明](native/S4_DESKTOP_RELEASE.md)。CPU/CUDA 新包使用 `studio/dist/s4-cpu/` 和 `studio/dist/s4-cuda/`，保留旧 S3 产物。开发分支为 `codex/s4-desktop-release`，基线 `a4a3315`。本轮本地构建和验收，未推送新分支或创建 GitHub Release。此前基线已在个人私库 `ZZCHIHAO/modelcircuit`；下方关于此前无 Git 提交、旧包仍为唯一可用便携版的文字是历史记录。

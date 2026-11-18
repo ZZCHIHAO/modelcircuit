@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python、DearPyGui、现有 PyTorch CPU/CUDA 环境、unittest；官方语义参考固定 PyTorch 2.6 / torchvision 0.21。
 
-**Spec:** `docs/superpowers/specs/2026-11-18-s5-transformer-task-design.md`（执行前完整阅读）。承接 S4 发布计划 Task D；当前状态为待执行，所有复选框保持未完成。
+**Spec:** `docs/superpowers/specs/2026-11-18-s5-transformer-task-design.md`。承接 S4 发布计划 Task D；`v0.5.0-alpha.1` 已交付 T0 的后端静态范围，后续从 T1 开始。
 
 ## Global Constraints
 
@@ -87,12 +87,14 @@ def capture_tensor(value: Tensor, spec: TensorSpec, request: ProbeRequest,
 
 ### T0：锁定兼容基线并引入 v2 TensorSpec（G0）
 
+执行记录：复用 S4 已冻结的兼容夹具；新测试使用本文件夹内 `test_tensor_specs.py` 的小图构造器，避免提前增加未使用的算子夹具。完整 CPU backend 跑 328 项（327 通过、1 权限跳过），native 265 项通过。`tensor-v1` 此时只承诺静态检查；执行、Python 转换与桌面编辑等待后续对应关口。
+
 **Files:** Create `tensor_specs.py`、`tests/tensor_fixture.py`、`tests/test_tensor_specs.py`；Modify `schema.py`、`experiment_spec.py`。基线证据位置 `schema.py:178/:211/:434`、`python_io.py:129`。
 
 **Interfaces:** 输入为现有 v1 graph 或显式 v2 graph；产生 `normalize_tensor_spec`、`tensor_nbytes` 与 validate_graph 报告的 `tensor_specs`，原 `shapes` 保留。`tensor_fixture.operator_graph(kind, params, inputs)` 返回 schema2/tensor-v1/hardware-v5/batch_bound2、一个 op 实例/一个 apply call/一个 out 输出，inputs 为 `{id:TensorSpec}`；`legacy_case()` 返回既有合法 float32 图。
 
-- [ ] 冻结现有 profile Python、model_digest、classification checkpoint/signature 和 workspace 夹具，运行旧核心/命名端口/硬件策略测试并保存退出码；只增加测试数据，不改既有黄金结果以迎合新实现。
-- [ ] 在 `test_tensor_specs.py` 添加下列正负例，先运行确认缺失 API 或 v2 被拒绝为预期红灯。
+- [x] 保留 S4 的 profile Python、model_digest、classification checkpoint/signature 和 workspace 夹具，完整回归旧核心、命名端口和硬件策略；原黄金结果未改动。
+- [x] 在 `test_tensor_specs.py` 添加入参和图契约正负例，先运行确认缺失 API 的预期红灯。
 
 ```python
 def test_spec_and_boolean_bytes(self):
@@ -109,9 +111,9 @@ def test_dynamic_token_is_rejected(self):
             'axes':['batch','token','feature'], 'batch_axis':0})
 ```
 
-- [ ] 实现纯校验：dtype 白名单、axes 唯一/rank、batch 0/null 与 None 位置、固定 B 标记、rank 1..8；bool Arithmetic 不兼容、无 batch 源不得接受动态维。保留 schema preflight 的文件/深度/节点工作量限制。
-- [ ] 用显式版本分发保留 v1 prepare/摘要路径；v2 只接受 tensor-v1/hardware-v5，未知 profile 报字段错误。旧 graph 不自动迁移，新增 `tensor_specs` 为派生报告而非存盘缓存。
-- [ ] 运行并保存 `python -m unittest discover -s studio/backend/tests -p test_tensor_specs.py -v`，以及 `test_core.py`、`test_named_ports.py`、`test_hardware_policy.py`、`test_experiment_spec.py`；新测试绿且旧黄金不变才结束 T0。
+- [x] 实现纯校验：dtype 白名单、axes 唯一/rank、batch 0/null 与 None 位置、固定 B 标记、rank 1..8；布尔输入不进入浮点算子，无 batch 源不得接受动态维。保留原图校验工作量限制。
+- [x] 保留 v1 prepare/摘要路径；v2 只接受 tensor-v1/hardware-v5。旧 graph 不自动迁移，新增 `tensor_specs` 为派生报告；未支持的执行与导出入口明确拒绝 v2。
+- [x] 定向测试 9 项通过；完整 CPU 后端回归覆盖旧黄金，完整桌面测试通过。
 
 ### T1：有限张量算子与参数源（G1）
 
