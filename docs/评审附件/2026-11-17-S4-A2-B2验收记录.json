@@ -841,7 +841,7 @@
           "val": 6,
           "test": 6
         },
-        "manifest_path": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
+        "manifest_path": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
         "input_shapes": {
           "image": [
             null,
@@ -856,15 +856,15 @@
         }
       },
       "artifacts": {
-        "last_checkpoint": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\last.pt",
-        "best_checkpoint": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\best.pt",
-        "predictions": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\predictions.csv",
-        "manifest": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
-        "run_spec": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\run_spec.json",
-        "metrics": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\metrics.json",
-        "parameter_measurements": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\parameters.json"
+        "last_checkpoint": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\last.pt",
+        "best_checkpoint": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\best.pt",
+        "predictions": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\predictions.csv",
+        "manifest": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
+        "run_spec": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\run_spec.json",
+        "metrics": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\metrics.json",
+        "parameter_measurements": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\parameters.json"
       },
-      "chip_path": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\data\\chips\\paired_fusion__1.0.0.mlfchip.json",
+      "chip_path": "%USERPROFILE%\\AppData\\Local\\Temp\\tmpef41qan7\\data\\chips\\paired_fusion__1.0.0.mlfchip.json",
       "chip_library_roundtrip": true,
       "workspace_roundtrip": true,
       "python_roundtrip": true,
@@ -1467,7 +1467,7 @@
       "bytes": 2474635489
     },
     "source_archive": {
-      "path": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
+      "path": ".\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
       "sha256": "d835252a45ef11458abf21754dc7e1f2d67eb7c17157c2ac3074484d6c0156e4",
       "matches_s3": true,
       "bytes": 7009316
