@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前版本 `v0.6.0-alpha.1` · S6 回归与组件库。** 支持从 CSV 检查、可视化建模、CPU 或单张 CUDA GPU 训练，到测试评估和续训。传统机器学习模型库内置 CPU 版支持向量分类和回归。S5 的 Attention、Transformer Encoder、小型 ViT 和注意力热图已纳入该桌面版本。完整产品验收后使用 `v1.0.0`。参见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)、[S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[更新记录](CHANGELOG.md)。
+**当前版本 `v0.6.0-alpha.2` · S6 统一桌面版。** 支持从 CSV 检查、可视化建模、CPU 或单张 CUDA GPU 训练，到测试评估和续训。传统机器学习模型库内置 CPU 版支持向量分类和回归。S5 的 Attention、Transformer Encoder、小型 ViT 和注意力热图已纳入该桌面版本。完整产品验收后使用 `v1.0.0`。参见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)、[S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[更新记录](CHANGELOG.md)。
 
 本仓库目前为个人私有仓库，仅所有者访问，未添加协作者。新产品名为 ModelCircuit Studio；源码中的 `MLForgeStudio`、`studio/`、启动脚本及历史验收名称暂时保留，以便核对已有工程和测试。根目录的上游包版本 `1.0.4` **不代表本产品的发行版本**。
 
@@ -55,7 +55,7 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 
 ### 源码与 EXE 的区别
 
-本地 S6 Windows 版可通过 `studio/启动模路S6-CPU.cmd` 或 `studio/启动模路S6-CUDA.cmd` 启动。也可以双击对应 `studio/dist/s6-cpu/` 或 `studio/dist/s6-cuda/` 下的 EXE，移动时保留完整目录。CPU/CUDA 版使用各自的工作区目录。EXE、虚拟环境和运行数据保存在本地，源码可通过脚本重新构建。见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)。
+S6 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s6/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或当前可用的一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S6`。移动时请保留完整应用目录。详见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)。
 
 ## 组件与模型库
 

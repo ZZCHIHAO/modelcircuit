@@ -1,15 +1,14 @@
 # S6 使用指南 · CSV 回归与组件库
 
-在 ModelCircuit Studio `v0.6.0-alpha.1` 中，可以从一份 CSV 建立单目标回归实验。画布可编辑模型，实验面板负责选择数据、训练设备和检查点。
+在 ModelCircuit Studio `v0.6.0-alpha.2` 中，可以从一份 CSV 建立单目标回归实验。画布可编辑模型，实验面板负责选择数据、训练设备和检查点。
 
 ## 启动 Windows 桌面版
 
-| 运行方式 | 本地入口 |
-| --- | --- |
-| CPU | `studio/启动模路S6-CPU.cmd` |
-| CUDA | `studio/启动模路S6-CUDA.cmd` |
+双击 `studio/启动模路.cmd`，或直接打开 `studio/dist/s6/ModelCircuitStudio/ModelCircuitStudio.exe`。两个设备选项使用同一个应用和工作区。复制到其他目录时，请保留完整的 `ModelCircuitStudio` 文件夹和 `_internal`。
 
-也可直接打开 `studio/dist/s6-cpu/ModelCircuitStudio/ModelCircuitStudio.exe` 或 `studio/dist/s6-cuda/ModelCircuitStudio/ModelCircuitStudio.exe`。复制到其他目录时，请保留完整的 `ModelCircuitStudio` 文件夹和 `_internal`。CUDA 版的设备列表也可选 `cpu`。两个 S6 包分别使用 `%LOCALAPPDATA%\ModelCircuitStudio-S6-CPU` 和 `%LOCALAPPDATA%\ModelCircuitStudio-S6-CUDA` 保存工作区。已有工作区通过「打开 JSON」迁移。
+在「实验 → 设备」选 `cpu` 或可用的一张 `cuda:N`。即使检测到多张卡，每次 PyTorch 训练也只用所选设备。没有可用 CUDA 设备时，可直接使用 CPU。SVC 和 SVR 使用 CPU 拟合。
+
+默认工作区目录为 `%LOCALAPPDATA%\ModelCircuitStudio-S6`。如果以前使用了分包，可以用「打开 JSON」打开 `%LOCALAPPDATA%\ModelCircuitStudio-S6-CPU` 或 `%LOCALAPPDATA%\ModelCircuitStudio-S6-CUDA` 中的旧工作区，再保存到新版目录。外部数据和检查点仍可从原路径选择。
 
 ## 完成一次实验
 
@@ -40,9 +39,8 @@ SVC 和 SVR 使用单个 CPU 估计器。运行后可在「最终评估与文件
 & .\studio\.venv\Scripts\python.exe .\studio\desktop_entry.py --data-dir "$env:LOCALAPPDATA\ModelCircuitStudio-S6-Source"
 ```
 
-已有对应训练环境和打包依赖时，可构建 CPU 或 CUDA 便携包。打包脚本使用对应的虚拟环境。
+构建统一包时，使用已配置的 `studio/.venv-cuda` 与桌面依赖。
 
 ```powershell
-& .\studio\build-s4-desktop.ps1 -Stage S6 -Runtime CPU
-& .\studio\build-s4-desktop.ps1 -Stage S6 -Runtime CUDA
+& .\studio\build-s4-desktop.ps1 -Stage S6
 ```

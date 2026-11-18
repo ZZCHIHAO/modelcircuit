@@ -1,11 +1,17 @@
-param([ValidateSet('CPU','CUDA')][string]$Runtime='CPU', [ValidateSet('S4','S6')][string]$Stage='S4')
+param([ValidateSet('CPU','CUDA','Unified')][string]$Runtime='CPU', [ValidateSet('S4','S6')][string]$Stage='S4')
 $ErrorActionPreference = 'Stop'
+if ($Stage -eq 'S6' -and -not $PSBoundParameters.ContainsKey('Runtime')) {
+    $Runtime = 'Unified'
+}
+if (($Stage -eq 'S6') -ne ($Runtime -eq 'Unified')) {
+    throw 'Use -Stage S6 for the unified desktop package. CPU and CUDA build variants are only available for the historical S4 stage.'
+}
 $studioPath = $PSScriptRoot
 $repositoryPath = Split-Path -Parent $studioPath
-$environmentName = if ($Runtime -eq 'CUDA') { '.venv-cuda' } else { '.venv' }
+$environmentName = if ($Runtime -in ('CUDA','Unified')) { '.venv-cuda' } else { '.venv' }
 $desktopPython = Join-Path $studioPath ($environmentName + '\Scripts\python.exe')
 if (-not (Test-Path -LiteralPath $desktopPython)) { throw 'Prepare the selected environment before building. This script does not install dependencies.' }
-$targetName = $Stage.ToLowerInvariant() + '-' + $Runtime.ToLowerInvariant()
+$targetName = if ($Runtime -eq 'Unified') { 's6' } else { 's4-' + $Runtime.ToLowerInvariant() }
 $distributionPath = Join-Path $studioPath ('dist\' + $targetName)
 $buildPath = Join-Path $studioPath ('build\' + $targetName)
 $buildManifestPath = Join-Path $buildPath 'release-build.json'
@@ -25,7 +31,7 @@ try {
     & $desktopPython -m PyInstaller --noconfirm --distpath $distributionPath --workpath $buildPath (Join-Path $studioPath 'native\ModelCircuitStudio.spec')
     if ($LASTEXITCODE -ne 0) { throw "$Stage desktop build failed." }
     $desktopExe = Join-Path $distributionPath 'ModelCircuitStudio\ModelCircuitStudio.exe'
-    if (-not (Test-Path -LiteralPath $desktopExe)) { throw 'Expected S4 executable is missing.' }
+    if (-not (Test-Path -LiteralPath $desktopExe)) { throw 'Expected desktop executable is missing.' }
     Copy-Item -LiteralPath $buildManifestPath -Destination (Join-Path (Split-Path -Parent $desktopExe) 'release-build.json')
     Write-Output ($Stage + ' ' + $Runtime + ' application: ' + $desktopExe)
     Write-Output 'Keep the complete ModelCircuitStudio directory, including _internal and release-build.json.'

@@ -1,4 +1,12 @@
-# S6 验收记录 · v0.6.0-alpha.1
+# S6 验收记录
+
+## v0.6.0-alpha.2 统一桌面版
+
+2026 年 11 月 18 日，使用同一个 `studio/dist/s6/ModelCircuitStudio/ModelCircuitStudio.exe` 完成三次桌面回调验收。分别在「实验 → 设备」选择 `cpu`、`cuda:0`，以及在 `CUDA_VISIBLE_DEVICES=-1` 时选择 `cpu`。三次均通过 CSV 回归训练、最佳权重独立评估、续训到第 5 个 epoch、取消和 SVR CPU 拟合。`cuda:0` 为本机 RTX 4060 Laptop。屏蔽设备验收使用当前这台机器模拟无可见 CUDA 卡。
+
+构建来源为 `dfd349c02b9746056f354b38d06e1ef3bae30553`。EXE 的 SHA-256 为 `f7e05dc44cf671cd44317d2ed2dc7b2ee5abc045246647b92a5f8fa9f15cd5a7`。新版默认工作区目录为 `%LOCALAPPDATA%\ModelCircuitStudio-S6`，发布元数据与目录解析测试共 7 项通过。
+
+## v0.6.0-alpha.1 首次 S6 验收
 
 2026 年 11 月 18 日在本机 Windows x64 验收。两个便携包都以 `fe39ddaf42ecbd648e672847af5441f1ed6ae503` 构建，代码快照 SHA-256 为 `6cf3cfd11b37de93ca71277e6077ee4680efb31aaf0304b9d8b4ffc4033537c2`。随包 `release-build.json` 记录来源、设备运行时和依赖版本。
 
