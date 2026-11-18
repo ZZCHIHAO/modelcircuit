@@ -1,0 +1,1509 @@
+{
+  "date": "2026-11-17",
+  "checked_at_utc": "2026-11-17T02:18:16.203866+00:00",
+  "stage": "S4 A2+B2 bounded source milestone",
+  "status": "passed",
+  "notice": "Local source tests and application-owned callbacks/framebuffers; generated tiny tensors/CSV/PNG only. No scientific-performance or complete S4/EXE claim.",
+  "tests": {
+    "cpu_backend": {
+      "suite": "backend",
+      "exit_code": 0,
+      "log": "output\\native-s4-a2-b2\\backend-cpu-release-source-full.log",
+      "summary": [
+        "Ran 251 tests in 29.590s",
+        "OK (skipped=1)"
+      ],
+      "run": 251,
+      "seconds": 29.59,
+      "skipped": 1,
+      "passed": 250,
+      "log_sha256": "d622b5a92e0dbc0a9b7f54d4075c45744d38080dc7aa184beb2cd82dbea0f491"
+    },
+    "cpu_native": {
+      "suite": "native",
+      "exit_code": 0,
+      "log": "output\\native-s4-a2-b2\\native-cpu-release-source-full.log",
+      "summary": [
+        "Ran 141 tests in 61.875s",
+        "OK"
+      ],
+      "run": 141,
+      "seconds": 61.875,
+      "skipped": 0,
+      "passed": 141,
+      "log_sha256": "68d29e12b0b5ef680a2a49d22629605969ca222905b2b4ac96ebd222aeb75a2a"
+    }
+  },
+  "existing_skip": "Paired-data symlink escape test: Windows WinError 1314 prevents creating the fixture symlink. Other path and data checks ran.",
+  "devices": {
+    "cpu": {
+      "path": "output/native-s4-a2-b2/device-cpu-final.json",
+      "sha256": "c7c0f658ce2ad0e32e82c9bc963f1acaa9b4545f87b6808dac40ad49ee44bc86",
+      "report": {
+        "status": "passed",
+        "device": "cpu",
+        "torch": "2.6.0+cpu",
+        "notice": "generated 2x3x4x4 tensors; one update; no research-performance claim",
+        "metadata_free_policy": true,
+        "standalone_forward_gradients_update_buffers": true,
+        "strict_state_replay": true,
+        "actual_root_batch_guard": true,
+        "resource_ledger": {
+          "resolved_nodes": 8,
+          "inference_nodes": 8,
+          "compile_tensor_elements": 384,
+          "execution_elements": 384,
+          "definition_execution_elements": {}
+        },
+        "standalone_full_budget_parity_claimed": false,
+        "cuda_classification_checkpoint_claimed": false
+      }
+    },
+    "cuda": {
+      "path": "output/native-s4-a2-b2/device-cuda-final.json",
+      "sha256": "71e5ba94871d4cbc59c3cd4b0075e32795cb98531c709bfe5169d6546c07bbc9",
+      "report": {
+        "status": "passed",
+        "device": "cuda:0",
+        "torch": "2.6.0+cu124",
+        "notice": "generated 2x3x4x4 tensors; one update; no research-performance claim",
+        "metadata_free_policy": true,
+        "standalone_forward_gradients_update_buffers": true,
+        "strict_state_replay": true,
+        "actual_root_batch_guard": true,
+        "resource_ledger": {
+          "resolved_nodes": 8,
+          "inference_nodes": 8,
+          "compile_tensor_elements": 384,
+          "execution_elements": 384,
+          "definition_execution_elements": {}
+        },
+        "standalone_full_budget_parity_claimed": false,
+        "cuda_classification_checkpoint_claimed": false
+      }
+    }
+  },
+  "resource_ledger": {
+    "path": "output/native-s4-a2-b2/a2/resource-ledger.json",
+    "sha256": "5e682627ecb1736a71669ccda14979174bacac2b3ff019a2799e50c921a1eb69",
+    "report": {
+      "large_finite_nested": {
+        "resolved_nodes": 72,
+        "inference_nodes": 228,
+        "compile_tensor_elements": 228000000,
+        "execution_elements": 20000000,
+        "definition_execution_elements": {
+          "level0": 4000000,
+          "level1": 8000000,
+          "level2": 12000000,
+          "level3": 16000000
+        }
+      },
+      "same_fixed_batch_legacy_failure": [
+        {
+          "message": "Cumulative inferred tensor budget exceeded",
+          "node_id": "c0",
+          "field": "resource_limits"
+        }
+      ],
+      "shared_call_alias": {
+        "resolved_nodes": 18,
+        "inference_nodes": 25,
+        "compile_tensor_elements": 220,
+        "execution_elements": 140,
+        "definition_execution_elements": {
+          "level0": 40
+        },
+        "actual_runtime_elements": 140
+      }
+    }
+  },
+  "native_framebuffers": {
+    "path": "output/native-s4-a2-b2/b2/canvas-framebuffers.json",
+    "sha256": "37c84c2d44adf70692807fe2c734529d7a2a020661e11f5ebdea59bdb6f336e7",
+    "report": {
+      "status": "passed",
+      "identities_before": {
+        "root": {
+          "editor": 301,
+          "nodes": {
+            "input:a": 302,
+            "input:b": 308,
+            "call:encode_a": 314,
+            "call:encode_b": 323,
+            "call:fuse": 332,
+            "call:classify": 343,
+            "output:logits": 352,
+            "output:features": 358
+          }
+        },
+        "definition_encoder_chip": {
+          "editor": 406,
+          "nodes": {
+            "input:x": 407,
+            "call:project": 413,
+            "call:activate": 422,
+            "output:out": 431
+          }
+        }
+      },
+      "identities_after": {
+        "root": {
+          "editor": 301,
+          "nodes": {
+            "input:a": 302,
+            "input:b": 308,
+            "call:encode_a": 314,
+            "call:encode_b": 323,
+            "call:fuse": 332,
+            "call:classify": 343,
+            "output:logits": 352,
+            "output:features": 358
+          }
+        },
+        "definition_encoder_chip": {
+          "editor": 406,
+          "nodes": {
+            "input:x": 407,
+            "call:project": 413,
+            "call:activate": 422,
+            "output:out": 431
+          }
+        }
+      },
+      "geometry": {
+        "single-chip": {
+          "root": {
+            "editor_rect": [
+              796,
+              409
+            ],
+            "container_shown": false,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:a": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "input:b": {
+                "position": [
+                  4,
+                  272
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:encode_a": {
+                "position": [
+                  178,
+                  83
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:encode_b": {
+                "position": [
+                  178,
+                  255
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:fuse": {
+                "position": [
+                  352,
+                  165
+                ],
+                "rect": [
+                  121,
+                  157
+                ]
+              },
+              "call:classify": {
+                "position": [
+                  508,
+                  165
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:logits": {
+                "position": [
+                  670,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "output:features": {
+                "position": [
+                  508,
+                  329
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          },
+          "definition_encoder_chip": {
+            "editor_rect": [
+              796,
+              409
+            ],
+            "container_shown": true,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:x": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:project": {
+                "position": [
+                  160,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "call:activate": {
+                "position": [
+                  340,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:out": {
+                "position": [
+                  508,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          }
+        },
+        "single-root": {
+          "root": {
+            "editor_rect": [
+              796,
+              409
+            ],
+            "container_shown": true,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:a": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "input:b": {
+                "position": [
+                  4,
+                  272
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:encode_a": {
+                "position": [
+                  178,
+                  83
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:encode_b": {
+                "position": [
+                  178,
+                  255
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:fuse": {
+                "position": [
+                  352,
+                  165
+                ],
+                "rect": [
+                  121,
+                  157
+                ]
+              },
+              "call:classify": {
+                "position": [
+                  508,
+                  165
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:logits": {
+                "position": [
+                  670,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "output:features": {
+                "position": [
+                  508,
+                  329
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          },
+          "definition_encoder_chip": {
+            "editor_rect": [
+              796,
+              409
+            ],
+            "container_shown": false,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:x": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:project": {
+                "position": [
+                  160,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "call:activate": {
+                "position": [
+                  340,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:out": {
+                "position": [
+                  508,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          }
+        },
+        "columns": {
+          "root": {
+            "editor_rect": [
+              396,
+              409
+            ],
+            "container_shown": true,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:a": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "input:b": {
+                "position": [
+                  4,
+                  272
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:encode_a": {
+                "position": [
+                  178,
+                  83
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:encode_b": {
+                "position": [
+                  178,
+                  255
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:fuse": {
+                "position": [
+                  352,
+                  165
+                ],
+                "rect": [
+                  121,
+                  157
+                ]
+              },
+              "call:classify": {
+                "position": [
+                  508,
+                  165
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:logits": {
+                "position": [
+                  670,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "output:features": {
+                "position": [
+                  508,
+                  329
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          },
+          "definition_encoder_chip": {
+            "editor_rect": [
+              396,
+              409
+            ],
+            "container_shown": true,
+            "pane": "secondary",
+            "parent": "native_canvas_secondary",
+            "nodes": {
+              "input:x": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:project": {
+                "position": [
+                  160,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "call:activate": {
+                "position": [
+                  340,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:out": {
+                "position": [
+                  508,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          }
+        },
+        "rows": {
+          "root": {
+            "editor_rect": [
+              796,
+              202
+            ],
+            "container_shown": true,
+            "pane": "primary",
+            "parent": "native_canvas_primary",
+            "nodes": {
+              "input:a": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "input:b": {
+                "position": [
+                  4,
+                  272
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:encode_a": {
+                "position": [
+                  178,
+                  83
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:encode_b": {
+                "position": [
+                  178,
+                  255
+                ],
+                "rect": [
+                  148,
+                  135
+                ]
+              },
+              "call:fuse": {
+                "position": [
+                  352,
+                  165
+                ],
+                "rect": [
+                  121,
+                  157
+                ]
+              },
+              "call:classify": {
+                "position": [
+                  508,
+                  165
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:logits": {
+                "position": [
+                  670,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "output:features": {
+                "position": [
+                  508,
+                  329
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          },
+          "definition_encoder_chip": {
+            "editor_rect": [
+              796,
+              202
+            ],
+            "container_shown": true,
+            "pane": "secondary",
+            "parent": "native_canvas_secondary",
+            "nodes": {
+              "input:x": {
+                "position": [
+                  4,
+                  96
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              },
+              "call:project": {
+                "position": [
+                  160,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "call:activate": {
+                "position": [
+                  340,
+                  157
+                ],
+                "rect": [
+                  121,
+                  135
+                ]
+              },
+              "output:out": {
+                "position": [
+                  508,
+                  124
+                ],
+                "rect": [
+                  121,
+                  91
+                ]
+              }
+            }
+          }
+        }
+      },
+      "logical_selection": [
+        "call:project"
+      ],
+      "native_selection": [],
+      "unverified": [
+        "OS mouse gestures",
+        "exact pan/zoom restore",
+        "B3 tab controls",
+        "B4 persistence"
+      ]
+    }
+  },
+  "legacy_s3_source_acceptance": {
+    "path": "output/native-s4-a2-b2/b2/legacy-s3-report.json",
+    "sha256": "adff71edef438a39544da8e5eee22eea6c781d85d0e399285f6ed6e95918a6d7",
+    "report": {
+      "status": "passed",
+      "kind": "s3-native-render-callbacks",
+      "fixture_notice": "Generated paired CSV/PNG fixture; no scientific-performance claim",
+      "requested_device": "cpu",
+      "device": "cpu",
+      "run_id": "4368328ac056466abadba74033a94c5c",
+      "metrics": {
+        "train": {
+          "loss": 0.6965385476748148,
+          "accuracy": 0.5,
+          "count": 12
+        },
+        "val": {
+          "loss": 0.6962998509407043,
+          "accuracy": 0.5,
+          "count": 6
+        },
+        "test": {
+          "loss": 0.6965760588645935,
+          "accuracy": 0.5,
+          "count": 6
+        }
+      },
+      "probe_context": {
+        "split": "val",
+        "sample_ids": [
+          "sample_012",
+          "sample_013",
+          "sample_014",
+          "sample_015",
+          "sample_016",
+          "sample_017"
+        ],
+        "epoch": 2,
+        "mode": "eval",
+        "device": "cpu",
+        "gradient_source": "last training minibatch of selected checkpoint epoch",
+        "parameter_update_source": "selected checkpoint minus initial parameters",
+        "input_shapes": {
+          "image": [
+            null,
+            3,
+            8,
+            8
+          ],
+          "tabular": [
+            null,
+            2
+          ]
+        },
+        "input_ports": {
+          "image": "image",
+          "tabular": "clinical"
+        }
+      },
+      "qualified_probe": "call:chip_paired_fusion_call:fused",
+      "shared_instances": [
+        {
+          "instance_id": "chip_paired_fusion",
+          "call_ids": [
+            "chip_paired_fusion_call",
+            "chip_paired_fusion_call_shared"
+          ]
+        }
+      ],
+      "dataset": {
+        "dataset_digest": "b9f286edb180d08092450a01fa8918bb784303def3f7c10f502edfa355346d2d",
+        "class_names": [
+          "class_0",
+          "class_1"
+        ],
+        "counts": {
+          "train": 12,
+          "val": 6,
+          "test": 6
+        },
+        "manifest_path": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
+        "input_shapes": {
+          "image": [
+            null,
+            3,
+            8,
+            8
+          ],
+          "tabular": [
+            null,
+            2
+          ]
+        }
+      },
+      "artifacts": {
+        "last_checkpoint": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\last.pt",
+        "best_checkpoint": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\best.pt",
+        "predictions": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\predictions.csv",
+        "manifest": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\manifest.json",
+        "run_spec": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\run_spec.json",
+        "metrics": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\metrics.json",
+        "parameter_measurements": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\runs\\4368328ac056466abadba74033a94c5c\\parameters.json"
+      },
+      "chip_path": "C:\\Users\\chong\\AppData\\Local\\Temp\\tmpef41qan7\\data\\chips\\paired_fusion__1.0.0.mlfchip.json",
+      "chip_library_roundtrip": true,
+      "workspace_roundtrip": true,
+      "python_roundtrip": true,
+      "python_profile": "ports-pytorch-v3",
+      "inspect_dispatch_ms": 0.0,
+      "python_roundtrip_keeps_measurements_current": true,
+      "requires_reinspection_after_reopen": true,
+      "capabilities": {
+        "queried_at": "2026-11-17T01:11:57.443182+00:00",
+        "torch_version": "2.6.0+cpu",
+        "cuda_version": null,
+        "cuda_available": false,
+        "reason": "当前 PyTorch 为 CPU 构建；检测到显卡不代表此运行时支持 CUDA。",
+        "multi_gpu_supported": false,
+        "devices": [
+          {
+            "id": "cpu",
+            "name": "CPU",
+            "available": true
+          }
+        ],
+        "hardware_gpus": [
+          {
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+            "total_memory_mb": 8188,
+            "driver_version": "560.94"
+          }
+        ]
+      },
+      "screenshots": [
+        "native-s3-paired-starter.png",
+        "native-s3-paired-data.png",
+        "native-s3-chip-probe.png",
+        "native-s3-chip-interfaces.png",
+        "native-s3-chip-public.png"
+      ],
+      "snapshot": {
+        "revision": 10,
+        "scope_id": null,
+        "selected": null,
+        "selected_nodes": [],
+        "node_count": 10,
+        "link_count": 11,
+        "node_items": {
+          "input:image": 2544,
+          "input:clinical": 2550,
+          "call:encode_image": 2556,
+          "call:encode_table": 2565,
+          "call:fuse": 2574,
+          "call:chip_paired_fusion_call": 2585,
+          "call:classify": 2598,
+          "call:chip_paired_fusion_call_shared": 2607,
+          "output:logits": 2620,
+          "output:features": 2626
+        },
+        "probe_source": null,
+        "run_status": "succeeded",
+        "run_revision": 8,
+        "has_measured_result": true,
+        "python_dirty": false,
+        "experiment_mode": "paired_csv",
+        "dataset_digest": null,
+        "inspecting": false,
+        "available_devices": [
+          "cpu"
+        ],
+        "result_stale": true
+      }
+    }
+  },
+  "source_guard_evidence": [
+    {
+      "path": "output/native-s4-a2-b2/a2/review-guard-evidence.json",
+      "sha256": "c763f4eba5d4e0c4de93327e3308bebacd3f1220b1e5c5cb4ed68dbe6186499a",
+      "report": {
+        "removed_guard_standalone_batch": 3,
+        "current_import_rejection": "vision-v4 requires the exact root batch guard and execution policy helper",
+        "edited_valid_bound_import": 3,
+        "edited_valid_bound_standalone_batch": 3
+      }
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-binding-evidence.json",
+      "sha256": "96a040dd8d9e82cbe20d771fa79daa656f2a778df4ad10ad6352f0a63cc75353",
+      "report": {
+        "_check_execution_policy": {
+          "standalone_error": "_check_execution_policy.__init__() takes 1 positional argument but 2 were given",
+          "static_rejection": "Top-level symbol binding conflicts with active helper or execution policy: _check_execution_policy (line 68)"
+        },
+        "MLFORGE_EXECUTION_POLICY": {
+          "standalone_error": "type 'MLFORGE_EXECUTION_POLICY' is not subscriptable",
+          "static_rejection": "Top-level symbol binding conflicts with active helper or execution policy: MLFORGE_EXECUTION_POLICY (line 68)"
+        }
+      }
+    }
+  ],
+  "final_review_fix_evidence": [
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/before-evidence.json",
+      "sha256": "2cc1d5251a6a7a43ea19574376b44a2d82ea82c99d1d1a0fbe674b8775227d85",
+      "report": {
+        "guard": {
+          "import_accepted": "vision-v4",
+          "standalone_error": "cannot access local variable '_check_execution_policy' where it is not associated with a value"
+        },
+        "null_policy": {
+          "original_model_digest": "e8376734e3930e2a45fa1071c63c90b8097e16e06b4662b68561421d5cd723bb",
+          "restored_model_digest": "cd55c0af5e1651c00ef3223a660e708754eadade584c0d30915d764e175a66c5",
+          "original_checkpoint_signature": "bbbc5e41f41e8a77f4879f8c679e13132bf961b48b9fcca7fe6854ee6ffbab39",
+          "restored_checkpoint_signature": "72b9e8baa0c969506a3d6e6cf4aac99ff81ec0132edf76a0e22cf1c30203e530",
+          "document_id_same": true
+        },
+        "pre_fix_manifest": {
+          "studio/backend/studio_core/vision_python.py": {
+            "sha256": "98cf7d8bf2a148b5b47b3409e5f7bfde8ff70abc85cc3763368f37b285e738d7",
+            "matches_frozen": true
+          },
+          "studio/backend/studio_core/experiment_spec.py": {
+            "sha256": "56a25e620823c0a3e58f08abb4be5cec1fe34cee1cb2557d103c1385168548fa",
+            "matches_frozen": true
+          }
+        }
+      }
+    },
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/after-evidence.json",
+      "sha256": "b26c71852fec4ee395eb60540452ca6335a4fc129be0a2c35a7bbf6f674f8931",
+      "report": {
+        "guard_rejections": [
+          {
+            "visual_metadata": true,
+            "error": "Local binding shadows the active execution policy guard"
+          },
+          {
+            "visual_metadata": false,
+            "error": "Local binding shadows the active execution policy guard"
+          }
+        ],
+        "null_policy_identity": [
+          {
+            "kind": "Identity",
+            "absent_model": "cd55c0af5e1651c00ef3223a660e708754eadade584c0d30915d764e175a66c5",
+            "null_model": "cd55c0af5e1651c00ef3223a660e708754eadade584c0d30915d764e175a66c5",
+            "null_model_roundtrip": "cd55c0af5e1651c00ef3223a660e708754eadade584c0d30915d764e175a66c5",
+            "absent_checkpoint": "72b9e8baa0c969506a3d6e6cf4aac99ff81ec0132edf76a0e22cf1c30203e530",
+            "null_checkpoint": "72b9e8baa0c969506a3d6e6cf4aac99ff81ec0132edf76a0e22cf1c30203e530",
+            "null_checkpoint_roundtrip": "72b9e8baa0c969506a3d6e6cf4aac99ff81ec0132edf76a0e22cf1c30203e530"
+          },
+          {
+            "kind": "BatchNorm2d",
+            "absent_model": "eaa2d26c3136b436d6eb6c13e86fcf623b911c82e1b3ca96af7debc29da16e63",
+            "null_model": "eaa2d26c3136b436d6eb6c13e86fcf623b911c82e1b3ca96af7debc29da16e63",
+            "null_model_roundtrip": "eaa2d26c3136b436d6eb6c13e86fcf623b911c82e1b3ca96af7debc29da16e63",
+            "absent_checkpoint": "f09c699b621e0d62f5bf5528370bfc2cbad022b8ac9ec1b25890d6d205357aed",
+            "null_checkpoint": "f09c699b621e0d62f5bf5528370bfc2cbad022b8ac9ec1b25890d6d205357aed",
+            "null_checkpoint_roundtrip": "f09c699b621e0d62f5bf5528370bfc2cbad022b8ac9ec1b25890d6d205357aed"
+          }
+        ],
+        "valid_edits": {
+          "imported_bound": 3,
+          "standalone_batch3": 3,
+          "batch4_rejection": "Input batch must be between 1 and resource_batch_bound"
+        },
+        "frozen_files_sha256": {
+          "studio/backend/studio_core/vision_python.py": "90ec32ca6d986b9e4b97d77652e5f29e2626192de3690e2f85c61142d2dbc23e",
+          "studio/backend/studio_core/experiment_spec.py": "724a9dcc9070ecc3a4f4af51bd8bfa18d40aedd2cb44c244bf8d654beb13d7b7",
+          "studio/backend/tests/test_vision_python.py": "9db3b62b18c5e63b26f37f67fac122aff3d48d925be85df7bef151556dcbd257"
+        }
+      }
+    }
+  ],
+  "review_reports": {
+    "a2-fix2-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-fix2-review-report.md",
+      "sha256": "ba86dd150586a518079e78372f8076cbf5ec444dbda20c87dab65d3fe6808dc1",
+      "status": "accepted_by_controller_after_reading",
+      "text": "# A2 第 2 轮修复范围复审 — 2026-11-17\n\n判定：通过本次修复范围复审。顶层全局符号绑定 P2 已闭合，未发现该修复引入的新实质问题。\n\n本次读取 task-a2-report.md 最新附录、a2-fix2-review.diff、当前 python_io.py/test_vision_python.py、review2-binding-evidence.json 及本轮红绿/回归日志。只复审上一轮新增 P2 和本次修复影响，没有修改生产代码或测试，没有重跑相同 suite，没有 Git、索引、子代理、训练或依赖安装。\n\n## 全局绑定 P2：ADDRESSED\n\npython_io.py:60 的 `_check_active_global_bindings` 要求活跃策略/guard/helper 的顶层声明恰好一个。import_python 在收集 import / from-import alias、policy 赋值、guard FunctionDef、ClassDef 时统一记录原始 Python 绑定名称；首先检查活跃策略和 guard，再在 helper AST 识别后检查实际数学/BN helpers。检查发生在解释模型类之前，不再仅以“精确 AST 节点存在”推断 Python 最终使用的绑定。\n\n因此普通 chip 类覆盖 `_check_execution_policy` 或 `MLFORGE_EXECUTION_POLICY` 的两个原反例均被静态拒绝；导入 alias 也无法重绑定这些活跃名称。原有重复类、类/import 冲突与精确 helper AST 比较仍保留。检查仅对实际活跃声明执行，没有将这两个新名称永久保留给旧源码；无 policy/guard 时同名普通 legacy chip 仍按正常类导入。\n\n新增正式测试覆盖两个原类覆盖 × 有无 metadata、六种活跃名称被 import 覆盖，以及两个无活跃声明的同名 legacy 普通 chip 正例。review2-binding-evidence.json 明确保存原独立执行 TypeError 及当前带行号的静态拒绝，没有以执行用户上传源码实现导入。\n\n## 独立定向复验\n\n使用现有虚拟环境和关闭 bytecode 写入的小脚本，没有执行实施者 suite：\n\n- 将原冲突类移到策略/guard 声明之前，再导入：两种名称均以 `Top-level symbol binding conflicts with active helper or execution policy` 拒绝，证明不依赖声明顺序。\n- 在正常 vision 源码末尾添加 `from torch import nn as <活跃名称>`：guard/policy 两种名称均被同类错误拒绝，验证 from-import 路径同样进入统一账本。\n- 去掉策略并改回旧 ReLU-only 图，将 chip 类改名 `MLFORGE_EXECUTION_POLICY`：正常导回，definition id 保留该名称。\n\n上述独立脚本退出码 0，无张量大分配、训练或文件输出。\n\n## 提交证据与边界\n\n读取 review2-red.log：16 tests，6 failures；review2-green.log：16 tests OK。读取旧桥接相关日志：Python 29、public 10、named 14 tests 均 OK。以上为实施者日志证据，不是本次重跑。\n\n本次修改只增加静态绑定账本及 focused 测试，未改变资源/runtime/BN/checkpoint 路径。原始旧命名 P2 和上一轮直接 guard 存在性检查的关闭结论保持；本报告接受本次修复，不替代 root 最终完整 backend/native/CUDA 集成结果，也不扩大为 A3/A4、ResNet 或完整 standalone 平台预算验收。\n"
+    },
+    "b2-fix2-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/b2-fix2-review-report.md",
+      "sha256": "a25e99041da5382fc8342ea07654c07561023fef05a79fa8fa964f8e92fb99d7",
+      "status": "accepted_by_controller_after_reading",
+      "text": "# B2 fix round 2 scoped rereview\n\nDate: 2026-11-17. Verdict: **accepted for the reviewed B2 fixes; no remaining P1/P2 finding in this scope**. Final full native integration results remain root's verification responsibility.\n\nThe idle polling P2 from `b2-fix-review-report.md` is addressed. `_canvas_context` now snapshots `_shared_render_serial` and restores focused shared presentation only when a nonfocused outer operation actually rendered shared controls. The tree, inspector, and probe rendering methods increment that transient serial. `_commit_canvas_positions`, read-only scope contexts, and neutral host sync do not increment it and therefore keep the existing inspector widget and its unapplied text. Per-editor drawing still defers shared presentation to the host's completed sync.\n\nThis retains the original delayed-event fix: a valid nonfocused parameter command runs `_refresh`, which renders shared controls and changes the serial, so its outer finalizer restores presentation under actual current focus. The removed-owner repair after reconcile and the valid-prior-owner finalizer remain in place for the original Undo finding. I inspected the nesting and reentry paths: focused inspector/probe rendering does not recursively trigger cross-owner restoration, and pure position collection does not force shared-control recreation.\n\nEvidence reviewed:\n\n- Current scoped source changes and `b2-fix2-review.diff`, plus the final implementer report's second-round appendix.\n- Raw `review-round2-red.log`: the new real-widget regression fails on the original ID change `628 -> 670`, matching the independent counterexample.\n- New regression source: three cycles of nonfocused position collection, read-only scope, neutral sync, and the actual tick polling branch preserve the original numeric widget ID and unapplied `17`; the committed parameter remains `8` and the graph is unchanged.\n- Raw `review-round2-green.log`: 23 CanvasView tests passed in 8.908s, including the original registered Undo and delayed-other-pane parameter/palette regressions.\n- All six B2 source/test hashes match the refreshed `b2-freeze-sha256.json`.\n\nI did not rerun the identical suite or full native suite, execute another counterexample, edit source/tests, install dependencies, use Git, issue OS input, or launch a worker. The change is small and the supplied RED-to-GREEN regression directly covers the confirmed failure, so another identical execution would add little evidence.\n\nThis acceptance is scoped to the two original findings, the newly introduced idle polling regression, and breakage visible in their fixes. It does not extend B2 into B3 full tab/layout controls or B4 persistence, and does not verify OS gestures, positive native selection bits, blank-click clearing, or exact pan/zoom restoration. Those prior limits remain explicit.\n"
+    },
+    "a2-native-bridge-fix-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-native-bridge-fix-review-report.md",
+      "sha256": "93b02452941b84abe8af51ad87b54ecf1059bcd2a399eebc5ecf8cfce4168afd",
+      "status": "accepted_by_controller_after_reading",
+      "text": "# A2 native bridge 修复复审 — 2026-11-17\n\n结论：**通过本轮有限范围复审，原 P2 已关闭，无新增实质发现。** 初审中已通过的有限 requirements、v1 兼容、原子导入、显式策略匹配、公开绑定 fake root 与 workspace v2 保存恢复结论继续成立。本复审不评价 A2 backend、B2 UI、workspace v3 或完整 S4 交付。\n\n仅复核以下两处修订和对应现有日志，没有重跑测试、训练或 GUI，没有修改实现、测试或 Git index。本报告是本次复审唯一文件写入。\n\n- `studio/native/document.py:498–499`：进入芯片后封装时，临时根在原有 profile 处理之后，从真实工程根复制实际存在的 `resource_batch_bound`，再调用 `prepare_graph`。该路径不再遗漏 vision-v4 必填字段，也没有硬编码 2/64 或改变工程策略。旧根不含该字段时不会新增 bound。复制发生在临时对象上，原事务性保持。\n- `studio/native/tests/test_chip_requirements.py:147–154`：新用例直接复现初审失败路径：合法 224/bound2 工程进入 `encode`，封装内部 `op`，断言返回调用引用、根 bound 仍为 2、仍处于 encoder 作用域，以及修改后的完整图验证通过。该回归确实覆盖遗漏字段导致的故障。\n\n现有红灯日志 `output/native-s4-a2-b2/bridge/nested-policy-red.log` 显示 8 项、1 error，唯一失败为新用例在 `prepare_graph(temporary)` 因缺失 bound 抛出 GraphError；对应 `nested-policy-red.exitcode.txt` 为 1。绿灯日志 `nested-policy-green.log` 显示同 8 项全部 OK；对应 `nested-policy-green.exitcode.txt` 为 0。日志中的触发点与修复源码一致，没有以其他错误替代原缺陷。\n\n以上证据足以关闭原生桥接的这一个已复现接入问题；没有扩大为完整 backend、UI 或全套回归验收。\n"
+    },
+    "a2-b2-final-fix-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-b2-final-fix-review-report.md",
+      "sha256": "487f4f02d7d41518a51d915554e973aa85c839721eb4c5df7630de1741168eb2",
+      "status": "accepted_by_controller_after_reading",
+      "text": "# A2+B2 combined final fix scoped rereview\n\nDate: 2026-11-17. Verdict: **accepted for the bounded A2+B2 source gate**. Both P2 findings from `a2-b2-final-review-report.md` are addressed. No residual P1/P2 finding or new breakage was identified within this fix scope. The earlier whole-change assessment remains applicable outside these three changed files.\n\nReviewed `a2-b2-final-fix-report.md`, the 95-line/three-file `a2-b2-final-fix-only.diff`, current source/tests, `a2-b2-final-fixed-review-source.json`, raw focused RED/GREEN and regression logs, and before/after evidence JSON. All 22 current files match the final frozen manifest. This pass did not repeat the broad review or any existing suite. It modified no source/tests and used no Git, agents, installs, downloads, training, worker launch, or OS/browser automation. This report is its only file write.\n\n## P2-1: active guard local binding — ADDRESSED\n\n`vision_python.remove_policy_guard` now checks the complete forward AST for `_check_execution_policy` names in `Store` or `Del` context before removing the active guard. Together with the existing argument-name check, this covers Python's whole-function local-binding behavior, including assignments after the first guard and aliases created from an earlier result. It rejects the non-executable current source rather than rebuilding its missing execution behavior.\n\nThe scan runs when a guard invocation is present. It does not permanently reserve the name in legacy functions, v4 old-resource functions with no guard, or ordinary chip forward functions with no guard. Nested functions/control flow remain outside the existing restricted parser, so walking the complete AST introduces no newly observed restriction on a previously supported nested construct.\n\nThe new negative test includes direct call-result assignment and later result-alias assignment, each with/without visual metadata, and proves the independently executed generated source raises `UnboundLocalError`. The positive test retains same-name local result variables for ReLU legacy v1 and Identity v4 legacy-none. Existing exact guard/helper, global binding, current-bound editing, and legacy-name tests remain in the 20-test focused run.\n\nAn additional independent in-memory boundary probe placed `_check_execution_policy` as the local result variable only inside a guardless `Chip_block`, while its containing model retained vision-v4/bound2. Import and standalone batch2 execution succeeded, and root batch3 remained rejected. This confirms the fix respects function scope and does not disable the root guard to recover compatibility.\n\n## P2-2: explicit null v4 identity — ADDRESSED\n\n`experiment_spec.model_digest` now removes a null root resource-profile key only in its existing `uses_v4` branch, on the defensive canonical graph copy. Absent and explicit-null v4 resource policies therefore share execution identity, including after the importer represents null as absence. The legacy v1–v3 identity branch is unchanged, as are classification-v2 and vision-v4/bound identity distinctions.\n\nThe new test verifies minimal Identity and the six-operator/shared-BN fixture across absent/null policies, model digests, checkpoint signatures, and no-edit roundtrips with/without metadata. The metadata-free case supplies the same document ID, consistent with the existing contract. A separate legacy test confirms the historical null representation is not recanonicalized.\n\nThe independent boundary probe also confirmed absent/null model and checkpoint identity equivalence, that digest calculation leaves the caller's original graph unchanged, and that classification-v2 retains a different identity. No checkpoint training was needed to verify this signature-only fix.\n\n## Verification evidence\n\nRead the actual supplied records:\n\n- `final-review-fixes/focused-red.log`: 20 tests, six failures matching the four local-binding/metadata cases and two explicit-null identity cases.\n- `final-review-fixes/focused-green.log`: 20 tests OK.\n- `final-review-fixes/signature-regression.log`: 16 tests OK, including the existing fixed golden model digest.\n- `final-review-fixes/python-regression.log`: 29 tests OK.\n- `before-evidence.json`: the two original mismatches and pre-fix production hashes match the original reviewed freeze. `after-evidence.json`: explicit guard rejections, equal null/absent/roundtrip model and checkpoint identities, and valid custom-root/bound3 execution with batch4 rejection.\n- `backend-cpu-release-source-full.json`: final frozen-source full backend run, 251 tests in 29.590 s, exit 0, one existing symlink-permission skip.\n- `native-cpu-release-source-full.json`: final frozen-source full native run, 141 tests in 61.875 s, exit 0.\n\nThe small independent probe exited 0 using the existing CPU environment with bytecode writes disabled and tiny generated tensors/source. The above suites were run by the implementer/root and inspected here, not rerun by this reviewer. Root additionally reports final CPU and actual cuda:0 device checks passed on this freeze; no full CUDA suite is implied.\n\nThis accepts the bounded source milestone after its one combined final fix wave. It does not certify a newly built EXE, ResNet/templates, the later catalog/tab/layout product controls, workspace-v3 persistence, OS gesture delivery, positive native selection/blank-click behavior, or precise pan/zoom recovery. Those explicit prior scope and verification limits remain unchanged.\n"
+    }
+  },
+  "baseline_python_files": 110,
+  "historical_review_reports": [
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-review-report.md",
+      "sha256": "e2ab56766fadf2eecebff496af00d789a5e862bfeb48cc72bfe37752c3fd6ae2"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-fix-review-report.md",
+      "sha256": "d879394d9c12a760eec59a921de84c46a77d20f5d1127fe2e3e57f9de587e459"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/b2-review-report.md",
+      "sha256": "6eec314d77fd4e363ffdd47b1498ba270597126df33b06f5823e08eb9a3db041"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/b2-fix-review-report.md",
+      "sha256": "036a7f06d3787cab7b1dfb53746ca9f5ce7bce36bb29838d1e287ba9dee63477"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-native-bridge-review-report.md",
+      "sha256": "c84475afaaa13f77436a4eefe1f895b9b55f27f2a2e1bfe6e917e6b0fb9346dd"
+    },
+    {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a2-b2-final-review-report.md",
+      "sha256": "834bb31dfd20441d06354bba00d2a61327fb62afe9b2ea9854bb3bc143093087"
+    }
+  ],
+  "historical_and_focused_logs": [
+    {
+      "path": "output/native-s4-a2-b2/a2/future-api-green.log",
+      "sha256": "f7aa21c370f6055a0443230e7ea44c708debfd72f9782ded4133a531b1896a1b"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/identity-red.log",
+      "sha256": "3450da9c903cbdb1d714899e63c2d640d7518bc59f9cab8a893814e4e54fc813"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/nested-alias-red.log",
+      "sha256": "e976769a52f2a8d3807556ce6165dbbeefa6a8223defa67c33e6f9f3e7b34c38"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/origin-red.log",
+      "sha256": "7e37b05921db92342731db5da41aaac00d2ad7bcbcd0b5439524f4cc20845cd8"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/policy-green.log",
+      "sha256": "e67466a1b90752504a0a1cf6406ed6ca4030c69673c274fc459fba85a889f148"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/policy-red.log",
+      "sha256": "2f994f8de6cc78cec00838985e8ff0b4793babe62c0e58d43f4774c1cec26f70"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/python-green.log",
+      "sha256": "ff285aa6b08fcf34b948030548369e5b12a6f5d9d2f9588d5974bc37d202bcc5"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/python-red.log",
+      "sha256": "33760c3b6eb8cdce3e01efab4057309ac2d58701be591969585ac4d704684b35"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-budget.log",
+      "sha256": "c91fc6527e66a80fe37f1627fdf4a69eeb529f60b927b8aa163cb17cc63638cd"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-classification.log",
+      "sha256": "2681a14c468c82e8655ccbc791a25e21c1f2011f8799949ee54fb2e015cd06af"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-named.log",
+      "sha256": "c17f06a5e58eaf8034bf40d3da7171d2be8d7a8e0e5c26814f84a03e63147da3"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-operators.log",
+      "sha256": "738742cd9e8c5626f43490ed0cb0b65f576cfdd6fba07536825eb1316a653aff"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-paired.log",
+      "sha256": "4b338c860d7e07336a91d781d859ca1ee25369b329778e790b7f7d96bf888ab0"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-public.log",
+      "sha256": "5e87e5bf60a3e6762572ef57dbfd0490642b5fc74b44c6adf12472b281f68de3"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-python.log",
+      "sha256": "eb444d35d084aec85755f4ef327528bd0ada9304b2c2d737329be93f25c970ee"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/regression-signature.log",
+      "sha256": "eafeb20e0d0518139115c84f502177460cacedc1981cbac6edb980f9a5c205c2"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review-fix-green.log",
+      "sha256": "3289a21cc4f5a8407febb99001b18e16a9d57ce39b6b5dbab7bc3db05b5cac43"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review-fix-red.log",
+      "sha256": "17026b56a38f5bb2a77565c5c3a03644290fee40f818eda4c243775cb6c8bace"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review-regression-named.log",
+      "sha256": "9d58886c6c2bff07ad320442bc95de0f8033035c497f2a77aef35b548ad5cace"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review-regression-public.log",
+      "sha256": "9e90f2664c6cbe862f06573318ee3e00407a2f2826308facd4be49039a94b524"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review-regression-python.log",
+      "sha256": "7929842bdec515e9c1441e2a3a1670ca6043e41beec72a0bc1a14382a61073a4"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-green.log",
+      "sha256": "214b6fbbe38d9dd7a783bb22bdc68407983d6f4e6d951f26422ccd021c81aec5"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-red.log",
+      "sha256": "6092f1454ef3d7a2d44f38769a9b773ef735e125c61d2767271dd1fbc3481277"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-regression-named.log",
+      "sha256": "997a972906082d0d007afd35bb0aa67e9e31227c34f27620db7976508d45c4f7"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-regression-public.log",
+      "sha256": "c1b1968904b0dcb3474b84a611d0d22dd1d5ea6468bfe11d8fe14211e2c5881e"
+    },
+    {
+      "path": "output/native-s4-a2-b2/a2/review2-regression-python.log",
+      "sha256": "8fda38a601bbd2285374ebe5178e2b18497b6a029175a59ea5b804f64b93f8a1"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/canvas-final.log",
+      "sha256": "5189dfb512dc92492e54597bad1c0104e89c63bed2474e10ebacfc557e0170dc"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round1-framebuffers.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round1-green.log",
+      "sha256": "321365e4b3ee6d5109bad8c7e3533cbdfe511afb19eb39ec9f1074e8580077ed"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round1-red.log",
+      "sha256": "fdc835e1ba2ab97afbe181893270be5abb967b1534bbb261da6b339057994171"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round2-framebuffers.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round2-green.log",
+      "sha256": "a6829f9bc242c276ebc35e1221bd23637c1705ea3e6c7986f2a2e9d7cc14e15c"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/review-round2-red.log",
+      "sha256": "ffeda5805fbe4e3d8a2fe9af5d34c82c398a932719688789944c840ffd04e5c4"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/targeted-final.log",
+      "sha256": "2eca8338bd8104754ddab1adfca19ea19ce068f4e39c661a865beaec7c062a94"
+    },
+    {
+      "path": "output/native-s4-a2-b2/b2/undo-owner-red.log",
+      "sha256": "f8bef2cf0ab60c8e3a298801ea5a61935b447875ef76b5b0d6d2b32698473716"
+    },
+    {
+      "path": "output/native-s4-a2-b2/bridge/green-attempt.log",
+      "sha256": "b9033071ebb3d3dd3282653080921d44eb2c42cbac7c2cef11cec8162f271f9c"
+    },
+    {
+      "path": "output/native-s4-a2-b2/bridge/green.log",
+      "sha256": "92bff62b96366709424e651bc03a355e8c9b22b09a3daccb4c6719d5447911e0"
+    },
+    {
+      "path": "output/native-s4-a2-b2/bridge/nested-policy-green.log",
+      "sha256": "98c6f6b7516aedb6856683f4463d6e765af61b7495a831b053f7cd0673d0e416"
+    },
+    {
+      "path": "output/native-s4-a2-b2/bridge/nested-policy-red.log",
+      "sha256": "941b30407eb7c7e48e53bbb4406a83d89120ee55c3f22240be3fc7f0a123e78d"
+    },
+    {
+      "path": "output/native-s4-a2-b2/bridge/red.log",
+      "sha256": "e13c29b8c19514bbbfdbf38bddcad46a2ec07c0b6260e026e72d1cef2316973f"
+    },
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/focused-green.log",
+      "sha256": "c54d29f887012b629ed9f02a0a91c2746163eaa8e85cccdaff08eb1a9fc4c6a9"
+    },
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/focused-red.log",
+      "sha256": "733ce11960007a1942629fdc86fb5f21043ccdbd970a8040a62777d01974b4da"
+    },
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/python-regression.log",
+      "sha256": "3ea449860c2652bc4f5967063009572445a039fb8e867ae05fd8a5f7daa714c0"
+    },
+    {
+      "path": "output/native-s4-a2-b2/final-review-fixes/signature-regression.log",
+      "sha256": "c9734396aab3205f2a5845347aa88d1ee54c203f716d266bb39bab6ef43d6ac0"
+    }
+  ],
+  "source_changes": {
+    "studio/backend/studio_core/classification_runtime.py": {
+      "change": "modified",
+      "sha256": "cc6348d2b7e0b745d6e7ed9f6935a8276223a3ca7499a442d66c7a429d6dd893",
+      "baseline_sha256": "3fe0ad7cdd92dffc98ded50854a01183b361d94a0e418967ee13b92f8c1f8343"
+    },
+    "studio/backend/studio_core/execution_policy.py": {
+      "change": "added",
+      "sha256": "e7f992c807b51c24fca379ef1cdd8e351653b0f39707ceacc16ee03f6d2bdf10",
+      "baseline_sha256": null
+    },
+    "studio/backend/studio_core/experiment_spec.py": {
+      "change": "modified",
+      "sha256": "724a9dcc9070ecc3a4f4af51bd8bfa18d40aedd2cb44c244bf8d654beb13d7b7",
+      "baseline_sha256": "ea8f6ee218f2f31c557d2062f642cb6d4b9b12b0aee6e3ff0922a544946fea03"
+    },
+    "studio/backend/studio_core/python_io.py": {
+      "change": "modified",
+      "sha256": "df071532f31039d7a9a42b843d526bcbf3cf863a437ffc90061d4e48a1eb383c",
+      "baseline_sha256": "93a650927a3b923830ad870871a53a080c59864360cbf67f7c2957eebd9eee39"
+    },
+    "studio/backend/studio_core/runtime.py": {
+      "change": "modified",
+      "sha256": "841729cfd6c3a375edf767c932e9498dcb6d86d76ee2b52eda81c84b7a63ab45",
+      "baseline_sha256": "852d8aae2780ee7c5fa56a3356ad118ce226ca582f1cd7f171800f401292208d"
+    },
+    "studio/backend/studio_core/schema.py": {
+      "change": "modified",
+      "sha256": "d8c6d29f0ed47340fd364f7670015dce5643b0f36de672ee9f9156c2d32f852e",
+      "baseline_sha256": "e091fb0c5a13e128176ddde5d8934e80279e8346bffd77becb1cfc5bb0323150"
+    },
+    "studio/backend/studio_core/vision_python.py": {
+      "change": "added",
+      "sha256": "90ec32ca6d986b9e4b97d77652e5f29e2626192de3690e2f85c61142d2dbc23e",
+      "baseline_sha256": null
+    },
+    "studio/backend/tests/test_vision_budget.py": {
+      "change": "modified",
+      "sha256": "5a869f2a77344b4f31ed56b764ec26fa4fbcf9f2a53afbb75f1a7cb45000162f",
+      "baseline_sha256": "bad8a95c291f6b2f8bbadb71b947795e5ef9cb1f120edcd48f8f57b37968fa7f"
+    },
+    "studio/backend/tests/test_vision_operators.py": {
+      "change": "modified",
+      "sha256": "85773452c6c41b5e18291d97089d514ac6d393408b5a045bfb34c97ef7fedef4",
+      "baseline_sha256": "0fe96c5ae900c3aeade9c5d802adfb449f09d9f563df5a565c486a667c7a1b18"
+    },
+    "studio/backend/tests/test_vision_policy.py": {
+      "change": "added",
+      "sha256": "d43eda61233c1df11286d28f022eefa0a564b89a19fbee700678315ebc8d122f",
+      "baseline_sha256": null
+    },
+    "studio/backend/tests/test_vision_python.py": {
+      "change": "added",
+      "sha256": "9db3b62b18c5e63b26f37f67fac122aff3d48d925be85df7bef151556dcbd257",
+      "baseline_sha256": null
+    },
+    "studio/native/canvas_commands.py": {
+      "change": "added",
+      "sha256": "d5dffd494f6143537ffa5dbb754bf4f7c2d4068320d437b93ffa4ae51e487bc2",
+      "baseline_sha256": null
+    },
+    "studio/native/canvas_view.py": {
+      "change": "added",
+      "sha256": "2f29fd0a9cfa7f0dc21d328404cfe15a7a0ba6b4278fbd3be426f749c60ceb86",
+      "baseline_sha256": null
+    },
+    "studio/native/chip_library.py": {
+      "change": "modified",
+      "sha256": "dccbb7837f7e436a766c69934fc09e94f0f3bd719706ce1091da23c0ca143da6",
+      "baseline_sha256": "14dca8c6cdc5ab437d52f90e176eb496df42e661ada83fc6df48feb78c5f2f97"
+    },
+    "studio/native/chip_panel.py": {
+      "change": "modified",
+      "sha256": "06ae0e35a0af29a34960f2eeaf4d841967a636006be51b030a553e2ceff5dcac",
+      "baseline_sha256": "ae600252508a0ded7985eb341dcaa261919fa4c019e65bfa29bc01c320a50ebb"
+    },
+    "studio/native/data_panel.py": {
+      "change": "modified",
+      "sha256": "5fbddf153391ed671d0a65b3cfaac0e655e533424a4b7279169bcbd077d45bf8",
+      "baseline_sha256": "835fd190cdf58efa0967f8cc12cebd5bcac65392449129966ee3dac20d4b8280"
+    },
+    "studio/native/document.py": {
+      "change": "modified",
+      "sha256": "a7d8029143da2fa144bc839d349755c365b39906db358e4e9b57ae93058080f4",
+      "baseline_sha256": "a59e8e4522c4df03722b05aa5e789cf1d69f29eaa3074d1bb581f2fdc437ff73"
+    },
+    "studio/native/document_editing.py": {
+      "change": "modified",
+      "sha256": "59bcfad7dbcd98694a3d33b4d43b9108e2846dec04207c4d60eb24e8427a0203",
+      "baseline_sha256": "b84dba2e9f6297cc56fc9904b53ba7df1e509556f65ba3a4df760861dae3359c"
+    },
+    "studio/native/tests/test_canvas_view.py": {
+      "change": "added",
+      "sha256": "57aa58e376e4fa7a793c77206e8a6a82a8c6646fd06461259e672483214b9003",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_chip_requirements.py": {
+      "change": "added",
+      "sha256": "dc3d55988cff3582ffdd12baa318decb54bb31a374b5c4ca2f35d46f78c429cf",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_policy_canvas_integration.py": {
+      "change": "added",
+      "sha256": "7d7d5f1da5dae4fa7dbdbb98f3f2857b8e04050524dbbb265c886dee4ee583c3",
+      "baseline_sha256": null
+    },
+    "studio/native/ui.py": {
+      "change": "modified",
+      "sha256": "de8cb4f765579854e13a38a3092f743e24ca14782245d96ebbca916716da8cb9",
+      "baseline_sha256": "151527d9110cbdf72a6771fc0e3d07735c47dfeebe1449de499d47505858ff8f"
+    }
+  },
+  "original_ml_forge_unchanged": {
+    "ml_forge/__init__.py": true,
+    "ml_forge/__main__.py": true,
+    "ml_forge/constants.py": true,
+    "ml_forge/engine/__init__.py": true,
+    "ml_forge/engine/autofill.py": true,
+    "ml_forge/engine/blocks.py": true,
+    "ml_forge/engine/generator.py": true,
+    "ml_forge/engine/graph.py": true,
+    "ml_forge/engine/inference.py": true,
+    "ml_forge/engine/metrics.py": true,
+    "ml_forge/engine/run.py": true,
+    "ml_forge/engine/training_setup.py": true,
+    "ml_forge/filesystem/__init__.py": true,
+    "ml_forge/filesystem/save.py": true,
+    "ml_forge/graph/__init__.py": true,
+    "ml_forge/graph/links.py": true,
+    "ml_forge/graph/nodes.py": true,
+    "ml_forge/graph/pipeline.py": true,
+    "ml_forge/graph/tabs.py": true,
+    "ml_forge/graph/undo.py": true,
+    "ml_forge/main.py": true,
+    "ml_forge/shortcuts.py": true,
+    "ml_forge/state.py": true,
+    "ml_forge/ui/__init__.py": true,
+    "ml_forge/ui/console.py": true,
+    "ml_forge/ui/layout.py": true,
+    "ml_forge/ui/menubar.py": true,
+    "ml_forge/ui/palette.py": true,
+    "ml_forge/ui/resize.py": true,
+    "ml_forge/ui/statusbar.py": true,
+    "ml_forge/ui/summary.py": true,
+    "ml_forge/ui/toolbar.py": true,
+    "ml_forge/ui/training.py": true
+  },
+  "documentation": [
+    {
+      "path": "studio/native/S4_POLICY_CANVAS_VERIFICATION.md",
+      "sha256": "2892dad344d14d28fbd75f4a0d990998d359bffc8229db729c444dbadf88234b"
+    },
+    {
+      "path": "studio/HANDOFF.md",
+      "sha256": "e30b271707fcdd609e26e30c5e9fc2ae5264a16f57365ea717425d52c5efb171"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-15-s4-workbench-components-design.md",
+      "sha256": "2fa224a009b3632854be7687816a7960ccb205b04e5ed586361af30631f2b970"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4-workbench-components.md",
+      "sha256": "4f60920fd650cf045b9e0f944416ee1986dc175d0fd4c57f4d6af08de998214d"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4a-component-library.md",
+      "sha256": "cd7814b3e8f9585407fb58e69492e6019c47b0309df61df47ed3d03358b8dd6c"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4b-tabbed-workbench.md",
+      "sha256": "596470d10e82ff09c22b9dbc5c95da2c0ccee8ea265ee35f852c8b9d927bfbe8"
+    }
+  ],
+  "protected_s3_artifacts": {
+    "programs/cpu": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio\\MLForgeStudio.exe",
+      "sha256": "7e430e940c5770dbd6e4059635bfdfdda837c5909cb386f22cc43e8fa58bec67",
+      "matches_s3": true,
+      "bytes": 30868587
+    },
+    "programs/cuda": {
+      "path": "studio\\dist\\desktop-cuda\\MLForgeStudio\\MLForgeStudio.exe",
+      "sha256": "cd554182d91aafe12f1e76eaf36673f190a8e9eb55b9f594674e372c477de221",
+      "matches_s3": true,
+      "bytes": 30804973
+    },
+    "portable_archives/cpu": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio-Windows-x64-S3-CPU.zip",
+      "sha256": "17fb00be3b3e6b887c1bf1e3bdda228092046ed873f3a49d10a8a777843cc63b",
+      "matches_s3": true,
+      "bytes": 149586511
+    },
+    "portable_archives/cuda": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio-Windows-x64-S3-CUDA.zip",
+      "sha256": "2c600092b2f3a9fa26b1f490f4668feb631d8278f60c641ebf64df50baad5f66",
+      "matches_s3": true,
+      "bytes": 2474635489
+    },
+    "source_archive": {
+      "path": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
+      "sha256": "d835252a45ef11458abf21754dc7e1f2d67eb7c17157c2ac3074484d6c0156e4",
+      "matches_s3": true,
+      "bytes": 7009316
+    },
+    "original_ml_forge": {
+      "count": 33,
+      "all_match": true,
+      "changed": []
+    }
+  },
+  "visual_comparison": {
+    "path": "docs/images/native-s4-policy-canvas-comparison.png",
+    "sha256": "7a4a544e771615613aff4423be437f48be08f18da0b66d10d84b9da995bf5107"
+  },
+  "git": {
+    "head_exists": false,
+    "remote_configured": false,
+    "uploaded": false,
+    "commits_created": false,
+    "whitespace_check_exit_code": 0
+  },
+  "completed": [
+    "A2 explicit vision resource policy, execution ledger and controlled Python v4",
+    "A2 native chip v2 and existing workspace v2 policy bridge",
+    "B2 persistent real editors and versioned callback ownership"
+  ],
+  "deferred": [
+    "A3 reusable functional chip factories",
+    "A4 production ResNet18 and reference validation",
+    "A5/I1 searchable component catalog",
+    "B3 full tab/split/sidebars controls",
+    "B4 workspace v3 view persistence",
+    "I2 CPU/CUDA S4 executable packaging",
+    "exact pan/zoom and positive native selection restoration",
+    "arbitrary Python import and standalone full platform resource-budget parity",
+    "configurable training-relation graph and interactive backward/optimizer stepping",
+    "3D/segmentation/LLM/RAG/multi-GPU/remote execution"
+  ]
+}

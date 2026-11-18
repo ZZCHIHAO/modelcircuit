@@ -1,0 +1,12 @@
+.venv/
+.venv-cuda/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.playwright-cli/
+runs/
+logs/
+.processes.json
+__pycache__/
+*.pyc
+

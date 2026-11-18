@@ -1,0 +1,284 @@
+{
+  "date": "2026-11-15",
+  "stage": "S3",
+  "notice": "Generated tiny CSV/PNG diagnostic fixtures; no scientific or clinical performance claim. Local Windows verification only.",
+  "tests": {
+    "cpu_backend": {
+      "path": "output/native-s3/backend-cpu.log",
+      "run": 175,
+      "skipped": 1,
+      "passed": 174,
+      "status": "OK",
+      "seconds": 27.272,
+      "log_sha256": "d2f2029591608c591076bc952f03f3c5dbd103b45c1baac7c968916a7f1752cd"
+    },
+    "cuda_backend": {
+      "path": "output/native-s3-cuda/backend.log",
+      "run": 175,
+      "skipped": 1,
+      "passed": 174,
+      "status": "OK",
+      "seconds": 27.931,
+      "log_sha256": "badc59a86bdb731b235617b275ddfe146b72a07a73164eb11075ed1c9f2f1e84"
+    },
+    "cpu_native_build": {
+      "path": "output/native-s3/build-cpu.log",
+      "run": 67,
+      "skipped": 0,
+      "passed": 67,
+      "status": "OK",
+      "seconds": 49.183,
+      "log_sha256": "18cb8d12a18075f2b57a347825c3ba48b1faf971e70d5f3bef1399d8264d1c83"
+    },
+    "cuda_native_build": {
+      "path": "output/native-s3-cuda/build-cuda.log",
+      "run": 67,
+      "skipped": 0,
+      "passed": 67,
+      "status": "OK",
+      "seconds": 49.183,
+      "log_sha256": "7081aefbd47c11b1f0417851d53669218d91b7f8171dd5a28b2da96f80a25f6b"
+    }
+  },
+  "runtimes": {
+    "cpu": {
+      "queried_at": "2026-11-15T05:13:39.010429+00:00",
+      "torch_version": "2.6.0+cpu",
+      "cuda_version": null,
+      "cuda_available": false,
+      "reason": "当前 PyTorch 为 CPU 构建；检测到显卡不代表此运行时支持 CUDA。",
+      "multi_gpu_supported": false,
+      "devices": [
+        {
+          "id": "cpu",
+          "name": "CPU",
+          "available": true
+        }
+      ],
+      "hardware_gpus": [
+        {
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+          "total_memory_mb": 8188,
+          "driver_version": "560.94"
+        }
+      ]
+    },
+    "cuda": {
+      "queried_at": "2026-11-15T05:13:38.922430+00:00",
+      "torch_version": "2.6.0+cu124",
+      "cuda_version": "12.4",
+      "cuda_available": true,
+      "reason": null,
+      "multi_gpu_supported": false,
+      "devices": [
+        {
+          "id": "cpu",
+          "name": "CPU",
+          "available": true
+        },
+        {
+          "id": "cuda:0",
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+          "available": true,
+          "total_memory_mb": 8187
+        }
+      ],
+      "hardware_gpus": [
+        {
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+          "total_memory_mb": 8188,
+          "driver_version": "560.94"
+        }
+      ]
+    }
+  },
+  "diagnostics": {
+    "cpu_source": {
+      "path": "output/native-s3/runtime-source-cpu.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "5dcfcc705fb8856d7ce20a8da8cced3104aa3d7723a0006c5dfb2ee571d15770"
+    },
+    "cpu_source_render": {
+      "path": "output/native-s3/source-render/render.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "2c5f092053381341083e5016b4610fed48542c323d7e211807775a3c8990a73e"
+    },
+    "cpu_frozen": {
+      "path": "output/native-s3/runtime-frozen-cpu.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "ee472b9c3cb8504cdb988f1bd06cd9230eeff75fd1c7d44003ee8b834123fa2a"
+    },
+    "cpu_frozen_render": {
+      "path": "output/native-s3/frozen-render/render.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "7cc13369e9136e131ee9cdc895b1a0bd3474742cb91a22de0acdb094af1d6572"
+    },
+    "cuda_source": {
+      "path": "output/native-s3-cuda/runtime-source.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "df318a7ca43f7fa997e7a4742843df3dc2d32f86af5908afdb1e6976f07338d9"
+    },
+    "cuda_source_render": {
+      "path": "output/native-s3-cuda/source-render/render.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "863efe8286745a1441828fe8bccebcbef4cce50e7ca43f8aee35f680761ae659"
+    },
+    "cuda_frozen": {
+      "path": "output/native-s3-cuda/runtime-frozen.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "c2f2afc2b7ff28742e56555b95d3c80759c5b5fd7e6f2f6023401c5c9f0e24ea"
+    },
+    "cuda_frozen_render": {
+      "path": "output/native-s3-cuda/frozen-render/render.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "7d57fae5527e565fd6cce3b7ebbe3cb89fc05baccaa0e945494762ff743fdb58"
+    },
+    "cuda_cpu_choice": {
+      "path": "output/native-s3-cuda/runtime-frozen-cpu-choice.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "ec6bc1131ff113d0a163d34c20cad20cd05763207e1ac8b2a9c3065dd559936a"
+    },
+    "s1_frozen_regression": {
+      "path": "output/native-s3/s1-runtime-frozen.json",
+      "status": "passed",
+      "workers_stopped": true,
+      "report_sha256": "c29a08cd2134a8fffb06ee8d1cfd513af2decb551bc5d91035520ea300cdb08b"
+    }
+  },
+  "cpu_resume_bit_exact": true,
+  "cuda_continuation_passed": true,
+  "cuda_bit_exact_asserted": false,
+  "cuda_exe_cpu_execution_passed": true,
+  "unmodified_python_keeps_measurements_current": true,
+  "workspace_reopen_requires_external_data_reinspection": true,
+  "programs": {
+    "cpu": {
+      "path": "studio/dist/desktop/MLForgeStudio/MLForgeStudio.exe",
+      "sha256": "7e430e940c5770dbd6e4059635bfdfdda837c5909cb386f22cc43e8fa58bec67",
+      "bytes": 30868587
+    },
+    "cuda": {
+      "path": "studio/dist/desktop-cuda/MLForgeStudio/MLForgeStudio.exe",
+      "sha256": "cd554182d91aafe12f1e76eaf36673f190a8e9eb55b9f594674e372c477de221",
+      "bytes": 30804973
+    }
+  },
+  "portable_archives": {
+    "cpu": {
+      "path": "studio/dist/desktop/MLForgeStudio-Windows-x64-S3-CPU.zip",
+      "file_count": 2121,
+      "bytes": 149586511,
+      "sha256": "17fb00be3b3e6b887c1bf1e3bdda228092046ed873f3a49d10a8a777843cc63b",
+      "zip_crc": "passed",
+      "current_executable_matches": true
+    },
+    "cuda": {
+      "path": "studio/dist/desktop/MLForgeStudio-Windows-x64-S3-CUDA.zip",
+      "file_count": 2139,
+      "bytes": 2474635489,
+      "sha256": "2c600092b2f3a9fa26b1f490f4668feb631d8278f60c641ebf64df50baad5f66",
+      "zip_crc": "passed",
+      "current_executable_matches": true
+    }
+  },
+  "source_sha256": {
+    "studio/backend/server.py": "e882247c3ea5e4643201e584a22d3209b3737758566b29803d049740085dee71",
+    "studio/backend/studio_core/__init__.py": "5bd98c36b288a263a531918d70055990fc48745e6c4d3bcc8f78011cb99e6ad0",
+    "studio/backend/studio_core/classification_data.py": "4f3c4382b4326be2b36c87a2e56df54c11b8a3c4142c4bc304f5acf810c8f9b0",
+    "studio/backend/studio_core/classification_runtime.py": "3fe0ad7cdd92dffc98ded50854a01183b361d94a0e418967ee13b92f8c1f8343",
+    "studio/backend/studio_core/devices.py": "8ad5ba67e57d9a71584c69162bceb18cf0d326473aa436262d12a12aa3277448",
+    "studio/backend/studio_core/examples.py": "ffade2129d0368db6985d87ccf464e26c00c7ea93d48d92d8b32fd52dfc0f3bc",
+    "studio/backend/studio_core/experiment_spec.py": "ea8f6ee218f2f31c557d2062f642cb6d4b9b12b0aee6e3ff0922a544946fea03",
+    "studio/backend/studio_core/paired_data.py": "816e117eb956cdc7b34632169d8301d4c37f14c3e173331078333409d6455eb7",
+    "studio/backend/studio_core/ports.py": "d8aa3e47baa5290bb8e77ae0ccdc889aac4453410c353ede43db557de5194f82",
+    "studio/backend/studio_core/python_io.py": "93a650927a3b923830ad870871a53a080c59864360cbf67f7c2957eebd9eee39",
+    "studio/backend/studio_core/runtime.py": "b3b42724faab3c8092ef506f1c51b4ac1e3198a70ad7eb17ec313408020149a7",
+    "studio/backend/studio_core/schema.py": "a9fe5d67bd40655a0f6bd488dd0e47160ac994d7a6b1ca18a6e68b8a63c2999b",
+    "studio/backend/studio_core/shape_rules.py": "63d9b5876cb9321bd4ef2efe061ca63b23a8761bc077f4665fb6e48df6658fb4",
+    "studio/backend/tests/paired_fixture.py": "d2067c3262ef82ebb278b325227ae289b5d3d3287cc93f28be811e8105fd9c4b",
+    "studio/backend/tests/test_classification_data.py": "d699f66a0c6d301d0aa23715e170625616721fc187b820bddea2b3a38d0b0235",
+    "studio/backend/tests/test_classification_runtime.py": "331d58da59e89910521f5acd4fa1a847e7f5bc1083764608e04d96320d143ab1",
+    "studio/backend/tests/test_cnn_model.py": "e2a0f357a727680d844e470e3fc004c80da64549f74471ac46d7312259291df1",
+    "studio/backend/tests/test_core.py": "f1043b4a76afbb9e6968f82b5d7d4c39eb7b13a6aaa7cbe0ac2541502ef231f2",
+    "studio/backend/tests/test_devices.py": "78965b4187ed8de49bb8b1317d9c98fc39e4fb0f4ee0312172e8f30c286ca892",
+    "studio/backend/tests/test_experiment_spec.py": "562d2bf608fe10339e466ecc05f0b52e9c1449c11ce08967975f02ff85e53a95",
+    "studio/backend/tests/test_named_ports.py": "520318c388e056a076e5ce8a134210f810e8f1e7d6ea51ab147d812aed446d6c",
+    "studio/backend/tests/test_paired_data.py": "89133e438ca404d5b65f7b5a308f8c685208d4004f43a58a6a7b425bb0c1aa2e",
+    "studio/backend/tests/test_paired_runtime.py": "967870f619c670bfbc95edaa4234c7ff7aec5c9031113c5f5e01631450add38d",
+    "studio/backend/tests/test_persistence.py": "baf9107fdea3f3db08f9709f1144864fd809f7491e22d77f62207ef53ce8a7a4",
+    "studio/backend/tests/test_public_types.py": "7ee27b4fd883f142bca8a0f51e41efdf0ebf2239b59ce18fea21c9b51459a3c6",
+    "studio/backend/tests/test_python_io.py": "cd1681831a7067b9955f4bd9a3cccf79dff5567406604c57bf00884d0c0a33fb",
+    "studio/backend/tests/test_server.py": "18c6ec4b49aa0f01c0b35ec64e3d5c6f547268cdf872fa012db77ba576c432be",
+    "studio/backend/tests/test_server_v2.py": "42342da4577ca82884698ba97340e038938d9ecad3f1f48fd9ac41d60767ac4f",
+    "studio/backend/worker.py": "0ad4695b07ec81d836624f215c24ef8d2629405db74ca4b15a55539ba0be4e7f",
+    "studio/desktop_entry.py": "67adf91768bd139431d5b825e152d62cb43a4688ba25c545283c20b116a88dbd",
+    "studio/native/__init__.py": "71e4bdf628d0cff49d10b301dc5b1b234dd8dbf585d07f5b8d786a99b19ec02f",
+    "studio/native/acceptance.py": "4ad5276462c7ceab0a2df1c36e3a0089d6f66b3796234f128dc6725379e0d786",
+    "studio/native/chip_library.py": "14dca8c6cdc5ab437d52f90e176eb496df42e661ada83fc6df48feb78c5f2f97",
+    "studio/native/chip_panel.py": "ae600252508a0ded7985eb341dcaa261919fa4c019e65bfa29bc01c320a50ebb",
+    "studio/native/classification_acceptance.py": "42a83b2f0bc813e62167fc0452344d68ccdf1ae3a3a87746c424eea3cb9bbb74",
+    "studio/native/classification_render_acceptance.py": "2a40b3e8b80ff025614ce30fa795a6694d4442f63aae4bc2bb403625e9259d75",
+    "studio/native/data_panel.py": "835fd190cdf58efa0967f8cc12cebd5bcac65392449129966ee3dac20d4b8280",
+    "studio/native/document.py": "e82e19bfb161e3b6f76ab83e9e776a522ccc9f100b5860df153989bfd0f276a6",
+    "studio/native/document_editing.py": "b84dba2e9f6297cc56fc9904b53ba7df1e509556f65ba3a4df760861dae3359c",
+    "studio/native/experiment_panel.py": "3de4d80011f7adec7952001a027452315ef8981956e67006bd28ad67d727403e",
+    "studio/native/main.py": "357b7aa96812daa2c4d3074d042e176ae655f7c131bd0152ea766afc91aeb62e",
+    "studio/native/paths.py": "2b82af77ac3e4ccca30fad9574f9b8963fbb96f38beafc439b4967eeb5d45f1f",
+    "studio/native/persistence.py": "cd53e4cf3888f7f3312ab7e467f797e8fca722e7cf380ca37b34a2a0c0a49e08",
+    "studio/native/render_acceptance.py": "7fd02e12b51cb9fc1e4f52ab67f2c382355eb6561c1eee8b5ecd53eb1fc8dee2",
+    "studio/native/s3_acceptance.py": "b1ee9822ccbd74651b5247a5ca0ad00c1554821e6e392603f6a33b6163bc5de2",
+    "studio/native/s3_render_acceptance.py": "ace52894b3483654c28b12bf899ff37e127d4098890cef144bf1fb621693621e",
+    "studio/native/starter_models.py": "dad3c4ee49e8aacf809ed9317f78eefd58722cdc924a8fa647220166032434a7",
+    "studio/native/tests/test_chip_editing.py": "b2ed3abfbe24d478ee177aa0097af9ed56f5573ec2b91b133f109586824ce667",
+    "studio/native/tests/test_chip_panel.py": "138372419b22f0e7e83ded76cb1b3a69f22ec7058977161e0eae919035d997d1",
+    "studio/native/tests/test_classification_acceptance.py": "4ec6af0f80da5d0674d6a89657bc6efaf64d495520e8b73c167ab5fda9ab8ece",
+    "studio/native/tests/test_classification_render.py": "0ec5ee9754b1cd6abd00ce007749e5a15f6fbbd18d8d7b127c7562211cd7f1e4",
+    "studio/native/tests/test_data_callbacks.py": "857f953e5bc6285e8fa787d079d5c1cd019f10d1d59604a051c5dfbfd468b25f",
+    "studio/native/tests/test_document.py": "bb7af5bc474a4fe9953bf5fd9a3f4b9b761a452afc4bee82fd64179de2cf2811",
+    "studio/native/tests/test_experiment_panel.py": "7909d229e0308c6d8e95976eb83cb2398320175deba1432062547da29fe8a804",
+    "studio/native/tests/test_lifecycle.py": "8b5870e7a7bf646ec1f3084b1013f727bdd767ea6cec8a777a473fc84398a208",
+    "studio/native/tests/test_native_experiment.py": "2dd1e51b71dadd593cab35bdb0b73a316743e5ae2d04996a64c76728c4a8ddcd",
+    "studio/native/tests/test_paired_callbacks.py": "4737bbc7f62443c494d9f82aa5e88bebcdcba9afea0736d01d17801daaa2d030",
+    "studio/native/tests/test_paths.py": "c6cfbd40a68540aa5072da8f3d248b14abd5d2392fdb213e63b2188d187676d9",
+    "studio/native/tests/test_s3_acceptance.py": "9385f25784fd34a67d38caf4df61be1a1c155dd0333015423f24a87bb948cd78",
+    "studio/native/tests/test_s3_render.py": "536a586e57ab0d5217b3ab075da5234e184acdf7624e783ada06cc34d5f5bd93",
+    "studio/native/tests/test_storage_retry.py": "2589bcff204b64271d770ec5cf5a3b81e8c4896346fcafec5a72549b2c9fdeba",
+    "studio/native/tests/test_workspace_state.py": "59d6f04047f3fab696d3b0f1c717bc0b8553bd7f0f4719cb9937b56e780fccc6",
+    "studio/native/ui.py": "151527d9110cbdf72a6771fc0e3d07735c47dfeebe1449de499d47505858ff8f",
+    "studio/native/workspace_state.py": "340223f758dffcfe2635076b40a87ab268d7954657190416e1935e49b9e1dd86"
+  },
+  "visual_review": {
+    "comparison": "docs/images/native-s3-comparison.png",
+    "sources": [
+      "docs/images/native-s3-paired-starter.png",
+      "docs/images/native-s3-chip-probe.png",
+      "docs/images/native-s3-chip-public.png"
+    ],
+    "method": "Application-owned DearPyGui callbacks/framebuffer; no OS/browser input automation"
+  },
+  "deferred": [
+    "configurable training relation canvas",
+    "interactive backward/optimizer stepping",
+    "complete training-engineering export",
+    "3D and segmentation",
+    "LLM and RAG",
+    "multi-GPU and remote execution"
+  ],
+  "github": {
+    "uploaded": false,
+    "remote_configured": false,
+    "collaborators_added": false,
+    "user_request": "paused"
+  }
+}

@@ -1,0 +1,3433 @@
+{
+  "date": "2026-11-17",
+  "checked_at_utc": "2026-11-17T05:53:14.953413+00:00",
+  "stage": "S4 A3+B3, usable basic A5/I1 slice and orthogonal wires",
+  "status": "passed",
+  "notice": "Local native source milestone, app-owned callbacks/framebuffers and tiny generated tensors/CSV/PNG. No scientific performance, full S4 or new EXE claim.",
+  "tests": {
+    "backend_cpu": {
+      "suite": "backend",
+      "exit_code": 0,
+      "log": "output\\native-s4-a3-b3\\backend-cpu-candidate-full.log",
+      "summary": [
+        "Ran 275 tests in 29.037s",
+        "OK (skipped=1)"
+      ],
+      "run": 275,
+      "seconds": 29.037,
+      "skipped": 1,
+      "passed": 274,
+      "log_sha256": "aa3c0c8adc2be9f5574621e5a1f6ea4349c2f157667e92923302c054faa5eff3"
+    },
+    "native_cpu": {
+      "suite": "native",
+      "exit_code": 0,
+      "log": "output\\native-s4-a3-b3\\native-cpu-final-full.log",
+      "summary": [
+        "Ran 199 tests in 63.329s",
+        "OK"
+      ],
+      "run": 199,
+      "seconds": 63.329,
+      "skipped": 0,
+      "passed": 199,
+      "log_sha256": "e42b78f577e3a277444648cbb50303ef69b72cbb16449ab785f8eba99fea0dbd"
+    }
+  },
+  "skip_notice": "One existing paired-data symlink fixture cannot be created on this Windows account (WinError 1314); skipped, not verified as passing.",
+  "devices": {
+    "cpu": {
+      "path": "output/native-s4-a3-b3/device-cpu.json",
+      "sha256": "6afc605e93b9b3638719a2c33fdc4ca760b69adff35357f9b63f26545c6caa27",
+      "report": {
+        "status": "passed",
+        "device": "cpu",
+        "torch": "2.6.0+cpu",
+        "notice": "Five generated tiny component fixtures, one update each; no scientific performance claim",
+        "components": [
+          {
+            "component": "head.mlp",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.concat_projection",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.weighted_sum",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.gated",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "block.residual_basic",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          }
+        ],
+        "cuda_full_suite_claimed": false,
+        "checkpoint_resume_claimed": false,
+        "standalone_full_resource_budget_claimed": false
+      }
+    },
+    "cuda": {
+      "path": "output/native-s4-a3-b3/device-cuda.json",
+      "sha256": "b6a4e0d1258f24da9d85a98f05205fe894f09255bb22bccfba958303cfe5a600",
+      "report": {
+        "status": "passed",
+        "device": "cuda:0",
+        "torch": "2.6.0+cu124",
+        "notice": "Five generated tiny component fixtures, one update each; no scientific performance claim",
+        "components": [
+          {
+            "component": "head.mlp",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.concat_projection",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.weighted_sum",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "fusion.gated",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          },
+          {
+            "component": "block.residual_basic",
+            "source_metadata_free": true,
+            "output_input_and_parameter_gradients": true,
+            "one_sgd_and_buffers": true,
+            "all_state_on_requested_device": true
+          }
+        ],
+        "cuda_full_suite_claimed": false,
+        "checkpoint_resume_claimed": false,
+        "standalone_full_resource_budget_claimed": false
+      }
+    }
+  },
+  "review_reports": {
+    "a3-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a3-review-report.md",
+      "sha256": "926680bf69028a41bcb402636d9943c3056f0dd34c68dcd72c21643192f9a7cf",
+      "text": "# A3 工厂独立规格与质量审查 — 2026-11-17\n\n判定：通过冻结 A3 差异的限定范围审查。未发现新增 P1/P2。已有独立 Python 桥接的两项边界见下文，不把本次通过扩大为所有手改独立源码的动态参数校验或无 metadata 的版本身份保留。\n\n## 范围与证据\n\n已读 task-a3-brief.md（含 component_types.py 归属修订）、task-a3-report.md、a3-review.diff、a3-review-source.json、规格 4.1–4.4 的精确配置表、A3 计划及 progress.md 最新范围裁定。四个新增文件当前 SHA-256 均与冻结清单一致。仅本报告写入；未编辑生产代码或测试，未操作 Git、安装、下载、UI、长训练或子代理。\n\n已读取 `output/native-s4-a3-b3/a3/green-final-cpu.log`：17 tests，1.760s，OK；这是提交的 CPU 证据，本次未重跑该 suite。静态逐项审查了全部 424 行测试，独立小脚本仅补查双实例 alpha 的源码往返及下述边界，使用现有 venv、`-B`、关闭 bytecode 写入，退出码 0。\n\n## 通过的契约\n\n- `module_templates.py:9` 的必需/可选键与表完全一致；公共 batch 字段默认 2，经既有严格 1..64 vision 校验。正整数拒绝 bool；alpha 拒绝 bool、非数、NaN/Inf 和无法转换的超大整数；Block 的 N/C/H/W、通道匹配、batch、stride 校验明确；未知字段不被吞掉。\n- 五个工厂生成普通图，公式符合规格：MLP 的 Linear/ReLU/Linear、Concat/Linear/ReLU、`a + alpha*(b-a)`、sigmoid 门控及互补支路、BasicBlock 主干和 Identity/Conv1x1+BN 投影。stride=1 通道变化与 stride=2 降采样均有真实数值覆盖。WeightedSum 只公开局部 `alpha -> weighted.factor`，没有互补常量或新增表达式执行器。\n- `module_templates.py:157` 每次生成独立 JSON 闭包，版本 1.0.0、具名端口、布局及显式 operator/profile/bound 需求正确；返回前走真实 `prepare_graph`，不是仅检查返回字典。无 torch/GUI 导入；`component_types.py` 仅承载指定三字段，不依赖正在并行实现的目录。\n- 测试参考不是调用工厂计算期望：MLP/Concat 使用原生 Linear/ReLU；Gate 用独立公式；Block 独立连线 Conv/BN。比较前严格复制相同 state，覆盖输入/参数梯度；Gate 与 Block 覆盖一步 SGD，Block 同时覆盖 BN buffers 和 eval 输出。共享同实例与不同实例分别检查参数存储、更新隔离、running mean 和真实 batch counters。\n- 现有测试对五种组件覆盖带/去 metadata 的导入与执行、严格 state_dict 加载、具名输出及策略；对 Block 共享/独立的往返也逐项比较独立参考、梯度和 buffers。闭包、无关/递归定义、版本、接口、错误 shape、公开覆盖与资源越界由真实消费者拒绝。\n- 额外独立反例：同一 WeightedSum 定义实例化两次，默认 alpha=0.125，实例覆盖分别 -1.75/2.25；带/去 metadata 导入后及实际执行的独立 Python `Model` 均分别匹配两个公式，覆盖值不会互相污染或被定义默认值覆盖。\n\n## 明确边界（继承行为，非本次差异新增发现）\n\n1. `vision_python.py:20` 导出 helper 的 `Scale.__init__` 使用 `float(factor)`。执行合法导出源码后直接调用 `Chip_WeightedSum(alpha=True)`、`alpha=float('nan')`、`alpha=float('inf')`，分别接受为 1.0/NaN/Inf。工厂配置、图实例覆盖和受支持 AST 导入路径拒绝这些值；当前测试证明的是这些受控入口，不能宣称独立类的任意动态构造参数也严格拒绝。若最终验收把该独立动态调用入口纳入“源码三条路径”的非法值契约，需要另行协调 bridge owner：在独立 helper/公开构造器执行同样的有限非 bool 校验，并同步精确 AST helper 契约及回归。不得靠 A3 工厂私加不受导入器支持的代码解决。\n2. `python_io.py:836` 无 metadata 时重建 definition version 为 0.1.0；有 metadata 保留 1.0.0。上述独立双实例检查确认数值、端口、策略和实例覆盖仍保留。工厂生成版本稳定的要求已经满足，但不能宣称去 metadata 仍保留原组件包版本身份；若需要该能力，应新增受支持的非视觉版本声明契约。\n\n对比 a3-b3-baseline，`python_io.py`、`vision_python.py`、`schema.py`、`runtime.py` 的当前字节均相同，所以上述不是 A3 修改既有桥接造成的回归。这里保留可复现事实供最终范围裁定。\n\n## 未核实及后续范围\n\n没有执行 CUDA、完整仓库集成、目录/UI 放置、OS 拖拽、打包或 EXE 验收；没有把提供的 focused CPU 日志当作这些能力的证据。ResNet/A4、完整组件目录和其他后续任务不属于本次 A3 交付；当前并行增加的可用目录/UI 切片应分别审查。最终集成人仍需完成跨线和完整回归。\n"
+    },
+    "catalog-fix1-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/catalog-fix1-review-report.md",
+      "sha256": "f0dc86c91b218658d3f99665e26c0f85d2ac9a3ef6b73bcf014f47d6aa4bf9fb",
+      "text": "# 基础目录修复轮 1 独立复审 — 2026-11-17\n\n判定：通过本轮限定复审。原审查两项 P2 均已修复，未发现修复引入的新 P1/P2。通过范围仅为公开 primitive ID、chip 显式资源策略及其兼容性；不代替 B3/UI 整合或最终全量回归。\n\n## 范围与证据\n\n已读取 task-catalog-report.md 的 fix round 1 追加说明、catalog-fix1-review.diff（696 行）、catalog-fix1-review-source.json、fix1-red-counterexamples.log、fix1-green.log 和 fix1-source-sha256.json，并核对原审查报告与相关实际源码/新增测试。\n\n七个文件的当前 SHA-256 全部匹配 fix1 审查清单及 fix1-source-sha256.json，原 a3-b3-baseline 的 SHA-256 也逐项匹配。相较首轮冻结，修复只改变 component_catalog.py、component_insert.py 及各自测试；document.py、chip_library.py、test_view_document.py 的冻结哈希保持不变。\n\n已读取原始反例红灯：2 tests，19 failures，无 test errors；提供的绿灯为 45 tests，3.355s，OK（实施者记录退出 0）。覆盖目录、插入、原有 chip requirements 和 view-document API。本次没有重跑这些测试或完整 suite；仅执行只读文件/哈希核对。仅本报告写入，未编辑源码或测试，未操作 Git、安装、下载、UI、worker、训练或新子代理。\n\n## 原 P2 关闭依据\n\n1. **公开 primitive ID 契约已恢复。** `studio/backend/studio_core/component_catalog.py:84` 为 17 个 primitive 统一返回 `primitive.<kind>`，符合 A5/I1；`:100` 只将有限 registry 中的裸 kind 转成规范 ID，`:101–102` 仍先从真实描述表确认条目，随后 `:105–107` 将规范 ID 映射回内部裸 kind。不存在任意前缀名称绕过 registry 的构建路径。别名只影响 build，不增加目录行；工厂 ID、类别、默认值、端口和 primitive requirements 不受影响。`studio/backend/tests/test_component_catalog.py:86` 的新增覆盖逐个检查 17 个规范 ID 的搜索、内部 kind、裸 build 别名等价、无重复行以及未知规范 ID 拒绝；原有搜索/默认值/无 torch 或 GUI 依赖测试仍在提供的绿灯中。\n\n2. **chip 显式资源策略已强制。** `studio/native/component_insert.py:31–36` 将 primitive 与 chip 分开：只有 primitive 获得 `policy=None`，chip 必须存在 `resource_profile`，随后交由既有 `_policy` 校验允许字段及 vision-v4 的严格 bound。`apply_policy=True` 在后续 add_component 阶段才有作用，无法跳过 entry 验证。显式 `resource_profile=None` 返回有内容的策略 dict，保留 legacy 芯片兼容性，并继续参与后续精确 mismatch 检查；它不会与“未声明策略”混为一谈。新增 `studio/native/tests/test_component_insert.py:158` 覆盖缺 profile、仅 bound、vision 缺 bound 各自在 adopt false/true 下拒绝，并比较包含 revision、trail、selection、undo、redo 的快照；`:172` 保护显式 null 策略的成功插入及一次 undo。原有合法工厂 opt-in、primitive 策略拒绝、旧 v1/v2 包和 scoped document 测试在提供的 45 项绿灯中通过。\n\n## 兼容性与未核实范围\n\n修复保留裸 primitive build 调用、内部 entry.kind、五个工厂 ID、旧 add/import/save API 及原子 command 路径。规范 descriptor ID 的 UI 消费者需按本轮明确的 canonical ID 接线；B3 尚在整合，本复审没有验证其调用或原生拖放。task-catalog-report.md 的修复追加段已明确覆盖早先“描述符使用裸 kind”的历史说明。\n\n原报告中的草稿资源边界不变：插入成功不代表整个工程可运行或通过最终累计参数/激活预算；修复说明已如实补充。未重跑完整 backend/native、CUDA、framebuffer/焦点/拖放、OS 手势、workspace v3 或 EXE 验收。最终集成人在 UI 冻结后执行一次全量回归，本次通过不替代该关口。\n"
+    },
+    "orthogonal-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/orthogonal-review-report.md",
+      "sha256": "28759feae44b621f33a939b0772a0abd3ebf2d724abdb01ab6a4b10ff1e3b01e",
+      "text": "# Frozen orthogonal helper independent review\n\nDate: 2026-11-17. Verdict: **ACCEPT within the frozen helper scope; no actionable P1/P2 finding identified.** This is not whole-B3 or whole-S4 acceptance.\n\n## Scope and source identity\n\nReviewed `task-orthogonal-brief.md`, the current spec section 4.2 supplement, `progress.md`, `task-orthogonal-report.md`, and `orthogonal-frozen-review.diff` (462 lines, two added files), against the complete current source/test files. SHA256 values match `orthogonal-frozen-review-source.json` and the helper's frozen manifest:\n\n- `studio/native/orthogonal_edges.py`: `74c48ea7cab3dfa9e7d446bbd625e8ba5f4375a05a0f64817508411d1fb348e7`\n- `studio/native/tests/test_orthogonal_edges.py`: `01b01e8832905edf71f0b2e0160f83f21185b610403b386e0d2d46086705ac54`\n\nRead current UI/canvas integration only to check the helper contract: completed native links retain IDs with `show=False` (`ui.py:505`, `:510`); real socket/body measurements feed the helper (`:934-960`, `:981-1002`); visible hit results map back to retained IDs and deletion (`:1004-1024`, `:704-710`); hidden/rebuilt/disposed canvases clear/dispose their overlays (`canvas_view.py:130`, `:152`, `:204-209`). Modal/minimap/port-layout behavior remains B3's independent review scope.\n\n## Findings and checks\n\nNo concrete P1/P2 defect was established in the frozen helper.\n\n- Routing normalizes finite coordinates, returns original endpoint values, compacts duplicate/collinear vertices, and uses horizontal/vertical construction (`orthogonal_edges.py:20-45`, `:59-165`). Forward shortcuts check all bodies; reversed/search routes preserve the intended departure/approach stubs. Screen bounds restrict searches when both endpoints are visible; offscreen endpoints are routed before clipping.\n- Search work is explicitly capped at 4096 expanded states per route (`:128`); each geometry update assigns `min(4096, 8192 // max(1, edge_count))` per edge (`:254`). Grid search uses the nearest 64 bodies (`:111-116`). The forward shortcut tries its default channel plus at most 16 alternate body channels (`:99-102`). These are search/choice limits, not an asserted wall-clock bound for normalization, sorting, clipping, or drawing.\n- Pane clipping and body subtraction operate on the actual line segments (`:168-203`); overlay hit testing consumes that same segment map, rejects points outside the pane and inside bodies, and resolves ties deterministically for the native integer link IDs (`:277-289`). Geometry/style caches suppress DPG calls on an unchanged update (`:241-275`). Clear/dispose remove routes, drawings, hit targets and stale cache state (`:291-306`).\n\nI did **not** rerun the existing 14-test suite. I read `output/native-s4-a3-b3/orthogonal/green-final.log`: all 14 tests passed in its recorded run, including real-DPG drawing and a neutral configuration check. This is supplied execution evidence, not a new independent run.\n\nI executed one small independent stdin-only probe with the existing `studio/.venv/Scripts/python.exe -B` (exit 0), without writing source/tests or new evidence files. Four distinct screen-space cases—forward nodes, reversed nodes, a body five pixels beyond the source, and equal-X source/target nodes—checked exact endpoints, nonzero Manhattan segments, rightward departure/arrival, pane bounds, and equality of visible segments to the entire unobscured route. All passed. A separate recording DPG adapter checked reordered-edge neutral updates make **zero adapter calls**, style-only changes retain drawing IDs, clear removes hits, dispose removes its drawlist/hits and is repeatable, and an update after disposal raises. A three-edge geometry update allocated `[2730, 2730, 2730]` search allowances (8190 total).\n\n## Real-frame evidence inspected\n\nRead `real_frame_diagnostic.py`, `real-frame.json`, and `real-frame.log`; inspected the actual `orthogonal-two-panes.png` and `orthogonal-repositioned.png` images using the image viewer. The visible four native links have horizontal/vertical segments and 90-degree bends, meet the recorded physical socket centers, stay within their panes, and avoid node interiors. The right source moves from body `(816,188,923,271)` to `(766,228,873,311)`; the recorded right link endpoints change from `(923,232.5)` to `(873,272.5)` and their routes change accordingly. The left pane remains stable. The diagnostic retains native IDs, records visible-segment hit results, and records context destruction. These screenshots and API-driven movement support the stated bounded helper behavior; they do not prove physical gesture delivery.\n\n## Explicit limitations / cannot verify\n\nThe report's deterministic fallback for infeasible geometry or limited search is an accepted limitation of this review: overlapping/blocked exits, nearest-64 approximation, or exhausted allowance can leave disconnected **visible fragments** after subtraction. The finite candidate grid and bounded search do not establish that every geometrically feasible route is found. No globally optimal routing or universal frame-time claim is certified. Full body subtraction protects drawing even when route search uses its smaller obstacle set.\n\nStroke thickness extends beyond mathematical segment centerlines; pane-chrome inset is a caller responsibility. Foreground occlusion by covering windows and native minimap exclusion also remain caller responsibilities; source inspection shows B3 supplies modal clearing and a conservative minimap exclusion, but this helper review does not validate those policies across all layouts.\n\nPhysical mouse linking/selection/Delete delivery, native temporary-preview straightness, exact native minimap geometry, whole-app callback/token/document semantics, and neutral parameter-draft preservation were not independently exercised here. They remain B3/root/manual acceptance items. No OS/GUI input automation, installs, Git operations, full-suite rerun, training, or source/test edits were performed. This report is the only written artifact.\n"
+    },
+    "b3-fix1-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/b3-fix1-review-report.md",
+      "sha256": "42245e635b6c670641e72a5e786c4adc90b15f693bf317e190a3ef85ef82bb43",
+      "text": "# B3 fix round 1 scoped independent re-review\n\nDate: 2026-11-17. Verdict: **ACCEPT within this fix scope. All four original P2 findings are closed; no new actionable P1/P2 was found in the fixes.** The original broader UI review and its stated verification limits remain applicable. This is not acceptance of B4 persistence, A4 ResNet, new executables, or every later S4 stage.\n\n## Source identity and review boundary\n\nRead the latest R1 append to `task-b3-report.md`, `b3-fix1-review.diff` (1,875 lines / 11 files), `b3-fix1-review-source.json`, the 13-file `review-fix1-frozen-sources.json`, the new six-test source, and the relevant surrounding callbacks and CanvasHost integration. All 11 scoped and all 13 frozen current hashes match. The previously omitted orthogonal acceptance harness is now included and retains its previously reviewed hash.\n\nReconstructed the initial reviewed text from `b3-review.diff` and its stored baseline in memory, then inspected the R1-only textual changes. The only changed production files since the original B3 review are `catalog_panel.py`, `workbench_panel.py`, `canvas_commands.py`, and `ui.py`. The existing B2/orthogonal UI tests and both frame harness sources retain their original hashes. The helper and its test retain the accepted frozen hashes; the seven catalog core files also still match `catalog-fix1-review-source.json`. No helper or catalog core implementation change was introduced in this fix round.\n\nThe re-review is limited to the original four findings and problems the fixes could introduce. I did not reopen unrelated accepted stages, rerun the 49 focused checks, rerun a full suite, or edit production/test source.\n\n## Closure of the original findings\n\n1. **Quick placement event ownership — closed.** `catalog_panel.py:76`–`:105` now rejects a missing token, captures a concrete CanvasToken, checks it and current focused ownership, and passes that same token into `_quick` (`:171`–`:172`). The initial placeholder cannot mutate before a real canvas exists. `CanvasCommands._canvas_synced` calls `sync_quick_owners` (`canvas_commands.py:54`–`:55`), which rebinds only when the actual token changes. The old root action cannot resolve a newly focused chip at delivery. The supplied tests cover focus, same-definition call context, document replacement and a usable current quick action. An independent adjacent probe also confirmed that a real parameter callback changing the same view's generation rejects the saved quick action, refreshes its non-null token, and leaves the new quick action usable.\n\n2. **Catalog dialog request identity — closed.** Each opening creates a distinct frozen ConfigRequest or PolicyRequest record. Configuration actions capture identifier, token and that request's widget tuple (`catalog_panel.py:202`–`:208`); `_apply_config` checks object identity before accessing widgets, then validates its captured CanvasToken (`:218`–`:230`). Policy actions capture a copied bundle, token and position, check request identity before consuming it, and still reach `_insert`'s CanvasToken validation (`:310`–`:316`, `:337`–`:359`). Cancel/on-close handlers capture the same request and reject other requests. Completion, cancellation and document replacement invalidate the relevant slots (`:235`–`:244`, `canvas_commands.py:190`–`:191`). This separates request identity from canvas identity: reopening another dialog on the same unchanged canvas cannot authorize an older action. The supplied tests cover old Apply/Cancel after reopen and replacement, plus repeated policy completion. Independent probes confirmed stale config and policy **on-close** actions cannot close a new request, and that invalid JSON preserves the current configuration request/form and can subsequently be corrected and applied.\n\n3. **Close/Move intended view — closed.** Controls capture view ID, source pane and CanvasToken through `_view_action` (`workbench_panel.py:79`–`:82`, `:104`–`:111`). Delivery requires the token to be accepted and that same view to remain active in its original pane; otherwise it returns without substituting the pane's new active view. Root protection remains in place. The tab-strip signature includes CanvasToken (`:38`–`:40`), so a valid new Close/Move does not become permanently bound to the generation preceding a parameter edit. The extra supplied regression explicitly exercises old actions rejected after redraw and current Move/Close still working after two actual parameter callbacks. An independent adjacent probe also confirmed that switching `encode_a` to `encode_b` in the same definition rejects the saved Move but accepts the new request's Move.\n\n4. **Visible wire with an offscreen endpoint — closed.** `_socket_position` no longer treats the native node's clipped `visible=False` as proof that its complete connection is absent. It validates finite native rectangle geometry and a finite measured child-row center (`ui.py:934`–`:955`). The caller still excludes hidden CanvasViews, clears modal overlays, and relies on the unchanged helper's pane clipping/body subtraction and real-link mapping. Supplied tests move source left of the editor and target right of it, verify visible fragments and selection, then delete the actual model connection. Independent adjacent probes moved `input:a` **above** the viewport and `encode_a` **below** it: the nodes were truly not visible, but the connection retained respectively one and two visible segments; selecting a segment and deleting removed `encode_a`'s real `x` binding. No source/helper mutation was needed to run those probes.\n\n## Verification evidence\n\nRead the original R1 red log: five tests with six failures, including separate source/target offscreen failures. Read the first green result: five tests, 2.012 seconds, OK. Read the expanded current green result after the fresh-control regression: six tests, 2.181 seconds, OK. The supplied affected regressions are catalog 6, workbench 7, original CanvasView/B2 23 and orthogonal UI 7; together with the current six new tests this is 49 focused checks. They were inspected, not rerun by this reviewer.\n\nI ran one short independent stdin-only native process with the existing virtual environment. It exited 0 and passed these adjacent checks:\n\n- Stale configuration on-close after reopening the same component; invalid JSON recovery followed by valid Apply.\n- Stale policy on-close after cancel/reopen.\n- Old quick generation rejected and the new quick generation usable after a real parameter callback.\n- Old Move call context rejected and the new context's Move usable.\n- Source above the viewport and target below it, each with a visible hittable wire fragment and deletion of the real binding.\n\nThis used saved actual registered callbacks/user_data, public native geometry and application-owned frames. It did not use physical OS/browser input, existing-suite reruns, training, installations, downloads, Git, new agents, or executable builds. Temporary data was cleaned up. This report is the only retained artifact written by the re-review.\n\nRead both refreshed frame JSON reports and harness logs. The regular harness records nine frames, 18 operations and six drops. Each recorded rendered node origin equals its requested screen point, including secondary placement at both viewport sizes. The orthogonal harness records nine frames and the actual multiport/link geometry. Viewed the refreshed policy modal, minimum row split, and minimum deep-chip framebuffer: policy copy describes current/required execution behavior and batch bound; Apply/Cancel remain visible; no foreground wire crosses the modal; the definition/path notice and unsubmitted parameter text remain visible in the deep view. The other original frame coverage was not broadly repeated as a new review task.\n\nRoot completed the full frozen-source native gate while this re-review ran. I read its actual `native-cpu-final-full.log`, JSON and exit-code file: **199 tests, 63.329 seconds, OK, exit 0**. That was root's execution, not a reviewer rerun. The unchanged backend gate remains root's separate responsibility/evidence.\n\n## Remaining boundaries\n\nThe changes preserve the B2 editor, token, scope, native_editor alias, worker, undo/reconcile and disposal paths; no new demonstrated regression was found there. Token inclusion in the tab-strip signature refreshes its controls on semantic redraw without rebuilding parameter inputs on neutral sync. The helper/core files remain unchanged, and the original accepted bounded-routing/performance assessment is not broadened by this report.\n\nPhysical gestures, exact nonzero pan/zoom, exact native minimap bounds, globally optimal routing and a newly built EXE remain unverified as stated previously. Small row panes still crop the infinite canvas while preserving the controls. This acceptance establishes closure of the four concrete UI defects and the absence of an additional demonstrated P1/P2 in this scoped fix review; root retains the overall final integration/acceptance gate.\n"
+    },
+    "a3-b3-final-review-report.md": {
+      "path": ".superpowers/sdd/2026-11-15-s4-workbench-components/a3-b3-final-review-report.md",
+      "sha256": "b690c659722f4478f7b01c1c5ed44cefa59a21080cbb00ebdc28568696921ca4",
+      "text": "# A3/B3 component workbench — independent final whole-change review\n\nDate: 2026-11-17. Verdict: **ACCEPT for the frozen, bounded source gate. No new actionable P1/P2 finding was established.** The combined final-review findings list is empty; no additional fix wave is requested.\n\nThis verdict covers A3's five component factories, the user-authorized usable basic catalog/atomic insertion slice, B3 native tabs/split panes/sidebars, and completed orthogonal-wire integration. It does not certify all S4 stages, ResNet18, workspace-v3 persistence, physical input delivery, or a rebuilt executable.\n\n## Review scope and source identity\n\nRead the amended design specification, especially sections 4.2 and 5; A3, catalog, orthogonal and B3 briefs/reports; the progress ledger and its explicit boundary rulings; and the accepted A3, catalog-fix1, orthogonal-helper and B3-fix1 review reports. Reviewed the entire current 25-file Python change, including production source, tests, fixtures and both frame harnesses, against the supplied 3,773-line unified diff and relevant unchanged consumers. This was a whole-change integration review, not another review restricted to the previous four B3 findings.\n\nIndependent read-only hashing/diff checks established:\n\n- All 25 current source SHA-256 values match `a3-b3-final-review-source.json`.\n- `a3-b3-final-source.json` is equal to that review manifest.\n- All 119 saved baseline files match `a3-b3-baseline/hashes.json`.\n- Exactly six existing baseline Python files changed: `canvas_commands.py`, `canvas_view.py`, `chip_library.py`, `document.py`, `tests/test_view_document.py`, and `ui.py`, all under `studio/native/` and all included in the manifest. The other 19 manifest files are additions.\n- Every manifest baseline hash matches the stored baseline; regenerating the unified diff from the saved baseline and current text reproduces the submitted diff exactly, including its 3,773-line count.\n\nNo Git/index/commit operations were used for these checks. The source identity evidence therefore does not depend on an unavailable repository HEAD.\n\n## Architecture, numerical contracts and compatibility\n\nThe factory/type/catalog separation is sound. `component_types.py` contains only the specified JSON bundle datatype; `module_templates.py` builds ordinary finite graph definitions and validates through the existing pure schema; `component_catalog.py` re-exports the type and derives primitive support/defaults/ports from the real registry. There are exactly 17 registered primitive descriptors plus five implemented factories. Canonical `primitive.<kind>` IDs and finite bare build aliases coexist without duplicate rows or a route for unknown prefixed operators. Returned descriptors/defaults and generated definitions are independent data. No fake ResNet entry, model weight allocation, Torch import or GUI import is introduced in these pure modules.\n\nThe five graph constructions implement their stated mathematics and interfaces. WeightedSum uses `a + alpha * (b - a)` and binds only the final Scale factor; finite extrapolation does not leave a stale complementary coefficient. GatedFusion has real `features` and `gate` outputs. ResidualBasicBlock contains the actual convolution/BN path and identity or projection shortcut. Configuration checks enforce the specified required/optional keys, strict positive integer dimensions, finite non-bool alpha, explicit shape/channel consistency and existing vision batch-bound limits. The factory invokes the existing allocation/resource validation boundary before returning.\n\nThe numerical tests use independent Torch formulas/modules with exact state copied before comparison, rather than the factory to calculate expected values. They distinguish shared calls from separate instances, exercise input/parameter gradients, one SGD update where parameters exist, BN buffers/counters and eval behavior, and strict state loading after supported Python roundtrips. The metadata-free and standalone checks test actual execution. The device script provides platform/reimported/standalone parity on the explicitly requested device; it does not substitute for the independent CPU mathematical references or claim a full CUDA suite.\n\n`component_insert.py:77`–`:135` uses the existing command transaction for placement. Primitive policy inheritance and chip explicit policy are distinct; missing chip policy cannot bypass validation through `apply_policy=True`. Component/default/override/closure checks occur independently of unfinished project wires. The in-memory extraction of `merge_bundle` preserves the existing import path, nested ID remapping, matching-definition reuse and independent instance creation. Placement, optional policy adoption, closure merge and selected call are one undoable model command. Invalid position/storage/closure/depth/work cases roll back the model and cursor without consuming undo/redo history. The current-root policy is not silently inferred from a factory, and experiment batch is not changed.\n\nThe accepted editable-draft boundary remains essential: successful insertion certifies the individual component and finite storage/expansion work, not the complete draft's aggregate runtime parameter/activation budget or task suitability. Existing core validation remains the execution authority. The changed legacy `Document.add` uses registry presets; its former temporary refusal of the six new primitives is replaced by scoped/default/history positive coverage under the explicit ledger ruling. Existing add/import/save semantics and old package v1/v2 policy handling are retained.\n\n## Native integration, ownership and lifecycle\n\nInspected the complete event path through `catalog_panel.py`, `workbench_panel.py`, `canvas_commands.py`, `canvas_view.py` and `ui.py`, including surrounding unchanged commands. The accepted fixes remain present: quick actions acquire a concrete owner after real canvas creation; configuration and policy actions capture distinct request objects before accessing request state; Close/Move capture the intended view, source pane and CanvasToken; and finite offscreen socket geometry reaches the helper's clipping stage. Current quick and tab actions refresh with generation/context/document changes. No new demonstrated cross-scope mutation or stale-request consumption was found.\n\nTabs and pane controls operate over the shared WorkbenchState and Document. Navigation uses persistent CanvasHost editors, root protection, reconciliation and disposal rather than replacing the model. Model edits remain globally undoable. Neutral sync and layout changes do not introduce an inspector rebuild solely to poll another pane's positions; the existing B2 23-test assertions for native identity, drafts, explicit ownership, alias compatibility, reconciliation and cleanup remain intact.\n\nCatalog drop callbacks capture the target canvas token. The position conversion uses measured node screen/local geometry and validates the visible target rectangle, with a documented click fallback when usable geometry is unavailable. The policy request preserves the concrete bundle/config/position and delegates explicit adoption to the atomic insertion API. Cancel and document replacement invalidate pending requests. The root integration journey connects the real drop target, policy confirmation, source/target attributes, alpha callback, actual numerical result, metadata-free Python and model identity across tab/layout navigation.\n\nCompleted links retain real native IDs/attribute ownership with hidden native curves. The foreground helper owns only drawings and visible-segment hit maps. Declared input attributes are on the left, declared outputs on the right; no decorative/probe pins enlarge the data contract. Visible-wire selection maps back to the real target binding, clears incompatible node controls, and node selection clears wire selection. Hidden/rebuilt/closed/replaced views and shutdown clear or dispose the corresponding overlay; shown modals suppress drawing/hits. The helper's deterministic search and cache bounds remain the accepted limited routing contract, not an assertion of complete or optimal routing for every graph.\n\n## Execution and frame evidence inspected\n\nRead the actual complete gate logs, their JSON summaries and exit-code files. These are the coordinator's recorded executions, **not suites rerun by this reviewer**:\n\n| Frozen evidence | Recorded result |\n|---|---|\n| `backend-cpu-candidate-full.log/json/exitcode.txt` | 275 run, 274 passed, one existing Windows symlink-permission skip; 29.037 seconds; exit 0 |\n| `native-cpu-final-full.log/json/exitcode.txt` | 199 passed; 63.329 seconds; exit 0 |\n| `device-cpu.json/log/exitcode.txt` | Five tiny components, output/input and parameter gradients, one update and state/buffer parity; CPU; exit 0 |\n| `device-cuda.json/log/exitcode.txt` | Same bounded five-component checks on actual `cuda:0`, no silent CPU fallback; exit 0 |\n\nThe symlink fixture was skipped because Windows returned WinError 1314; this is not successful verification of that path. The backend source in this gate is unchanged by the later UI fix. Earlier 170/192/193 native results are historical and are not treated as the final result. Read the relevant red/green evidence through the implementation and accepted review reports and inspected the new regression sources; no assertion weakening was found in the current change.\n\nRead both refreshed JSON frame reports and both harness sources, and visually inspected **all 18 original refreshed frame images** in `b3/review-fix1-frames/` and `b3/review-fix1-orthogonal-frames/`. Also inspected `docs/images/native-s4-components-before-after.png`, `native-s4-components-detail-qa.png`, and `native-s4-components-workbench.png`.\n\nThe regular report records nine frames, 18 operations and six measured drops. Recorded requested screen points and final rendered node origins agree with a maximum coordinate error of **0 pixels** in that report, including secondary-pane placement while root is focused. Default client size is 1364×821 and minimum is 1084×721. Frames show independently scrolling tree/results, fixed search/category/quick controls, direct native tabs plus a complete overflow selector, reachable pane/layout controls, explicit deep-call/definition-wide notices and preserved unsubmitted parameter text. Small row/column panes visibly crop the infinite graph, as declared, while the persistent controls remain available.\n\nThe orthogonal report records the actual two left inputs at x=407 and two right outputs at x=555 on the representative chip, with its measured outer rectangle `[407,309,555,484]`. Recorded visible segments are horizontal/vertical; the inspected frames show their ends at the physical pins and pane isolation. Configuration/policy modal frames have no foreground wires over the form, and the selected-wire frame shows the real source/target with a disconnect action. These are actual application frame/callback/geometry observations, not physical-input certification.\n\n## Supplemental delivery assets and documentation\n\nRead the two short source-preview launchers, `studio/启动S4源码预览.cmd` and `studio/启动S4-CUDA源码预览.cmd`, and the existing `desktop_entry.py` dispatch. Their quoted paths select the existing CPU/CUDA `pythonw.exe` and the existing entry point, with separate `%LOCALAPPDATA%` preview state directories. They add no install/download step or business-source change. They were inspected only; this reviewer did not launch them or a user-facing application.\n\nRead the current `S4_COMPONENT_WORKBENCH_VERIFICATION.md` and root `design-qa.md` as contextual delivery drafts. Their current result counts and major limitations agree with the evidence inspected. Their final wording/record closure is still the coordinator's responsibility; this report does not certify later document edits or replace the final portable acceptance record.\n\n## Explicit verification limits and remaining stage boundaries\n\n- No existing test suite, full device suite, framebuffer harness, training run or new behavioral probe was executed by this reviewer. Independent execution was limited to read-only manifest, baseline, diff and frame-report integrity checks. Supplied tests/frames/device executions are attributed above.\n- Physical mouse drag/drop/link/selection, native double-click and keyboard-event delivery were not exercised. User-prohibited OS/browser/computer input automation was not used.\n- Exact nonzero pan/zoom transforms or cross-session recovery, exact minimap bounds, every display scale and large-graph frame time remain uncertified. The conservative minimap exclusion and unchanged native temporary-link preview remain explicit limitations.\n- Bounded/nearest-obstacle routing can fall back and leave disconnected visible fragments after clipping in overlapping, infeasible or budget-limited cases. No globally optimal or universally complete routing claim is accepted.\n- The ledger's inherited Python boundaries remain: arbitrary dynamic construction of exported classes is outside the extra illegal-alpha runtime-check promise; deleting visual metadata does not preserve deleted component/document version identity. Supported finite AST editing/reimport and declared numerical/state behavior are the accepted paths.\n- A4 ResNet18, full later catalog/local-library indexing, B4 workspace-v3 persistence, complete CUDA regression, checkpoint-resume certification, S4 EXE/ZIP builds and release/GitHub actions are outside this source gate. Existing S3 binaries are not certified as having these source features.\n\nThis report is the reviewer's only retained write. No production/test edits, installs, downloads, Git operations, new agents, OS/browser input, long training or executable builds were performed. The frozen bounded source gate is acceptable with the limits above; no newly established P1/P2 blocks its coordinator-owned final documentation and handoff.\n"
+    }
+  },
+  "baseline_python_files": 119,
+  "source_changes": {
+    "studio/backend/studio_core/component_catalog.py": {
+      "change": "added",
+      "sha256": "3208f8a32546aa08a11be5e4482403900e3257041e0f5d1162a99487d1018445",
+      "baseline_sha256": null
+    },
+    "studio/backend/studio_core/component_types.py": {
+      "change": "added",
+      "sha256": "3edf39cfd2cb5e2827efe2c846ac8e2af4c63cdf46aea4f50de139dbcb3b4dfd",
+      "baseline_sha256": null
+    },
+    "studio/backend/studio_core/module_templates.py": {
+      "change": "added",
+      "sha256": "67e5abbafdd3aa0f4071b141c20d9467d114798a5aea45e707c3f1138f965284",
+      "baseline_sha256": null
+    },
+    "studio/backend/tests/component_fixture.py": {
+      "change": "added",
+      "sha256": "7e4d3ff38e8ef0b72cdc430672f2251394ff5c21e9c21f90e35ad0ba9f21a06c",
+      "baseline_sha256": null
+    },
+    "studio/backend/tests/test_component_catalog.py": {
+      "change": "added",
+      "sha256": "4108a895cdf02701d9115979351acef768eb991f122dcc758d00452e83def3b3",
+      "baseline_sha256": null
+    },
+    "studio/backend/tests/test_module_templates.py": {
+      "change": "added",
+      "sha256": "846d20e753dd29d0ca27d57a729894fe530212396033fb2a547f9fcced4a8a28",
+      "baseline_sha256": null
+    },
+    "studio/native/canvas_commands.py": {
+      "change": "modified",
+      "sha256": "9e966b0bed2c727a9ec7fba42bb666a6b683997f130fcdbb7946792e671c2425",
+      "baseline_sha256": "d5dffd494f6143537ffa5dbb754bf4f7c2d4068320d437b93ffa4ae51e487bc2"
+    },
+    "studio/native/canvas_view.py": {
+      "change": "modified",
+      "sha256": "d82211b00b8838e9ffffc617ebcdeefb1f01ab8da8945af195cb006ef5877cf0",
+      "baseline_sha256": "2f29fd0a9cfa7f0dc21d328404cfe15a7a0ba6b4278fbd3be426f749c60ceb86"
+    },
+    "studio/native/catalog_panel.py": {
+      "change": "added",
+      "sha256": "3bd701d2e7a1444f9fff6f1e7702bb37388f1f37050b8bcb6b53a5c8e358f799",
+      "baseline_sha256": null
+    },
+    "studio/native/chip_library.py": {
+      "change": "modified",
+      "sha256": "22b807f0d95188fb27d98992ef03d11f6fc17e4e8eb7790843bf78a4c58ef75a",
+      "baseline_sha256": "dccbb7837f7e436a766c69934fc09e94f0f3bd719706ce1091da23c0ca143da6"
+    },
+    "studio/native/component_insert.py": {
+      "change": "added",
+      "sha256": "4a98478853cc04518d5e79d05a403c49359aba6b8022f2fa9782728caac5773e",
+      "baseline_sha256": null
+    },
+    "studio/native/document.py": {
+      "change": "modified",
+      "sha256": "6de5627276f126fa111e0ac120106967afbcba16708f0b73ff6188b4b13b52d2",
+      "baseline_sha256": "a7d8029143da2fa144bc839d349755c365b39906db358e4e9b57ae93058080f4"
+    },
+    "studio/native/orthogonal_edges.py": {
+      "change": "added",
+      "sha256": "74c48ea7cab3dfa9e7d446bbd625e8ba5f4375a05a0f64817508411d1fb348e7",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/b3_orthogonal_acceptance.py": {
+      "change": "added",
+      "sha256": "e0a21aef3c12d22775d77844e6bc4cfaf7dc635832a047f3588465ed6fd622fd",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/b3_render_acceptance.py": {
+      "change": "added",
+      "sha256": "4d0fd6476ed057a37e70c70efae8ccc22e1a105aded95b210c0c346e2c7e2b8a",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_b3_review_fix1.py": {
+      "change": "added",
+      "sha256": "c67b169b0ed3527d48c203ae2b1ed71577fa54116a1782bfee11176d076406a6",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_catalog_panel.py": {
+      "change": "added",
+      "sha256": "c9386eec567b60165357d7c3b372f076672f3ae79e5e4ae40265c93bb0bcbb5b",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_component_insert.py": {
+      "change": "added",
+      "sha256": "95b4ee4c47ce23bc613a2ebce6e3b5770501da5607eb91c72b6eda177ac14300",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_component_workbench_integration.py": {
+      "change": "added",
+      "sha256": "24872da8c424ac1e13388d6f5575df51ea5d38513b04be005640cf778468a8f2",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_orthogonal_edges.py": {
+      "change": "added",
+      "sha256": "01b01e8832905edf71f0b2e0160f83f21185b610403b386e0d2d46086705ac54",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_orthogonal_integration.py": {
+      "change": "added",
+      "sha256": "2d3cc9e3ec21c9ced119620f5833f986bc011ab6f5cae19610c78759f6d90455",
+      "baseline_sha256": null
+    },
+    "studio/native/tests/test_view_document.py": {
+      "change": "modified",
+      "sha256": "87245ce4bce250139fcc878684a16b255a940eeeff134cc0675e8c2201885d37",
+      "baseline_sha256": "772ac349e96a258952d41a4f3f732f472755f94090c4b88c143554c3ead85a13"
+    },
+    "studio/native/tests/test_workbench_panel.py": {
+      "change": "added",
+      "sha256": "2f00981b0b0046ecb199c4d44d5879707f1c42b24cad890d9866824c5ff3ab74",
+      "baseline_sha256": null
+    },
+    "studio/native/ui.py": {
+      "change": "modified",
+      "sha256": "78df7c2b66a4451744b28b871ab08de92f822e2de40bf555e3d5690fdf88d423",
+      "baseline_sha256": "de8cb4f765579854e13a38a3092f743e24ca14782245d96ebbca916716da8cb9"
+    },
+    "studio/native/workbench_panel.py": {
+      "change": "added",
+      "sha256": "0ebd3ac36524970381a717f1eefc18755f87d7b7656bb6fbf7f50e77687507c2",
+      "baseline_sha256": null
+    }
+  },
+  "original_ml_forge_unchanged": {
+    "ml_forge/__init__.py": true,
+    "ml_forge/__main__.py": true,
+    "ml_forge/constants.py": true,
+    "ml_forge/engine/__init__.py": true,
+    "ml_forge/engine/autofill.py": true,
+    "ml_forge/engine/blocks.py": true,
+    "ml_forge/engine/generator.py": true,
+    "ml_forge/engine/graph.py": true,
+    "ml_forge/engine/inference.py": true,
+    "ml_forge/engine/metrics.py": true,
+    "ml_forge/engine/run.py": true,
+    "ml_forge/engine/training_setup.py": true,
+    "ml_forge/filesystem/__init__.py": true,
+    "ml_forge/filesystem/save.py": true,
+    "ml_forge/graph/__init__.py": true,
+    "ml_forge/graph/links.py": true,
+    "ml_forge/graph/nodes.py": true,
+    "ml_forge/graph/pipeline.py": true,
+    "ml_forge/graph/tabs.py": true,
+    "ml_forge/graph/undo.py": true,
+    "ml_forge/main.py": true,
+    "ml_forge/shortcuts.py": true,
+    "ml_forge/state.py": true,
+    "ml_forge/ui/__init__.py": true,
+    "ml_forge/ui/console.py": true,
+    "ml_forge/ui/layout.py": true,
+    "ml_forge/ui/menubar.py": true,
+    "ml_forge/ui/palette.py": true,
+    "ml_forge/ui/resize.py": true,
+    "ml_forge/ui/statusbar.py": true,
+    "ml_forge/ui/summary.py": true,
+    "ml_forge/ui/toolbar.py": true,
+    "ml_forge/ui/training.py": true
+  },
+  "protected_s3_artifacts": {
+    "programs/cpu": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio\\MLForgeStudio.exe",
+      "sha256": "7e430e940c5770dbd6e4059635bfdfdda837c5909cb386f22cc43e8fa58bec67",
+      "matches_s3": true,
+      "bytes": 30868587
+    },
+    "programs/cuda": {
+      "path": "studio\\dist\\desktop-cuda\\MLForgeStudio\\MLForgeStudio.exe",
+      "sha256": "cd554182d91aafe12f1e76eaf36673f190a8e9eb55b9f594674e372c477de221",
+      "matches_s3": true,
+      "bytes": 30804973
+    },
+    "portable_archives/cpu": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio-Windows-x64-S3-CPU.zip",
+      "sha256": "17fb00be3b3e6b887c1bf1e3bdda228092046ed873f3a49d10a8a777843cc63b",
+      "matches_s3": true,
+      "bytes": 149586511
+    },
+    "portable_archives/cuda": {
+      "path": "studio\\dist\\desktop\\MLForgeStudio-Windows-x64-S3-CUDA.zip",
+      "sha256": "2c600092b2f3a9fa26b1f490f4668feb631d8278f60c641ebf64df50baad5f66",
+      "matches_s3": true,
+      "bytes": 2474635489
+    },
+    "source_archive": {
+      "path": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
+      "sha256": "d835252a45ef11458abf21754dc7e1f2d67eb7c17157c2ac3074484d6c0156e4",
+      "matches_s3": true,
+      "bytes": 7009316
+    },
+    "original_ml_forge": {
+      "count": 33,
+      "all_match": true,
+      "changed": []
+    }
+  },
+  "frame_reports": [
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-frames/frame-report.json",
+      "sha256": "f4a3b4863cb1c95e8a331e941b684a556b208a3996cd0d291780277cafa3b324",
+      "report": {
+        "frames": [
+          {
+            "file": "default-single.png",
+            "viewport": [
+              1364,
+              821
+            ],
+            "layout": "single",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  296
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  145
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  380
+                ],
+                "size": [
+                  188,
+                  237
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  797,
+                  454
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "default-columns.png",
+            "viewport": [
+              1364,
+              821
+            ],
+            "layout": "columns",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  296
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  145
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  380
+                ],
+                "size": [
+                  188,
+                  237
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  797,
+                  454
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              },
+              "native_view_picker_secondary": {
+                "origin": [
+                  631,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "default-rows.png",
+            "viewport": [
+              1364,
+              821
+            ],
+            "layout": "rows",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  296
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  145
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  380
+                ],
+                "size": [
+                  188,
+                  237
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  797,
+                  454
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              },
+              "native_view_picker_secondary": {
+                "origin": [
+                  231,
+                  427
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-single.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "single",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-columns.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "columns",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              },
+              "native_view_picker_secondary": {
+                "origin": [
+                  491,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-rows.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "rows",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              },
+              "native_view_picker_secondary": {
+                "origin": [
+                  231,
+                  377
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-long-tree.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "single",
+            "focused_view_id": "root",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-tab-overflow.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "single",
+            "focused_view_id": "definition_long_definition_13",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          },
+          {
+            "file": "minimum-deep-chip.png",
+            "viewport": [
+              1084,
+              721
+            ],
+            "layout": "single",
+            "focused_view_id": "definition_encoder_chip",
+            "rectangles": {
+              "native_search": {
+                "origin": [
+                  16,
+                  281
+                ],
+                "size": [
+                  188,
+                  23
+                ]
+              },
+              "native_tree_scroll": {
+                "origin": [
+                  16,
+                  113
+                ],
+                "size": [
+                  188,
+                  130
+                ]
+              },
+              "native_catalog_scroll": {
+                "origin": [
+                  16,
+                  365
+                ],
+                "size": [
+                  188,
+                  152
+                ]
+              },
+              "native_canvas_body": {
+                "origin": [
+                  229,
+                  170
+                ],
+                "size": [
+                  517,
+                  354
+                ]
+              },
+              "native_layout_single": {
+                "origin": [
+                  229,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_columns": {
+                "origin": [
+                  268,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_layout_rows": {
+                "origin": [
+                  307,
+                  85
+                ],
+                "size": [
+                  32,
+                  23
+                ]
+              },
+              "native_view_picker_primary": {
+                "origin": [
+                  231,
+                  198
+                ],
+                "size": [
+                  110,
+                  23
+                ]
+              }
+            }
+          }
+        ],
+        "callbacks": [
+          "native_layout_single",
+          "native drop default-single",
+          "native_layout_columns",
+          "native drop default-columns",
+          "native_layout_rows",
+          "native drop default-rows",
+          "native_layout_single",
+          "native drop minimum-single",
+          "native_layout_columns",
+          "native drop minimum-columns",
+          "native_layout_rows",
+          "native drop minimum-rows",
+          "native_catalog_add_primitive.Linear",
+          5906,
+          "native_canvas_root_d0_e1",
+          "native_view_picker_primary",
+          "legacy back",
+          "close view"
+        ],
+        "drops": [
+          {
+            "frame": "default-single",
+            "point": [
+              289,
+              271
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              289,
+              271
+            ],
+            "view_id": "root"
+          },
+          {
+            "frame": "default-columns",
+            "point": [
+              689,
+              271
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              689,
+              271
+            ],
+            "view_id": "definition_encoder_chip"
+          },
+          {
+            "frame": "default-rows",
+            "point": [
+              289,
+              500
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              289,
+              500
+            ],
+            "view_id": "definition_encoder_chip"
+          },
+          {
+            "frame": "minimum-single",
+            "point": [
+              289,
+              271
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              289,
+              271
+            ],
+            "view_id": "root"
+          },
+          {
+            "frame": "minimum-columns",
+            "point": [
+              549,
+              271
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              549,
+              271
+            ],
+            "view_id": "definition_encoder_chip"
+          },
+          {
+            "frame": "minimum-rows",
+            "point": [
+              289,
+              450
+            ],
+            "expected_position": [
+              40.0,
+              32.926829268292686
+            ],
+            "actual_position": {
+              "x": 40.0,
+              "y": 32.926829268292686
+            },
+            "rendered_node_origin": [
+              289,
+              450
+            ],
+            "view_id": "definition_encoder_chip"
+          }
+        ],
+        "input": "application callbacks and framebuffers only",
+        "exact_nonzero_pan_zoom_verified": false,
+        "status": "passed"
+      }
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-orthogonal-frames/orthogonal-frame-report.json",
+      "sha256": "e9aa419b206288c88d42e3240f86c5255d0727ee8475a9d4254410d5fbc10634",
+      "report": {
+        "frames": [
+          {
+            "file": "orthogonal-default-root.png",
+            "wires": [
+              {
+                "native_link_id": 396,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 397,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      528.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      528.5
+                    ],
+                    [
+                      407.0,
+                      528.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 398,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      555.0,
+                      427.5
+                    ],
+                    [
+                      568.0,
+                      427.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      427.5
+                    ],
+                    [
+                      568.0,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      438.5
+                    ],
+                    [
+                      581.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 399,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      555.0,
+                      599.5
+                    ],
+                    [
+                      568.0,
+                      599.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      599.5
+                    ],
+                    [
+                      568.0,
+                      460.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      460.5
+                    ],
+                    [
+                      581.0,
+                      460.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 400,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      702.0,
+                      531.5
+                    ],
+                    [
+                      719.5,
+                      531.5
+                    ]
+                  ],
+                  [
+                    [
+                      719.5,
+                      531.5
+                    ],
+                    [
+                      719.5,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      719.5,
+                      438.5
+                    ],
+                    [
+                      737.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 401,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      858.0,
+                      509.5
+                    ],
+                    [
+                      869.5,
+                      509.5
+                    ]
+                  ],
+                  [
+                    [
+                      869.5,
+                      509.5
+                    ],
+                    [
+                      869.5,
+                      397.5
+                    ]
+                  ],
+                  [
+                    [
+                      869.5,
+                      397.5
+                    ],
+                    [
+                      881.0,
+                      397.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 402,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      702.0,
+                      531.5
+                    ],
+                    [
+                      866.0,
+                      531.5
+                    ]
+                  ],
+                  [
+                    [
+                      866.0,
+                      531.5
+                    ],
+                    [
+                      866.0,
+                      512.5
+                    ]
+                  ],
+                  [
+                    [
+                      866.0,
+                      512.5
+                    ],
+                    [
+                      881.0,
+                      512.5
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-multiport-root.png",
+            "wires": [
+              {
+                "native_link_id": 732,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 733,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      378.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      378.5
+                    ],
+                    [
+                      407.0,
+                      378.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 734,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      388.5,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      388.5,
+                      572.5
+                    ],
+                    [
+                      388.5,
+                      528.5
+                    ]
+                  ],
+                  [
+                    [
+                      388.5,
+                      528.5
+                    ],
+                    [
+                      407.0,
+                      528.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 735,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      389.3333333333333,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      389.3333333333333,
+                      572.5
+                    ],
+                    [
+                      389.3333333333333,
+                      550.5
+                    ]
+                  ],
+                  [
+                    [
+                      389.3333333333333,
+                      550.5
+                    ],
+                    [
+                      407.0,
+                      550.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 736,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      555.0,
+                      448.5
+                    ],
+                    [
+                      568.0,
+                      448.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      448.5
+                    ],
+                    [
+                      568.0,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      438.5
+                    ],
+                    [
+                      581.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 737,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      568.0,
+                      616.0
+                    ],
+                    [
+                      568.0,
+                      460.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      460.5
+                    ],
+                    [
+                      581.0,
+                      460.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 738,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      702.0,
+                      531.5
+                    ],
+                    [
+                      719.5,
+                      531.5
+                    ]
+                  ],
+                  [
+                    [
+                      719.5,
+                      531.5
+                    ],
+                    [
+                      719.5,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      719.5,
+                      438.5
+                    ],
+                    [
+                      737.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 739,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      858.0,
+                      509.5
+                    ],
+                    [
+                      869.5,
+                      509.5
+                    ]
+                  ],
+                  [
+                    [
+                      869.5,
+                      509.5
+                    ],
+                    [
+                      869.5,
+                      397.5
+                    ]
+                  ],
+                  [
+                    [
+                      869.5,
+                      397.5
+                    ],
+                    [
+                      881.0,
+                      397.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 740,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      702.0,
+                      531.5
+                    ],
+                    [
+                      866.0,
+                      531.5
+                    ]
+                  ],
+                  [
+                    [
+                      866.0,
+                      531.5
+                    ],
+                    [
+                      866.0,
+                      512.5
+                    ]
+                  ],
+                  [
+                    [
+                      866.0,
+                      512.5
+                    ],
+                    [
+                      881.0,
+                      512.5
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-config-modal.png",
+            "wires": [],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-policy-modal.png",
+            "wires": [],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-default-columns.png",
+            "wires": [
+              {
+                "native_link_id": 732,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 733,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      572.5
+                    ],
+                    [
+                      380.5,
+                      378.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      378.5
+                    ],
+                    [
+                      407.0,
+                      378.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 734,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      388.5,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      388.5,
+                      572.5
+                    ],
+                    [
+                      388.5,
+                      528.5
+                    ]
+                  ],
+                  [
+                    [
+                      388.5,
+                      528.5
+                    ],
+                    [
+                      407.0,
+                      528.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 735,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      572.5
+                    ],
+                    [
+                      389.3333333333333,
+                      572.5
+                    ]
+                  ],
+                  [
+                    [
+                      389.3333333333333,
+                      572.5
+                    ],
+                    [
+                      389.3333333333333,
+                      550.5
+                    ]
+                  ],
+                  [
+                    [
+                      389.3333333333333,
+                      550.5
+                    ],
+                    [
+                      407.0,
+                      550.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 736,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      555.0,
+                      448.5
+                    ],
+                    [
+                      568.0,
+                      448.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      448.5
+                    ],
+                    [
+                      568.0,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      438.5
+                    ],
+                    [
+                      581.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 737,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      568.0,
+                      616.0
+                    ],
+                    [
+                      568.0,
+                      460.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      460.5
+                    ],
+                    [
+                      581.0,
+                      460.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 738,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 739,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 740,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 856,
+                "view_id": "definition_encoder_chip",
+                "segments": [
+                  [
+                    [
+                      754.0,
+                      396.5
+                    ],
+                    [
+                      771.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      771.5,
+                      396.5
+                    ],
+                    [
+                      771.5,
+                      430.5
+                    ]
+                  ],
+                  [
+                    [
+                      771.5,
+                      430.5
+                    ],
+                    [
+                      789.0,
+                      430.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 857,
+                "view_id": "definition_encoder_chip",
+                "segments": [
+                  [
+                    [
+                      910.0,
+                      501.5
+                    ],
+                    [
+                      939.5,
+                      501.5
+                    ]
+                  ],
+                  [
+                    [
+                      939.5,
+                      501.5
+                    ],
+                    [
+                      939.5,
+                      430.5
+                    ]
+                  ],
+                  [
+                    [
+                      939.5,
+                      430.5
+                    ],
+                    [
+                      969.0,
+                      430.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 858,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 859,
+                "view_id": "definition_encoder_chip",
+                "segments": [
+                  [
+                    [
+                      910.0,
+                      501.5
+                    ],
+                    [
+                      961.0,
+                      501.5
+                    ]
+                  ],
+                  [
+                    [
+                      961.0,
+                      501.5
+                    ],
+                    [
+                      961.0,
+                      528.0
+                    ]
+                  ],
+                  [
+                    [
+                      961.0,
+                      528.0
+                    ],
+                    [
+                      1017.0,
+                      528.0
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-default-rows.png",
+            "wires": [
+              {
+                "native_link_id": 732,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      380.5,
+                      387.0
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 733,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      380.5,
+                      387.0
+                    ],
+                    [
+                      380.5,
+                      378.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      378.5
+                    ],
+                    [
+                      407.0,
+                      378.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 734,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 735,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 736,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 737,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 738,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 739,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 740,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 856,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 857,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 858,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 859,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              }
+            ],
+            "viewport": [
+              1364,
+              821
+            ]
+          },
+          {
+            "file": "orthogonal-minimum-columns.png",
+            "wires": [
+              {
+                "native_link_id": 732,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 733,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      380.5,
+                      516.0
+                    ],
+                    [
+                      380.5,
+                      378.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      378.5
+                    ],
+                    [
+                      407.0,
+                      378.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 734,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 735,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 736,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 737,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 738,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 739,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 740,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 856,
+                "view_id": "definition_encoder_chip",
+                "segments": [
+                  [
+                    [
+                      614.0,
+                      396.5
+                    ],
+                    [
+                      631.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      631.5,
+                      396.5
+                    ],
+                    [
+                      631.5,
+                      430.5
+                    ]
+                  ],
+                  [
+                    [
+                      631.5,
+                      430.5
+                    ],
+                    [
+                      649.0,
+                      430.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 857,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 858,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 859,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              }
+            ],
+            "viewport": [
+              1084,
+              721
+            ]
+          },
+          {
+            "file": "orthogonal-minimum-rows.png",
+            "wires": [
+              {
+                "native_link_id": 732,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 733,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 734,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 735,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 736,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 737,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 738,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 739,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 740,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 856,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 857,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 858,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              },
+              {
+                "native_link_id": 859,
+                "view_id": "definition_encoder_chip",
+                "segments": []
+              }
+            ],
+            "viewport": [
+              1084,
+              721
+            ]
+          },
+          {
+            "file": "orthogonal-selected-wire.png",
+            "wires": [
+              {
+                "native_link_id": 1595,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      396.5
+                    ],
+                    [
+                      380.5,
+                      356.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      356.5
+                    ],
+                    [
+                      407.0,
+                      356.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 1596,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      380.5,
+                      516.0
+                    ],
+                    [
+                      380.5,
+                      378.5
+                    ]
+                  ],
+                  [
+                    [
+                      380.5,
+                      378.5
+                    ],
+                    [
+                      407.0,
+                      378.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 1597,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 1598,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 1599,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      354.0,
+                      396.5
+                    ],
+                    [
+                      399.0,
+                      396.5
+                    ]
+                  ],
+                  [
+                    [
+                      399.0,
+                      396.5
+                    ],
+                    [
+                      399.0,
+                      299.0
+                    ]
+                  ],
+                  [
+                    [
+                      399.0,
+                      299.0
+                    ],
+                    [
+                      568.0,
+                      299.0
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      299.0
+                    ],
+                    [
+                      568.0,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      438.5
+                    ],
+                    [
+                      581.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 1600,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      568.0,
+                      516.0
+                    ],
+                    [
+                      568.0,
+                      460.5
+                    ]
+                  ],
+                  [
+                    [
+                      568.0,
+                      460.5
+                    ],
+                    [
+                      581.0,
+                      460.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 1601,
+                "view_id": "root",
+                "segments": [
+                  [
+                    [
+                      719.5,
+                      516.0
+                    ],
+                    [
+                      719.5,
+                      438.5
+                    ]
+                  ],
+                  [
+                    [
+                      719.5,
+                      438.5
+                    ],
+                    [
+                      737.0,
+                      438.5
+                    ]
+                  ]
+                ]
+              },
+              {
+                "native_link_id": 1602,
+                "view_id": "root",
+                "segments": []
+              },
+              {
+                "native_link_id": 1603,
+                "view_id": "root",
+                "segments": []
+              }
+            ],
+            "viewport": [
+              1084,
+              721
+            ]
+          }
+        ],
+        "port_nodes": [
+          {
+            "node": "call:encode_a",
+            "inputs": [
+              [
+                "x",
+                [
+                  407.0,
+                  356.5
+                ]
+              ],
+              [
+                "extra",
+                [
+                  407.0,
+                  378.5
+                ]
+              ]
+            ],
+            "outputs": [
+              [
+                "features",
+                [
+                  555.0,
+                  448.5
+                ]
+              ],
+              [
+                "projected",
+                [
+                  555.0,
+                  468.5
+                ]
+              ]
+            ],
+            "node_rect": [
+              407.0,
+              309.0,
+              555.0,
+              484.0
+            ]
+          }
+        ],
+        "native_link_ids": [
+          1595
+        ],
+        "os_gestures": false,
+        "preview": "Native temporary connection preview remains visible; completed connections are orthogonal",
+        "minimap_exclusion": "Conservative configured-corner rectangle:25% editor size +16px; DPG has no exact public minimap rect",
+        "status": "passed"
+      }
+    }
+  ],
+  "visual_qa": {
+    "path": "design-qa.md",
+    "sha256": "107ce1932d996cade976d66879619ee7cae92663d4910f0cb1bc8ade42fa4a92",
+    "text": "# 原生组件工作台视觉与交互QA\n\n日期：2026-11-17。本轮同尺寸视觉对照和已声明的应用回调范围通过；软件整轮交叉审查另有独立报告。本QA不把视觉/回调通过扩大为新EXE或物理手势认证。\n\n## 来源、状态与尺度\n\n- 既有原生视觉来源：`output/native-s4-a2-b2/b2/single-root.png`，1364×821实际client像素。\n- 最终实现：`output/native-s4-a3-b3/b3/review-fix1-orthogonal-frames/orthogonal-default-root.png`，同为1364×821；外窗1380×860。\n- 用户操作参考：`docs/images/reference-component-toolbar.png`、`reference-instruments-strip.png`、`reference-component-picker.png`。参考的是可拖放、分类/检索/参数详情操作，不作NI/AD产品图标或像素复制。\n- 默认root状态、同一原示例模型、相同深色主题。当前界面增加页签/独立目录，端口名与生成输出的回退位置有意改善；不是将新增区域当作偏离旧图的缺陷。\n- 最小client为1084×721，外窗1100×760，使用该尺寸下的实际单/左右/上下、长树/16页签/深层chip截图及几何JSON，没有与不同尺度图片作像素精度比较。\n\n## 完整与局部同图对照\n\n`docs/images/native-s4-components-before-after.png`将两张1364×821截图按1:1并排，顶部仅加来源标题；这是实际源与实现的同一比较输入。字体、边距、主题和内容差异按该图评估。\n\n`docs/images/native-s4-components-detail-qa.png`包含两输入/两输出模块和主图连线的1:1像素裁片，及完整参数弹窗/最小分屏的等比缩略图。1:1裁片用于检查连接点、线段、名称和实际端点；缩略图只用于整体遮挡/布局，不据其判断细小字形。原始18张frame保留，未用手画资产替代产品。\n\n## 五项必查面\n\n| 检查面 | 对照结果 |\n|---|---|\n| 字体/排版 | 沿用现有原生中文字体和正文密度；中文分类/说明可读，组件名/端口/属性层级一致；长页签用原生overflow与完整选择器补充 |\n| 空间/布局 | 项目树与目录独立滚动，搜索/分类常驻；页签/布局入口可见。原始新增页签曾挤出named输出及root节点，实际矩形回归后重分配画布/底部空间。小分屏的大图仍可裁切，持久控件应始终可达 |\n| 颜色/主题 | 既有背景、面板、chip/primitive/tensor色保留；正交连线为低饱和蓝灰，选中线暖色高亮，与节点配色区分；没有改成另一视觉主题 |\n| 图像/资产 | 保留既有logo实际纹理；新功能使用原生控件和数据端口，无复制参考产品图标、emoji或假截图。正交线与针脚为真实图编辑功能，非模拟装饰资产 |\n| 文案/内容 | 显示真实22条静态组件及工程定义，端口与参数真实；无假ResNet/训练能力按钮。芯片内部说明影响全部引用、实际调用路径、策略同意/取消及未运行状态明确 |\n\n## 操作证据及问题历史\n\n两套真实应用framebuffer报告各9张：`b3/frames/frame-report.json`记录18个真实回调及6次按node屏幕几何换算的投放；`b3/orthogonal-frames/orthogonal-frame-report.json`记录实际link ID、横竖线段和两入两出端口坐标。两套报告与源码测试共同核对，截图本身不替代操作验收。\n\n已修复的实测问题包括：命名输出因画布压缩裁切、默认输出/分类器相交、最小client右侧栏越界、落点因breadcrumb高度变化偏8px、默认root第二输入/编码器裁切、曲线隐藏后选择命中不对应、选线后选节点仍误删旧线、选线后属性仍显示旧节点、前景连线盖住模态。原始红绿证据在`output/native-s4-a3-b3/b3/`，本轮原断言未通过时未将其改弱。\n\n第一次独立B3审查发现四项交互P2：旧快捷按钮作用到新scope、旧弹窗Apply作用到新请求、旧关闭/移栏作用到当前新页、离屏节点造成应可见的线消失。当时结果blocked。四项经同一波修复，原5项红6fail后新增/扩展6项通过，并联同其他受影响用例共49项通过；独立范围复审接受。root在最终冻结源运行完整native199项，退出0。\n\n修复后的两套截图另存`review-fix1-frames/`和`review-fix1-orthogonal-frames/`，两套各9张、前者18callbacks/6drops均通过；旧图/红灯保留。已从新图重建并重新打开上述完整/局部对照板，另打开真实新策略弹窗原图：策略说明改为可读中文并明确batch上界，确认/取消完整可见，弹窗上没有前景连线；输入输出针脚、直角线和小窗口持久控件维持其原生样式。没有从字形、边距、颜色、资产或文案中发现尚需修复的视觉P0/P1/P2。\n\n残留已声明边界为小分屏大图自然裁切、保守minimap遮挡区、原生临时拖线样式和未认证物理输入，不作为隐藏的完成声明。配置字段名保留程序参数标识，中文说明/类型/默认值同时可查；后续可继续改善字段中文别名，但不阻断当前操作。\n\n## 未认证边界\n\n未使用OS/浏览器/电脑控制，因此不将真实控件回调/精确投放坐标等同于实际人手拖拽/双击/键盘投递验收。非零pan/zoom精确恢复、minimap精确边界、全局最优密集布线及新EXE未认证。完成的线为正交，临时拖线预览仍采用可见的原生样式。\n\n实施清单已完成：四项P2定向红绿、独立范围复审、两套同尺寸frame刷新、重新对照、最终完整native和剩余边界记录。整轮核心/原子插入/代码契约结论由总体验收记录提供。\n\nfinal result: passed\n"
+  },
+  "images": [
+    {
+      "path": "docs/images/native-s4-components-workbench.png",
+      "sha256": "6f6c9dbda4c1eb23968a14094d01b4a68885d37c197f556330b7828bc509adb0"
+    },
+    {
+      "path": "docs/images/native-s4-components-before-after.png",
+      "sha256": "f9a4fc1bc985adfc65156000e3b8c798820c29a0881d081c14deb09670e3c67b"
+    },
+    {
+      "path": "docs/images/native-s4-components-detail-qa.png",
+      "sha256": "cd6cc812468391fc9bd3faa8547aa8c1fb603afc104e2ba9ac2ba790681a55aa"
+    }
+  ],
+  "documentation": [
+    {
+      "path": "studio/native/S4_COMPONENT_WORKBENCH_VERIFICATION.md",
+      "sha256": "70ac8f94d3272c2f76220e1e07f9e9bd26e9660c650d7efdaca2dc887e13db2c"
+    },
+    {
+      "path": "studio/HANDOFF.md",
+      "sha256": "ed9175c3d3541fe927a62833cc502cc12f6db0318b96fdf378bb95099d273237"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-15-s4-workbench-components-design.md",
+      "sha256": "dbdf31d8fd4adbb6d3d661be00c00c74e7d402ad455357b049f3cbb321c7036a"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4-workbench-components.md",
+      "sha256": "53a2b5e298789368c389f98b3238e3495fc0bbfa93de41920fdcabffdbc39851"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4a-component-library.md",
+      "sha256": "5b80514293661ea978876064dac3431f13473c2bc50444df6bd29c47345b2a94"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-15-s4b-tabbed-workbench.md",
+      "sha256": "4f82d22832b10d59c53c4ef0c26f15234754290f301a7605730e8e391ee9ec89"
+    },
+    {
+      "path": "studio/README.md",
+      "sha256": "12a4825a61c26ebbc64838a44d4745e5f9c18ee7990e03eac3a95d35414e3aa3"
+    },
+    {
+      "path": "studio/native/README.md",
+      "sha256": "e831cb48c44ff8bf2d265b918937b8b902a17761b54969f34cdfacce2059d856"
+    }
+  ],
+  "source_preview_launchers": [
+    {
+      "path": "studio/启动S4源码预览.cmd",
+      "sha256": "92021dd2c2ea1e13e301138b16d237f68b9bee2e90ef9e2b529660ad51f15f6e"
+    },
+    {
+      "path": "studio/启动S4-CUDA源码预览.cmd",
+      "sha256": "60d0e6fde6d3a9750d4e85fb61acc1bf79e34eb46e197604c571d01be0f41587"
+    }
+  ],
+  "launcher_validation": {
+    "existing_cpu_pythonw_found": true,
+    "existing_cuda_pythonw_found": true,
+    "entrypoint_exists": true,
+    "physical_double_click_certified": false
+  },
+  "evidence_logs": [
+    {
+      "path": "output/native-s4-a3-b3/a3/green-01.log",
+      "sha256": "a924aa6d67a635d93a7f0e329ff72fc9dfe109106e66d7b74d1a6d7a58e6652c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/a3/green-02.log",
+      "sha256": "872565eb09b7bf3da0d4d982608a092b34c63424baf40f7d1c220dbcc32248b0"
+    },
+    {
+      "path": "output/native-s4-a3-b3/a3/green-03.log",
+      "sha256": "7c4d70244a47dedd08dfa53788da8f219ddc46cc235950a23cc37a75b7bbc337"
+    },
+    {
+      "path": "output/native-s4-a3-b3/a3/green-final-cpu.log",
+      "sha256": "3184f96c50a4b72101a52097781eb3a0d88f3dd56b6ee375906774eb7eb80ca2"
+    },
+    {
+      "path": "output/native-s4-a3-b3/a3/red-01.log",
+      "sha256": "79a21b40ab0c587c4cb7be9acf3de8f9344cf39598ff79fa8612d30a61db43f1"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/backend-regression-correct-path.log",
+      "sha256": "7a139486f4539d2598268a309dc0926df4a8e924850c0b23da61e18e0f68e9a0"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/backend-regression.log",
+      "sha256": "a6ef812dd1b78f6646fd47f2b4478c025b2622d8b2727282e38c783ea2c23cbf"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/final-core-regression-2.log",
+      "sha256": "7955fe3a189fb41fab5d072f68b9f1ddcab9d64d2aa7c696965b5a52533156c8"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/final-core-regression.log",
+      "sha256": "68d3471ac4a4563302e8f2fd2a3e2acfb0af2ee37e041cbbe55047778d4b6958"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/final-frozen-core.log",
+      "sha256": "b2394b4f46f154a3b590267abbc2071fa3bccb1cdad1beab3eb7a29d451db12c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/fix1-green.log",
+      "sha256": "2244ca3eec934dff03728c9824162d5589ff650792fa21582d43d375c41ee71c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/fix1-red-counterexamples.log",
+      "sha256": "78dca9c5d095ca72accd7daa138c47edb9edcbff9ebd5bc8b278fde8100977b1"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/fix1-red.log",
+      "sha256": "221ba1232fdabcf8ac9421acf4f60f599f869526310a7f5c7710000fd9f08fa8"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/green-01.log",
+      "sha256": "8e2767d4f3aa9dd9d204656a51dba888a98eb2b4bd674e7862c096344e112172"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/green-02.log",
+      "sha256": "63d9ae9f8fbc04c36812bfee0d7bae9e7f544878c1dc69cca0ab739d89ce3d43"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/green-03.log",
+      "sha256": "916413e91f88aef28feada36348552a50ba924511eab49c01fd02667ddda4f4e"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/green-04.log",
+      "sha256": "dac596184adb837d223b420fcec91fb15b85832720f452143a18bfa4856b54f4"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/green-final-focused.log",
+      "sha256": "6f991917452c6684dd34557622af9be60652eb64ee019f91f97c26da85a23f52"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/native-regression-correct-path.log",
+      "sha256": "8f6093a057b6942187ef8eb02c9a80a124af3d1204006da6b7fe08c7143e8a64"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/native-regression.log",
+      "sha256": "cd84678254796cee91c633b4593c73cbd39a6eba4b22ecec4aba47bc2f5f4b40"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/red-01.log",
+      "sha256": "69c99efaa7df72878d293049cd17049e635c71359f7cbd87bbb0dc25df88ecbf"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/red-02.log",
+      "sha256": "22567cb3e5f10f1f911b416e99f7b26e69624fb6fb99125dc86c4103ff0db1e1"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/red-03.log",
+      "sha256": "59e146ed869c351218eab5155df6438d06b96cce6cda01afc5c417ff0edbf9e9"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/red-04.log",
+      "sha256": "598efc154a4bcebae7b6f622b4f5aa55592e2f5f8507eb5412f5a96bbb8b795e"
+    },
+    {
+      "path": "output/native-s4-a3-b3/catalog/red-05.log",
+      "sha256": "c0c2f4594219fe79019b3686702efbbdf8b3f3388033a9e97b47867e04c1115d"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/green-budget.log",
+      "sha256": "96a8ef7e50cfaae2c3f8bcf8b0da6c674ff46205a79dbfbe4516c423aad61a98"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/green-direction.log",
+      "sha256": "0d04d94be3a51348a85b7284bf6dc616ee1a715840c95a3d631832a6e9ece6c8"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/green-final.log",
+      "sha256": "1d13b6d65d8fc32a668cccbcb4b77cd7b177deb11899f7d44396e382ea7b2ad0"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/green.log",
+      "sha256": "99144393af74717ea4b99f29e963eb189eef8db50fad8e66677ea69043edf8bc"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/real-frame.log",
+      "sha256": "2223aa176d8484da8187c3382700ef6075d7a45aa582b20f0e1b41f69c7e031d"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/red-budget.log",
+      "sha256": "b52eaa60d05be5c3c1f9b8362e9f5c4a5fc441b4aaaf49ef6d161335daf825ee"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/red-direction.log",
+      "sha256": "839681d9d6e0aa5bcaed1490513486430aaa6b7b03e8df08655ec55814b19d9a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/red-pane-route.log",
+      "sha256": "d68066df0ddb5ea38a9ec57bc0e3aaf47654c02427b54d522cead3a1ff183f36"
+    },
+    {
+      "path": "output/native-s4-a3-b3/orthogonal/red.log",
+      "sha256": "535db68147bb77531c5147f81e87c93396905ebb61cbf7d9ad10fd3f60f064f2"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/canvas-final-header.txt",
+      "sha256": "f8aa18e61e0213289e5eeb6e84fe32c7cf72f4a83555e43b666132267485cebb"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/canvas-orthogonal.txt",
+      "sha256": "6b2acca612b50f62ca816b0489970c7392beda955abe7c43a9bf0923a6b6d94a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/canvas-regression-2.txt",
+      "sha256": "e3bc170b517d8f34e1a2910a8b23319ef51b18c89bc8446c65baedba4f02ffc6"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/canvas-regression-canonical.txt",
+      "sha256": "cbc34a93a8491a34e4ed0b92c25c29183df7b0d1798a1d03c13e728903c138b8"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/canvas-regression.txt",
+      "sha256": "ca9f3f8af3d4b9d36ced8d86c87c2e6a115d68de99276506e9f08d3a53f1c66d"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-final-header.txt",
+      "sha256": "7c7d990d08f606810b365686563e7e03e5b7e942f8d7d56247ba6a0979021e22"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-1.txt",
+      "sha256": "e3db902a4b49ca11e343097dca50ebffd253a8f74dc190489b1ab5b2efcda82a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-2.txt",
+      "sha256": "c9ca784109bba99c0777507c69f537d675e5845b1da5c7a3ec99c227c9a2c915"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-3.txt",
+      "sha256": "22126b9b1d2f992221ab2ad3dd553b10d45496d466233161487e75853084b10f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-4.txt",
+      "sha256": "c85921d40779bbe65058feee456dcc4d720cf1ad3d0c60ecf32853f16b957ff5"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-canonical.txt",
+      "sha256": "6491ff816c42bdfb88aa79063128be2713aa805c09506ecf87b05b51fea18a93"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-green-token.txt",
+      "sha256": "f4c18d51d34feb138fe1c8b3ef47cda0bc0fe0c40669cf3b58fc99d0296181cc"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-red-token.txt",
+      "sha256": "38d9a4c3bf065495c1c082b1c4a547fda29d51cd0be6e9fb212bc95a49b17477"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/catalog-red.txt",
+      "sha256": "5b7eb810f6eb387b554a5e5d90e5c696f6f6905d7ca1de33195ed90fa16e736b"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/classification-render-green.txt",
+      "sha256": "2fa9fdf0657c6c82204270599641fbf8c40bee425e695692534c25529e71d8ae"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-callbacks-final.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-callbacks-freeze-2.txt",
+      "sha256": "749e5c00058ee46214d8b2d6e5ff299f1f2499d8c060817ae4787cc6d976d3b1"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-callbacks.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-drop-position-green.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-drop-position-red.txt",
+      "sha256": "9bc92c4b56ed8fca65ea25b3c7bd38ad31310570d534017f3a6038a7ac5ec9bd"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-orthogonal-frozen.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-orthogonal.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/frame-root-fit-green.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/loss-regression-green.txt",
+      "sha256": "cf7d142f55cb681f53742364ac999da6b5c0b2bb3a9d008bdfaa21d5e1685736"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/native-full-final.txt",
+      "sha256": "f6e86869f0a924b6832852a2bdf0b524fd88eec32002a44319c6f2f4fa468ba8"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/native-full-freeze-2.txt",
+      "sha256": "a01c4537e3b3de9691da41737c8298ce3fee5f414717df1ffa2b371bed0f0b0b"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/native-full-frozen.txt",
+      "sha256": "1f5141341b37f2b1d416acb066017962c63d8e98e85b12292b3143cc12ff929a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/native-full-orthogonal-frozen.txt",
+      "sha256": "4b394d8e706e61bbd04ec438ccd666e4cecc309dffff177dfcf60942de9281f1"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/native-full.txt",
+      "sha256": "da8a02336eac7b3acba4f1db88023aa722c3fb79d51be642d6f41d43fae125ac"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-frames-2.txt",
+      "sha256": "2b802f96c7c05dca989de2e58d67c06c734677b7b57d513b206003a2a895a267"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-frames-final.txt",
+      "sha256": "213f6c0b189b58ac8159902e98798c96b1756c48fac329c8669f01343ac9e8eb"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-frames-frozen.txt",
+      "sha256": "213f6c0b189b58ac8159902e98798c96b1756c48fac329c8669f01343ac9e8eb"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-frames.txt",
+      "sha256": "b26b0afebc60088eda11dda2640b6034c2f9ad27d4f5469d492de3e8d623ff41"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-inspector-green.txt",
+      "sha256": "0482abd5200aeb80d26707884fba3694d04e32b32e24cb8bf001b47bc1d9dec4"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-inspector-red.txt",
+      "sha256": "e4298345b86c2abec9981e242aeaa98b0243ff8803f3621d8fd71306fe12ed94"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-integration-final.txt",
+      "sha256": "3a776bf8e0d78e9eaacbd27b7369baf3ead37b2e60a5c4b6f5e0be84a7ebae90"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-integration-green-1.txt",
+      "sha256": "6a4ac3e63c275f9d628154493f9e11a7852697d69797399afb398fc38afbbf0c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-integration-green-2.txt",
+      "sha256": "c5034ca986351f7cc15cca59357f038c6b6416c67183c87e095bb417c39abe03"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-integration-red.txt",
+      "sha256": "4cb87c572905a4b1845af255bb678b74a643f99d71248168b74debc6e55b1d8c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-minimap-green.txt",
+      "sha256": "f09b21d50151cf8f87e4df164420f7cc0b795aeee31ebaf0952076c3fcaca47a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-modal-green.txt",
+      "sha256": "4de4351ba61bb5e705f64b89f5ae567c524bf27b7b6dfa1c3154c664bb113120"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-modal-red.txt",
+      "sha256": "9cd04bae5a08fce69026703bc72d3e5fe9534105e064fdaa49a0790455fc63a2"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-selection-green.txt",
+      "sha256": "d504badfac8773a5986babc17de555b7fbf835ea6c87ce555993dfaa80f6b4ab"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/orthogonal-selection-red.txt",
+      "sha256": "4d11a5d2d248a7c45b9c906dd6436381b12f531fc0f80e36759f8d6981fb51db"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-b2.txt",
+      "sha256": "019d37d726030e4b0488ccb5404a5ace33f65c92b2f67a615fef754cdbb32304"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-catalog.txt",
+      "sha256": "9c4a2628a9f5c137449d62a5e237dd02d30d755f3c08296500b37779dbb8a22f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-frames.txt",
+      "sha256": "b6a84004f66fe86def654a3eaf7b9ec93aa979b719fba72b4de3b8c404ec420f"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-fresh-controls-green.txt",
+      "sha256": "0dc19d16a566db8a0029599e30763bb05e76d5f56b99f506cc86c63ce3658898"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-green-1.txt",
+      "sha256": "2c5cdd53885f6c4e893cb061876329d0ac5a20da45bf9ae12386ee86ebc51291"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-green.txt",
+      "sha256": "a24a416e991332ca7bc6fff309a3eecfbe75617376e22beff525c5621a448c3b"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-orthogonal-frames.txt",
+      "sha256": "213f6c0b189b58ac8159902e98798c96b1756c48fac329c8669f01343ac9e8eb"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-orthogonal.txt",
+      "sha256": "4931882ae0b0f44b3553ad65cb16be5040e40e2017aeeac703b75205530b8484"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-red.txt",
+      "sha256": "d236b8addcbd309396d580c766a74a43777937c27a65546f803ab9733ed0477d"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/review-fix1-workbench.txt",
+      "sha256": "a522b0041f6c46f691cf2bb733debf9b6e8d853fd967d141f067395fce8b0fc5"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-green-1.txt",
+      "sha256": "691760bde4e309796e05911262ec891018aa76123028726da9ef5e87f0729ba6"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-green-2.txt",
+      "sha256": "a119ad55bb06872b640c84fe16b55c99ff4d143074cb30ede9f33209f4b41d00"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-green-client.txt",
+      "sha256": "27c6d955b8d2cf16960da36a157f17a79ffb889563e62713fb06b06c924c7a4c"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-green-outputs.txt",
+      "sha256": "fb7cc71db608abc2359d302610a0fd21452c84349af84c2efd3979535aace38b"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-green-overlap.txt",
+      "sha256": "95c114d84571ed7a8a20798d23f6379e128357cfb9359cfab61c2479bef18183"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-red-client-2.txt",
+      "sha256": "e64034d15818067357a9eead53c1e0a15664cbbd558ef31608b23463f74d4cee"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-red-client.txt",
+      "sha256": "aae621255ae57dbf0fe76e1e6bf50252f77921b84c3e92cfcf47f0cce0438168"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-red-outputs.txt",
+      "sha256": "23e2ec6f66ac86a088de9afd72d559ff990c3ff03138e7e239d9b6416128a7e0"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-red-overlap.txt",
+      "sha256": "69250e6e56550b92facaed6de273592022a45ab12ca9a53eb934a980b667269a"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-red.txt",
+      "sha256": "92f7c21db717334a48896a85f7698cee7cd8397016bc2190acacec1c351a6316"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-root-fit-green.txt",
+      "sha256": "21abffa9f1ea79a757b49f9b4ae56434e4c8aed245a2a5e55a17a73b5d4e5643"
+    },
+    {
+      "path": "output/native-s4-a3-b3/b3/workbench-root-fit-red.txt",
+      "sha256": "7a299af755235e9d96e835aece2be3410b5e7ac7031c9f1d95f5b2ebb4a94fa6"
+    }
+  ],
+  "catalog": {
+    "primitives": 17,
+    "functional_factories": 5,
+    "pretrained_weights": false,
+    "project_chips": true,
+    "all_future_components_claimed": false
+  },
+  "interaction_validation": {
+    "app_owned_drag_drop_callbacks": true,
+    "real_frame_drop_coordinates": true,
+    "orthogonal_completed_wires": true,
+    "declared_side_pin_counts": true,
+    "os_mouse_gesture_automation": false,
+    "physical_gesture_certified": false,
+    "temporary_native_link_preview_style_changed": false,
+    "exact_nonzero_pan_zoom_restoration_claimed": false
+  },
+  "git": {
+    "head_exists": false,
+    "remote_configured": false,
+    "uploaded": false,
+    "commits_created": false,
+    "diff_check_exit_code": 0
+  },
+  "deferred": [
+    "A4 production ResNet18",
+    "B4 workspace-v3 view persistence",
+    "complete local-library indexing and remaining A5/I1 integration",
+    "I2 new CPU/CUDA executable acceptance and packaging",
+    "arbitrary Python runtime type validation and metadata-free component-version recovery",
+    "globally optimal dense routing and exact native minimap bounds",
+    "training relationship canvas, interactive backward/optimizer stepping",
+    "3D/segmentation/text/LLM/RAG/multi-GPU/remote execution"
+  ]
+}

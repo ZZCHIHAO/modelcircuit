@@ -1,0 +1,694 @@
+{
+  "checked_date": "2026-11-14",
+  "timezone": "Asia/Shanghai",
+  "root": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main",
+  "scope": "Read-only source inspection and in-memory lightweight validation; no GUI, training, dependency installation or model/data download",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "python_executable": "C:\\Users\\chong\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "dependencies_before_mocking": {
+    "torch": false,
+    "torchvision": false,
+    "dearpygui": false,
+    "PIL": true
+  },
+  "git_directory_exists": false,
+  "business_files": {
+    ".github/workflows/python-publish.yml": {
+      "sha256": "225b9bb147a25ba054c254670162114a8c3446cf0405b2023d505ae8c59ab265",
+      "bytes": 596
+    },
+    "CONTRIBUTING.md": {
+      "sha256": "ae3aae52ca5bc0d60fabfab35070d1a5180e0579c0e090fa2a56c56e215e2db1",
+      "bytes": 2286
+    },
+    "LICENSE": {
+      "sha256": "6ddbe69a2428b8feccb3c6c7dd38d304ea3a81ff5c8937ec81edd88a7e70586d",
+      "bytes": 1065
+    },
+    "ml_forge/__init__.py": {
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    "ml_forge/__main__.py": {
+      "sha256": "464225af57a94c3cfd2cacaa80e81c804dcf6ea38131a9686c275bc003951c82",
+      "bytes": 70
+    },
+    "ml_forge/assets/icon.ico": {
+      "sha256": "e86c9a57892baa08ace600e324d68a9d3607162ddd17ed39a43861d57a63ee3e",
+      "bytes": 11886
+    },
+    "ml_forge/assets/icon.png": {
+      "sha256": "98d7f3594e3064b9db5f75e6a33358989a5980ba497cff06f0c6434d62c95616",
+      "bytes": 11104
+    },
+    "ml_forge/assets/pipinstallshowcase.gif": {
+      "sha256": "f1609acf1321ab1884c2decd29680a74297d11277f81956661a7b9fe8525ce31",
+      "bytes": 557680
+    },
+    "ml_forge/assets/screenshot.png": {
+      "sha256": "472ae18a0165e294aadc332dc98e670c5d974327efcc6f046b5a203af5d97989",
+      "bytes": 64929
+    },
+    "ml_forge/assets/showcase.gif": {
+      "sha256": "c21681cb71f8b63d8ab02843e877c8e957c9cd2d0e3f4b6fd065003fde4569f9",
+      "bytes": 1797982
+    },
+    "ml_forge/constants.py": {
+      "sha256": "17b70bf7a71761e090f7aecbfa37a461502132dd9b5e5cbe3c3f9ac9248e9cc2",
+      "bytes": 1347
+    },
+    "ml_forge/engine/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "ml_forge/engine/autofill.py": {
+      "sha256": "68bd57ce23382d3f6d665b25c958904f0802d508f37cee37ada7f76d0e36a60d",
+      "bytes": 12807
+    },
+    "ml_forge/engine/blocks.py": {
+      "sha256": "a43dc322d1d51824432a07e9fb7b440dc98cee30582830929798ac4fdef3f63b",
+      "bytes": 24754
+    },
+    "ml_forge/engine/generator.py": {
+      "sha256": "24be946383a95cef24bd7f461a88d1975669872ef5fa811f14310143aa3c93ec",
+      "bytes": 21442
+    },
+    "ml_forge/engine/graph.py": {
+      "sha256": "5f7899efc53245f230982468b34c102b18aa71b6a75ed7bc2f8299e8503ce164",
+      "bytes": 14976
+    },
+    "ml_forge/engine/inference.py": {
+      "sha256": "af549dc0206c6712c4470585b52bf986620eb7facefa24f93a27e65f42498ee4",
+      "bytes": 14529
+    },
+    "ml_forge/engine/metrics.py": {
+      "sha256": "52a5844e3a5dce535023c5dee3eb4ed4c960718e55e3bac79c343cb874efc619",
+      "bytes": 7286
+    },
+    "ml_forge/engine/run.py": {
+      "sha256": "b0a78025139337c1c7ee153c9ccac357b2ffdd27fdf88c9b95589f94216eabca",
+      "bytes": 27859
+    },
+    "ml_forge/engine/training_setup.py": {
+      "sha256": "cfacca519a4f025c20f1d68861f1258d7550a3b849e613adb5171c6255d517d0",
+      "bytes": 4019
+    },
+    "ml_forge/filesystem/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "ml_forge/filesystem/save.py": {
+      "sha256": "82c6fd682c1b6b2efd589eeea12d4884d2f57fbd2a9c75096b31514b5de450d3",
+      "bytes": 7283
+    },
+    "ml_forge/graph/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "ml_forge/graph/links.py": {
+      "sha256": "16cb88c072478c3d8b49cec71a02912b30743d5f7c273ae089838c34e976ee42",
+      "bytes": 1448
+    },
+    "ml_forge/graph/nodes.py": {
+      "sha256": "56757c98a9bb241fe901ede147d83da3a0d03102e43fcbb51924e7449f8404ac",
+      "bytes": 8202
+    },
+    "ml_forge/graph/pipeline.py": {
+      "sha256": "27921e0743cbf624b18810c621ad1741db7bd41235c132eb8e2fb0c10ce75b33",
+      "bytes": 3482
+    },
+    "ml_forge/graph/tabs.py": {
+      "sha256": "e65494008fdeabcf120895af75bebe33e32e4d4de1a5d11079d906579280b657",
+      "bytes": 11360
+    },
+    "ml_forge/graph/undo.py": {
+      "sha256": "41d42b482d45c5915fabfdb305f34f947480c07ec823c542aecf737b1a6148be",
+      "bytes": 4119
+    },
+    "ml_forge/main.py": {
+      "sha256": "c990145a7f25d030b967b29ae869de212528cc35d896eab702e7752198805681",
+      "bytes": 5655
+    },
+    "ml_forge/shortcuts.py": {
+      "sha256": "563b877b5a356c8a67b5d21b1aadeb8873de4c268b8e5cf0323715d29b16ca16",
+      "bytes": 747
+    },
+    "ml_forge/state.py": {
+      "sha256": "2ac7d002ea4d75936ed94fbe724fca55615e41205e23e031fe2ff8409cb69577",
+      "bytes": 426
+    },
+    "ml_forge/templates/cifar10_classifier.mlf": {
+      "sha256": "1e4598ee9b3de41cc3e2ab7b79eb044e6045b160d1f4ed1823608ac2cc5e0ada",
+      "bytes": 9597
+    },
+    "ml_forge/templates/mnist_classifier.mlf": {
+      "sha256": "6465e73c470241858511a41d854b1f3307a6522bb3a8faedf9cdf090166650a9",
+      "bytes": 5609
+    },
+    "ml_forge/ui/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "ml_forge/ui/console.py": {
+      "sha256": "21585eaf831d8ec11961278ba9dbac7059352863aa1270f631f5dafbba7db6f6",
+      "bytes": 1004
+    },
+    "ml_forge/ui/layout.py": {
+      "sha256": "06f1ce1ad907e62d4b6cf5bb96f36df73e7ed9110490dbf6c252425c362ef016",
+      "bytes": 11132
+    },
+    "ml_forge/ui/menubar.py": {
+      "sha256": "0e029ef27aa7abd5127b3e426e7dd8e8282cc18f4fc9d131d3db6cc8623be7c6",
+      "bytes": 10168
+    },
+    "ml_forge/ui/palette.py": {
+      "sha256": "4f845f2da5a3908381864e0f45a00a425034ba2d15b17fcb04cb321bb65f5d53",
+      "bytes": 3108
+    },
+    "ml_forge/ui/resize.py": {
+      "sha256": "40c613ab3d611781e4be09a53e5edf7b6e3ca983930e4cb844b0ba867c5c39c1",
+      "bytes": 1012
+    },
+    "ml_forge/ui/statusbar.py": {
+      "sha256": "18b425797afed2018c027b6799ff145c66d438cfec55380077b4a81f6936ff34",
+      "bytes": 1268
+    },
+    "ml_forge/ui/summary.py": {
+      "sha256": "df386f3597501429a44892bbd97d8d721d7335e5f58ae668e0d52916cd06f247",
+      "bytes": 3000
+    },
+    "ml_forge/ui/toolbar.py": {
+      "sha256": "c68d72236a4869bf5c17d809561bd8d82f8a074304a84cb2012942f2d4b288c5",
+      "bytes": 1330
+    },
+    "ml_forge/ui/training.py": {
+      "sha256": "b00f99265a9c364b76a0f65554910d9c84b631c5e7acfdc4e4dc27721c48c7de",
+      "bytes": 10743
+    },
+    "pyproject.toml": {
+      "sha256": "d839f1c0cf0df1716b7eef8ac2a41b285c8f1a2197b57314fce884b9cf6ef768",
+      "bytes": 945
+    },
+    "README.md": {
+      "sha256": "1a8f99126acfc118d175ae282b4012371c6bcc3faaf27f327fb0ff6ad0498cc9",
+      "bytes": 4110
+    }
+  },
+  "syntax_checked_files": 33,
+  "source_index": {
+    "ml_forge/__init__.py": {
+      "lines": 1,
+      "definitions": {}
+    },
+    "ml_forge/__main__.py": {
+      "lines": 4,
+      "definitions": {}
+    },
+    "ml_forge/constants.py": {
+      "lines": 63,
+      "definitions": {}
+    },
+    "ml_forge/engine/__init__.py": {
+      "lines": 0,
+      "definitions": {}
+    },
+    "ml_forge/engine/autofill.py": {
+      "lines": 388,
+      "definitions": {
+        "_field": 40,
+        "_get_field": 45,
+        "_set_field": 50,
+        "_set_field_force": 58,
+        "_block_label": 64,
+        "_get_tab_by_role": 69,
+        "_safe_int": 76,
+        "_simulate_shapes": 85,
+        "infer_from_dataset": 209,
+        "propagate_all": 241,
+        "propagate_from_link": 293,
+        "check_dimension_mismatches": 303,
+        "on_link_made": 366,
+        "on_param_changed": 373,
+        "on_node_spawned": 380,
+        "on_dataset_changed": 387
+      }
+    },
+    "ml_forge/engine/blocks.py": {
+      "lines": 453,
+      "definitions": {
+        "get_block_def": 436,
+        "all_block_labels": 446
+      }
+    },
+    "ml_forge/engine/generator.py": {
+      "lines": 593,
+      "definitions": {
+        "_p": 142,
+        "_fill": 148,
+        "_safe_name": 160,
+        "_I": 165,
+        "_gen_model": 170,
+        "_gen_data": 224,
+        "_gen_training": 368,
+        "generate_pytorch": 485,
+        "export_pytorch": 551
+      }
+    },
+    "ml_forge/engine/graph.py": {
+      "lines": 456,
+      "definitions": {
+        "_labels_from_sections": 16,
+        "GraphNode": 49,
+        "Issue": 60,
+        "ValidationResult": 67,
+        "CycleError": 89,
+        "get_tab_by_role": 95,
+        "_read_params": 103,
+        "_pin_owner": 117,
+        "build_graph": 132,
+        "topological_sort": 178,
+        "_validate_params": 235,
+        "_validate_data_prep": 254,
+        "_validate_model": 306,
+        "_validate_training": 352,
+        "validate_pipeline": 438
+      }
+    },
+    "ml_forge/engine/inference.py": {
+      "lines": 398,
+      "definitions": {
+        "_ensure_texture": 21,
+        "_pil_to_texture": 29,
+        "open_inference_window": 46,
+        "_apply_green_theme": 116,
+        "_browse_checkpoint": 124,
+        "_load_test_dataset": 142,
+        "_get_random_sample": 264,
+        "_new_sample": 288,
+        "_run_on_current_sample": 303,
+        "_sample_and_run": 364,
+        "_clear_results": 371,
+        "_show_result_text": 376,
+        "_show_result_row": 381,
+        "_set_status": 394
+      }
+    },
+    "ml_forge/engine/metrics.py": {
+      "lines": 197,
+      "definitions": {
+        "_get_plot_data": 16,
+        "open_metrics_window": 44,
+        "_refresh": 193
+      }
+    },
+    "ml_forge/engine/run.py": {
+      "lines": 722,
+      "definitions": {
+        "_resolve_device": 24,
+        "_build_torch_model": 37,
+        "_parse_sigma": 86,
+        "_build_dataloaders": 105,
+        "_build_criterion_and_optimizer": 314,
+        "_training_thread": 366,
+        "start_training": 540,
+        "stop_training": 550,
+        "pause_training": 555,
+        "is_paused": 562,
+        "drain_result_queue": 568,
+        "_handle_result": 583
+      }
+    },
+    "ml_forge/engine/training_setup.py": {
+      "lines": 142,
+      "definitions": {
+        "_get_training_tab": 20,
+        "_tid_of": 27,
+        "_ntag": 34,
+        "ensure_pipeline_inputs": 38,
+        "_lock_node": 60,
+        "update_block_labels": 72,
+        "reset_block_labels": 117
+      }
+    },
+    "ml_forge/filesystem/__init__.py": {
+      "lines": 0,
+      "definitions": {}
+    },
+    "ml_forge/filesystem/save.py": {
+      "lines": 223,
+      "definitions": {
+        "_serialise_tab": 17,
+        "_build_payload": 52,
+        "save_project": 57,
+        "_clear_all_tabs": 70,
+        "_restore_tab": 84,
+        "load_project": 133,
+        "_make_dialog": 178,
+        "open_save_dialog": 194,
+        "open_load_dialog": 207,
+        "save_current": 218
+      }
+    },
+    "ml_forge/graph/__init__.py": {
+      "lines": 0,
+      "definitions": {}
+    },
+    "ml_forge/graph/links.py": {
+      "lines": 55,
+      "definitions": {
+        "link_callback": 10,
+        "delink_callback": 43
+      }
+    },
+    "ml_forge/graph/nodes.py": {
+      "lines": 224,
+      "definitions": {
+        "node_tag": 16,
+        "attr_in_tag": 19,
+        "attr_out_tag": 22,
+        "attr_param_tag": 25,
+        "input_field_tag": 28,
+        "raw_spawn_node": 34,
+        "raw_delete_node": 116,
+        "spawn_node": 146,
+        "delete_node": 169,
+        "delete_selected_nodes": 180,
+        "clear_canvas": 200,
+        "_maybe_refresh_summary": 216
+      }
+    },
+    "ml_forge/graph/pipeline.py": {
+      "lines": 109,
+      "definitions": {
+        "_tab_complete": 19,
+        "get_stage_statuses": 40,
+        "pipeline_ready": 63,
+        "refresh_pipeline_bar": 70
+      }
+    },
+    "ml_forge/graph/tabs.py": {
+      "lines": 344,
+      "definitions": {
+        "editor_tag": 15,
+        "tab_tag": 18,
+        "_tab_id_from_selection": 24,
+        "current_tab": 36,
+        "new_tab": 47,
+        "_hint_tag": 152,
+        "_add_hint_node": 156,
+        "_remove_hint_node": 184,
+        "close_tab": 191,
+        "assign_role": 216,
+        "open_assign_role_dialog": 248,
+        "rename_tab": 303,
+        "sync_active_tab": 313,
+        "on_tab_change": 334
+      }
+    },
+    "ml_forge/graph/undo.py": {
+      "lines": 132,
+      "definitions": {
+        "_read_node_params": 19,
+        "_snapshot": 33,
+        "_apply_snapshot": 51,
+        "push_undo": 81,
+        "undo": 96,
+        "redo": 110,
+        "refresh_undo_menu": 124
+      }
+    },
+    "ml_forge/main.py": {
+      "lines": 184,
+      "definitions": {
+        "_build_splash": 26,
+        "_splash_step": 65,
+        "_close_splash": 83,
+        "main": 90
+      }
+    },
+    "ml_forge/shortcuts.py": {
+      "lines": 24,
+      "definitions": {
+        "shortcuts": 9
+      }
+    },
+    "ml_forge/state.py": {
+      "lines": 24,
+      "definitions": {}
+    },
+    "ml_forge/ui/__init__.py": {
+      "lines": 0,
+      "definitions": {}
+    },
+    "ml_forge/ui/console.py": {
+      "lines": 36,
+      "definitions": {
+        "log": 13,
+        "_refresh_console": 25,
+        "clear_console": 34
+      }
+    },
+    "ml_forge/ui/layout.py": {
+      "lines": 271,
+      "definitions": {
+        "build_main_window": 33,
+        "_build_toolbar_placeholder": 50,
+        "_build_middle_row": 55,
+        "_build_pipeline_bar": 64,
+        "_build_palette_panel": 73,
+        "_build_canvas_panel": 88,
+        "_build_train_panel": 98,
+        "_build_general_section": 122,
+        "_build_device_section": 140,
+        "_build_checkpoint_section": 150,
+        "_build_earlystop_section": 164,
+        "_build_summary_section": 175,
+        "_build_loss_plot": 187,
+        "_build_acc_plot": 210,
+        "_build_console": 226,
+        "_build_statusbar": 249
+      }
+    },
+    "ml_forge/ui/menubar.py": {
+      "lines": 223,
+      "definitions": {
+        "build_menubar": 11,
+        "_load_template": 95,
+        "_open_docs": 116,
+        "_open_about": 189
+      }
+    },
+    "ml_forge/ui/palette.py": {
+      "lines": 82,
+      "definitions": {
+        "on_search": 14,
+        "rebuild_palette": 19
+      }
+    },
+    "ml_forge/ui/resize.py": {
+      "lines": 34,
+      "definitions": {
+        "resize_callback": 16
+      }
+    },
+    "ml_forge/ui/statusbar.py": {
+      "lines": 41,
+      "definitions": {
+        "refresh_status": 12,
+        "_update_title": 28
+      }
+    },
+    "ml_forge/ui/summary.py": {
+      "lines": 76,
+      "definitions": {
+        "_safe_int": 12,
+        "refresh_model_summary": 27
+      }
+    },
+    "ml_forge/ui/toolbar.py": {
+      "lines": 39,
+      "definitions": {
+        "build_toolbar": 12
+      }
+    },
+    "ml_forge/ui/training.py": {
+      "lines": 299,
+      "definitions": {
+        "update_cuda_stats": 18,
+        "highlight_issues": 61,
+        "clear_highlights": 86,
+        "apply_train_btn_style": 97,
+        "update_status_indicator": 114,
+        "_read_train_config": 122,
+        "on_run": 149,
+        "on_pause": 232,
+        "on_stop": 247,
+        "tick_training": 264,
+        "_update_split_controls": 285
+      }
+    }
+  },
+  "registered_blocks": 53,
+  "templates": [
+    {
+      "path": "ml_forge/templates/cifar10_classifier.mlf",
+      "tabs": [
+        {
+          "role": "data_prep",
+          "nodes": 10,
+          "links": 8,
+          "topological_order": [
+            "CIFAR10",
+            "CIFAR10",
+            "RandomCrop",
+            "ToTensor",
+            "RandomHFlip",
+            "Normalize",
+            "ToTensor",
+            "DataLoader (val)",
+            "Normalize",
+            "DataLoader (train)"
+          ]
+        },
+        {
+          "role": "model",
+          "nodes": 13,
+          "links": 12,
+          "topological_order": [
+            "Input",
+            "Conv2D",
+            "ReLU",
+            "MaxPool2D",
+            "Conv2D",
+            "ReLU",
+            "MaxPool2D",
+            "Flatten",
+            "Linear",
+            "ReLU",
+            "Dropout",
+            "Linear",
+            "Output"
+          ]
+        },
+        {
+          "role": "training",
+          "nodes": 4,
+          "links": 4,
+          "topological_order": [
+            "DataLoaderBlock",
+            "ModelBlock",
+            "CrossEntropyLoss",
+            "Adam"
+          ]
+        }
+      ],
+      "errors": [],
+      "warnings": [],
+      "generated_lines": 131,
+      "generated_sha256": "3f7b22920f5cd0dc2d9b357b6654ea478a69c4bbce6e7dc4d2f71c2cb6c75e08",
+      "syntax": "pass",
+      "ellipsis_placeholders": 0,
+      "generated_epochs_line": "EPOCHS = 20"
+    },
+    {
+      "path": "ml_forge/templates/mnist_classifier.mlf",
+      "tabs": [
+        {
+          "role": "data_prep",
+          "nodes": 6,
+          "links": 4,
+          "topological_order": [
+            "MNIST",
+            "MNIST",
+            "ToTensor",
+            "ToTensor",
+            "DataLoader (train)",
+            "DataLoader (val)"
+          ]
+        },
+        {
+          "role": "model",
+          "nodes": 6,
+          "links": 5,
+          "topological_order": [
+            "Input",
+            "Flatten",
+            "Linear",
+            "ReLU",
+            "Linear",
+            "Output"
+          ]
+        },
+        {
+          "role": "training",
+          "nodes": 4,
+          "links": 4,
+          "topological_order": [
+            "DataLoaderBlock",
+            "ModelBlock",
+            "CrossEntropyLoss",
+            "Adam"
+          ]
+        }
+      ],
+      "errors": [],
+      "warnings": [],
+      "generated_lines": 113,
+      "generated_sha256": "1d8bcdebde9f508817f2c2880c4e3a38a9c7840efb7c88d586749cae0b797f0f",
+      "syntax": "pass",
+      "ellipsis_placeholders": 0,
+      "generated_epochs_line": "EPOCHS = 20"
+    }
+  ],
+  "specific_probes": {
+    "grayscale_in_export_map": false,
+    "silu_in_layer_map": false,
+    "sigma_parse_results": {
+      "0.1, 2.0": [
+        0.1,
+        2.0
+      ],
+      "(0.1, 2.0)": 1.0,
+      "1.0": 1.0
+    },
+    "unparenthesized_sigma_export_syntax": "SyntaxError: positional argument follows keyword argument"
+  },
+  "validation_limits": [
+    "DearPyGui read functions replaced with in-memory values; no GUI integration tested",
+    "AST syntax checks do not instantiate PyTorch models or verify output/gradient equivalence",
+    "No actual training, checkpoint save/load, cancellation or GPU/AMP tests",
+    "No wheel build, install or remote repository verification"
+  ],
+  "plan_review": {
+    "reviewers": 3,
+    "scope": "Independent read-only review of source due diligence, graph/code semantics, execution/probes and requirements",
+    "incorporated": [
+      "Exact source line corrections",
+      "Identity recovery with no metadata distinguished from alias preservation",
+      "Chip external bindings and effect ordering",
+      "Optimizer deduplication scoped per optimizer/update phase",
+      "Opaque lexical capture preservation",
+      "Definition, instance and run lifecycles separated",
+      "Supervisor-confirmed abnormal termination",
+      "Probe sampling provenance and RNG isolation",
+      "AMP update attempted/applied/skipped distinction"
+    ],
+    "note": "One reviewer reported L01 missing; independently confirmed it already existed and enriched its field mapping."
+  },
+  "final_verification": {
+    "date": "2026-11-14",
+    "business_files_unchanged": 45,
+    "changed_business_files": [],
+    "main_chapters": 11,
+    "source_index_line_anchors_checked": 136,
+    "mermaid_blocks_present": 4,
+    "mermaid_rendered": false,
+    "markdown_fences_balanced": true,
+    "utf8_valid": true,
+    "source_syntax_rechecked": 33,
+    "plan_path": "docs/可视化AI架构设计与实验仿真平台项目计划书.md",
+    "plan_sha256": "84a53895319aada9fe1c4996112b85b094e7b3ec948b5ca8f22397e11bad7e88",
+    "plan_lines": 864,
+    "plan_characters": 44900
+  }
+}

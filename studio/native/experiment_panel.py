@@ -1,0 +1,172 @@
+"""Background data/device queries and truthful experiment presentation.
+
+No GUI calls occur here. The main GUI thread consumes completed query messages
+and is solely responsible for applying them to widgets.
+"""
+import csv
+import math
+from pathlib import Path
+import queue
+import threading
+
+
+class BackgroundQueries:
+    def __init__(self):
+        self._queue = queue.Queue()
+        self._generations = {}
+        self._cancel = {}
+        self._closed = False
+
+    def submit(self, name, function):
+        if self._closed:
+            raise ValueError("Background query controller is closed")
+        self.invalidate(name)
+        generation = self._generations[name]
+        cancelled = threading.Event()
+        self._cancel[name] = cancelled
+        def run():
+            try:
+                value = function(cancelled.is_set)
+                message = {"name": name, "generation": generation, "value": value, "error": None}
+            except Exception as error:
+                message = {"name": name, "generation": generation, "value": None, "error": str(error)}
+            self._queue.put(message)
+        threading.Thread(target=run, name="mlforge-" + name, daemon=True).start()
+        return generation
+
+    def invalidate(self, name):
+        event = self._cancel.pop(name, None)
+        if event:
+            event.set()
+        self._generations[name] = self._generations.get(name, 0) + 1
+
+    def poll(self):
+        messages = []
+        while True:
+            try:
+                message = self._queue.get_nowait()
+            except queue.Empty:
+                break
+            if not self._closed and message["generation"] == self._generations.get(message["name"]):
+                self._cancel.pop(message["name"], None)
+                messages.append(message)
+        return messages
+
+    def close(self):
+        self._closed = True
+        for event in self._cancel.values():
+            event.set()
+        self._cancel.clear()
+
+
+def csv_columns(path):
+    """Read just the bounded header; full numeric validation is inspection's job."""
+    source = Path(path)
+    with source.open("r", encoding="utf-8-sig", newline="") as stream:
+        line = stream.readline(65537)
+    if not line or len(line) > 65536:
+        raise ValueError("CSV header is empty or exceeds 64 KiB")
+    columns = next(csv.reader([line]))
+    if len(columns) > 517 or any(not column for column in columns) or len(set(columns)) != len(columns):
+        raise ValueError("CSV requires distinct nonempty column names (up to 517 columns, including paired metadata)")
+    return columns
+
+
+def _number(value):
+    return f"{value:.6g}" if isinstance(value, (float, int)) and math.isfinite(value) else "—"
+
+
+def manifest_summary(manifest):
+    if not manifest:
+        return "尚未检查数据；运行前需检查。"
+    counts = manifest.get("counts", {})
+    def shape_text(shape):
+        return "×".join("N" if item is None else str(item) for item in shape)
+    shape = ("\n".join(name + " " + shape_text(value) for name, value in manifest["input_shapes"].items())
+             if manifest.get("input_shapes") else shape_text(manifest.get("input_shape", [])))
+    classes = manifest.get("class_names", [])
+    text = (f"{manifest.get('kind')} · 输入 {shape}\n"
+            f"train {counts.get('train', 0)} / val {counts.get('val', 0)} / test {counts.get('test', 0)}\n"
+            f"{len(classes)} 类：" + ", ".join(str(value) for value in classes[:12]) + ("…" if len(classes) > 12 else "") +
+            "\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
+    ignored = manifest.get("ignored_files", [])
+    if ignored:
+        text += f"\n已忽略 {len(ignored)} 个系统/同步附属文件"
+    elif manifest.get("warnings"):
+        text += f"\n数据提示 {len(manifest['warnings'])} 项（见数据设置）"
+    return text
+
+
+def device_choices(capabilities):
+    """Accept the public capabilities object, offering only executable devices."""
+    choices = ["cpu"]
+    for device in capabilities.get("devices", []):
+        if isinstance(device, dict):
+            identifier = device.get("id", device.get("device"))
+            if isinstance(identifier, str) and identifier.startswith("cuda:") and device.get("available", True):
+                choices.append(identifier)
+    if capabilities.get("cuda_available") and len(choices) == 1:
+        for index in range(capabilities.get("cuda_device_count", 0)):
+            choices.append("cuda:" + str(index))
+    return list(dict.fromkeys(choices))
+
+
+def device_summary(capabilities):
+    reason = capabilities.get("cuda_reason") or capabilities.get("reason") or capabilities.get("unavailable_reason")
+    runtime = capabilities.get("torch_version", capabilities.get("runtime", ""))
+    names = []
+    for item in capabilities.get("devices", []):
+        if isinstance(item, dict) and str(item.get("id", item.get("device", ""))).startswith("cuda:"):
+            names.append(str(item.get("name", item.get("id", item.get("device")))))
+    hardware = capabilities.get("hardware_gpus", capabilities.get("nvidia_hardware", capabilities.get("hardware", [])))
+    if isinstance(hardware, list):
+        for item in hardware:
+            if isinstance(item, dict) and item.get("name"):
+                names.append(str(item["name"]))
+    text = "单设备执行 · " + str(runtime)
+    if names:
+        text += "\n" + " / ".join(dict.fromkeys(names))
+    if reason:
+        text += "\nCUDA：" + str(reason)
+    elif not capabilities.get("cuda_available"):
+        text += "\nCUDA 当前不可用；请查看运行时能力。"
+    return text
+
+
+def progress_points(record, after_seq, real):
+    """S2 curves represent completed epochs, never train/validation batches."""
+    def finite(value):
+        return isinstance(value, (int, float)) and math.isfinite(value)
+    if real:
+        return [event for event in record.get("events", [])
+                if event.get("seq", 0) > after_seq and event.get("type") == "progress"
+                and event.get("phase") == "epoch" and type(event.get("epoch")) is int
+                and finite(event.get("train_loss")) and finite(event.get("val_loss"))]
+    progress = record.get("progress") or {}
+    return [progress] if finite(progress.get("loss")) else []
+
+
+def result_view(result, progress_history=None):
+    result = result or {}
+    real = result.get("profile") == "classification-v2"
+    history = result.get("history") or list((progress_history or {}).values())
+    if history and not isinstance(history[0], dict):
+        history = [{"step": step, "loss": value} for step, value in sorted((progress_history or {}).items())]
+    def series(key):
+        rows = [item for item in history if isinstance(item.get(key), (int, float)) and math.isfinite(item[key])]
+        return [[item.get("epoch", item.get("step", 0)) if real else item.get("step", 0) for item in rows], [item[key] for item in rows]]
+    train, val = series("train_loss" if real else "loss"), series("val_loss") if real else [[], []]
+    if real:
+        test = result.get("metrics", {}).get("test")
+        summary = f"{result.get('device', '—')} · 最佳 epoch {result.get('best_epoch', '—')}"
+        summary += (f" · final test loss {_number(test.get('loss'))} / accuracy {_number(test.get('accuracy'))} / n={test.get('count', '—')}" if test else " · held-out test 尚未评估")
+    elif result:
+        summary = f"初始损失 {_number(result.get('loss_before'))}   最终损失 {_number(result.get('loss_after'))}   同批次准确率 {_number(result.get('accuracy'))}   {result.get('device', 'cpu')} / synthetic_s1"
+    else:
+        summary = "尚未采集 · 不显示示例曲线"
+    context = result.get("probe_context", {})
+    probe = (f"实测 {context.get('split', '—')} · epoch {context.get('epoch', '—')} · {context.get('mode', '—')} · {context.get('device', result.get('device', '—'))} · {len(context.get('sample_ids', []))} 个样本"
+             + " · 梯度来源：" + str(context.get("gradient_source", "—"))) if context else ""
+    artifacts = "\n".join(str(name) + "：" + str(path) for name, path in result.get("artifacts", {}).items())
+    parameter_context = (probe + " · 更新范数来源：" + str(context.get("parameter_update_source", "—"))) if context else ""
+    return {"real": real, "train": train, "val": val, "summary": summary, "probe": probe, "parameters": parameter_context, "artifacts": artifacts}

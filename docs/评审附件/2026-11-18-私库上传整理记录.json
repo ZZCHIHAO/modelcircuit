@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-18",
+  "stage": "private-repository-preparation",
+  "product": "ModelCircuit Studio · 模路",
+  "target_repository": "ZZCHIHAO/modelcircuit",
+  "requested_visibility": "private",
+  "requested_access": "owner only; no collaborator invitations",
+  "status": "pre-upload checks passed; this file does not certify remote creation or push",
+  "changes": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "THIRD_PARTY_NOTICES.md",
+    ".gitignore",
+    "studio/publish-private.ps1",
+    "docs/upstream/README-ML-Forge-1.0.4.md",
+    "licenses/torchvision-BSD-3-Clause.txt",
+    "docs/评审附件/2026-11-18-私库上传整理记录.json"
+  ],
+  "verification_before_this_record": {
+    "checked_at_utc": "2026-11-18T01:32:52.834805+00:00",
+    "source_changes_matched": 38,
+    "original_ml_forge_sources_matched": 33,
+    "source_hash_mismatches": [],
+    "license_unchanged": true,
+    "license_sha256": "6ddbe69a2428b8feccb3c6c7dd38d304ea3a81ff5c8937ec81edd88a7e70586d",
+    "local_document_links_checked": 41,
+    "broken_local_document_links": [],
+    "candidate_files": 288,
+    "candidate_bytes": 12463986,
+    "credential_pattern_text_files_scanned": 255,
+    "potential_credential_files": [],
+    "runtime_or_private_paths": [],
+    "files_over_50_mib": [],
+    "upstream_pypi_publication_disabled": true,
+    "reference_screenshots_excluded": true,
+    "scope": "Source and documentation preparation only. No dependency installation, model download, new training, build or full regression run.",
+    "passed": true
+  },
+  "historical_tests": "2026-11-17: backend 318 passed/1 skipped; native 253 passed. Not rerun during documentation preparation.",
+  "business_source_changes": "None during this preparation. 38 recorded modified/new Python sources and 33 preserved upstream sources match their November 17 hashes.",
+  "screenshot_review": "Six native comparison/before-after composites inspected. They show this project or upstream ML Forge; three raw reference-*.png files stay local and are ignored.",
+  "exclusions": [
+    "virtual environments",
+    "developer tools/state",
+    "training data",
+    "checkpoints/weights",
+    "runtime outputs/logs",
+    "build/dist/EXE/ZIP outputs",
+    "raw commercial UI reference screenshots"
+  ],
+  "license_preservation": "Original root MIT LICENSE bytes unchanged. Official torchvision v0.21.0 BSD-3-Clause text retained under licenses/.",
+  "caveats": [
+    "S4 source milestone; older S3 portable executables not rebuilt or uploaded",
+    "No new training, dependency installation, model download, deployment or public release",
+    "No Transformer/ViT/3D/segmentation/detection/LLM/RAG/multi-GPU support claimed",
+    "Branding changes apply to repository documentation; historical runtime identifiers and file names remain"
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "date": "2026-11-14",
+  "stage": "S2",
+  "notice": "Generated CSV/PNG test fixtures, no clinical-performance claim",
+  "tests_per_runtime": {
+    "backend": 122,
+    "native": 38
+  },
+  "runtimes": {
+    "cpu": "2.6.0+cpu",
+    "cuda": "2.6.0+cu124"
+  },
+  "device": {
+    "queried_at": "2026-11-14T13:26:03.105225+00:00",
+    "torch_version": "2.6.0+cu124",
+    "cuda_version": "12.4",
+    "cuda_available": true,
+    "reason": null,
+    "multi_gpu_supported": false,
+    "devices": [
+      {
+        "id": "cpu",
+        "name": "CPU",
+        "available": true
+      },
+      {
+        "id": "cuda:0",
+        "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+        "available": true,
+        "total_memory_mb": 8187
+      }
+    ],
+    "hardware_gpus": [
+      {
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+        "total_memory_mb": 8188,
+        "driver_version": "560.94"
+      }
+    ],
+    "tensor_smoke_sum": 8.0,
+    "cudnn": 90100
+  },
+  "diagnostics": {
+    "cpu_source": {
+      "path": "output/native-s2/runtime-source.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cpu_frozen": {
+      "path": "output/native-s2/runtime-frozen-cpu.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cpu_render": {
+      "path": "output/native-s2/render-frozen-cpu.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "s1_frozen": {
+      "path": "output/native-s2/s1-runtime-frozen.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "s1_render": {
+      "path": "output/native-s2/s1-render-frozen.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cuda_source": {
+      "path": "output/native-s2-cuda/runtime-source.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cuda_source_render": {
+      "path": "output/native-s2-cuda/source-render/render.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cuda_frozen": {
+      "path": "output/native-s2-cuda/runtime-frozen.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cuda_render": {
+      "path": "output/native-s2-cuda/frozen-render/render.json",
+      "status": "passed",
+      "workers_stopped": true
+    },
+    "cuda_cpu_choice": {
+      "path": "output/native-s2-cuda/runtime-frozen-cpu-choice.json",
+      "status": "passed",
+      "workers_stopped": true
+    }
+  },
+  "cpu_resume_bit_exact": true,
+  "cuda_continuation_passed": true,
+  "cuda_bit_exact_asserted": false,
+  "programs": {
+    "cpu": {
+      "path": "studio/dist/desktop/MLForgeStudio/MLForgeStudio.exe",
+      "sha256": "202a3d942667025485d52392426c61722a8268daeb9757fc1795053439dd1234",
+      "bytes": 30779050
+    },
+    "cuda": {
+      "path": "studio/dist/desktop-cuda/MLForgeStudio/MLForgeStudio.exe",
+      "sha256": "f673a44b17baf5885ca18fd225278337952e937ddd5631df0e067262962a8a15",
+      "bytes": 30715436
+    }
+  },
+  "portable_archives": {
+    "cpu": {
+      "file_count": 2121,
+      "bytes": 149495907,
+      "sha256": "900b049aa24f4dc3783a77ac0adeba7804b82f6e1c47327128fa56c17c9ac112",
+      "zip_crc": "passed"
+    },
+    "cuda": {
+      "file_count": 2139,
+      "bytes": 2474546303,
+      "sha256": "24dccd0018a63dd57bf8a6947134b1958c71af05bed9072b3159744d3825b024",
+      "zip_crc": "passed"
+    }
+  },
+  "source_sha256": {
+    "studio/backend/server.py": "e882247c3ea5e4643201e584a22d3209b3737758566b29803d049740085dee71",
+    "studio/backend/studio_core/__init__.py": "5bd98c36b288a263a531918d70055990fc48745e6c4d3bcc8f78011cb99e6ad0",
+    "studio/backend/studio_core/classification_data.py": "41c5c9b887726b2952e5e36846e9f29b5c9fc79362b8b089ce23253ce7639121",
+    "studio/backend/studio_core/classification_runtime.py": "67fafa9c603e652cabe6ec4e87ef0e2bec9f2e0f623420a10673521c22199c75",
+    "studio/backend/studio_core/devices.py": "8ad5ba67e57d9a71584c69162bceb18cf0d326473aa436262d12a12aa3277448",
+    "studio/backend/studio_core/examples.py": "ffade2129d0368db6985d87ccf464e26c00c7ea93d48d92d8b32fd52dfc0f3bc",
+    "studio/backend/studio_core/experiment_spec.py": "c120fcfdc06d3f2a6da3e4f6691479065a6f00e2c0b33a99e4ce699278b810f1",
+    "studio/backend/studio_core/python_io.py": "59806c283624745a9b6a14c10d729d07cf09531b025c5cc483831a26477cd822",
+    "studio/backend/studio_core/runtime.py": "6fafba6656e9a5cf68632ea22327c3d3235f26ad40403f68e23f5ec10ca1b03b",
+    "studio/backend/studio_core/schema.py": "00ecc8a8db794f7a5691a9a9a145c71e08301e543b3f07ca11f8f3919e2964e6",
+    "studio/backend/studio_core/shape_rules.py": "63d9b5876cb9321bd4ef2efe061ca63b23a8761bc077f4665fb6e48df6658fb4",
+    "studio/backend/tests/test_classification_data.py": "d699f66a0c6d301d0aa23715e170625616721fc187b820bddea2b3a38d0b0235",
+    "studio/backend/tests/test_classification_runtime.py": "331d58da59e89910521f5acd4fa1a847e7f5bc1083764608e04d96320d143ab1",
+    "studio/backend/tests/test_cnn_model.py": "f5b90e27b07ffabe595d99a10caf1c1ca08cfaeba7ca4d378643b374477c87a6",
+    "studio/backend/tests/test_core.py": "f1043b4a76afbb9e6968f82b5d7d4c39eb7b13a6aaa7cbe0ac2541502ef231f2",
+    "studio/backend/tests/test_devices.py": "78965b4187ed8de49bb8b1317d9c98fc39e4fb0f4ee0312172e8f30c286ca892",
+    "studio/backend/tests/test_experiment_spec.py": "ba1c95df2df48636e9f71dabe6f25299de4c3cbfdca4bab216c241847a6c7113",
+    "studio/backend/tests/test_persistence.py": "baf9107fdea3f3db08f9709f1144864fd809f7491e22d77f62207ef53ce8a7a4",
+    "studio/backend/tests/test_python_io.py": "88a4630f620f084b99f7a6de7cc17627e13bc8f53f523475dc46fc6d3a4364cd",
+    "studio/backend/tests/test_server.py": "18c6ec4b49aa0f01c0b35ec64e3d5c6f547268cdf872fa012db77ba576c432be",
+    "studio/backend/tests/test_server_v2.py": "42342da4577ca82884698ba97340e038938d9ecad3f1f48fd9ac41d60767ac4f",
+    "studio/backend/worker.py": "0ad4695b07ec81d836624f215c24ef8d2629405db74ca4b15a55539ba0be4e7f",
+    "studio/desktop_entry.py": "67adf91768bd139431d5b825e152d62cb43a4688ba25c545283c20b116a88dbd",
+    "studio/frontend/.playwright-cli/shared-classifier.py": "1b4f0e5e86e621e9133572534e6e0917f37732f12449875bf5ae4a38b4d5a815",
+    "studio/native/__init__.py": "71e4bdf628d0cff49d10b301dc5b1b234dd8dbf585d07f5b8d786a99b19ec02f",
+    "studio/native/acceptance.py": "4ad5276462c7ceab0a2df1c36e3a0089d6f66b3796234f128dc6725379e0d786",
+    "studio/native/classification_acceptance.py": "42a83b2f0bc813e62167fc0452344d68ccdf1ae3a3a87746c424eea3cb9bbb74",
+    "studio/native/classification_render_acceptance.py": "2a40b3e8b80ff025614ce30fa795a6694d4442f63aae4bc2bb403625e9259d75",
+    "studio/native/data_panel.py": "e57ca1ffe5187eabe9a024f1badcc7925661591b4c8626a99c3d01b684127d63",
+    "studio/native/document.py": "a472bf61d5630183813e47aad80ba2b279a8815fc981b109e902b2c9940d9230",
+    "studio/native/experiment_panel.py": "29df5c363e33e9ba78dd428cc795a1a4a6de2da4cd5fefcb44da65a0ad51e052",
+    "studio/native/main.py": "ed70e7525a74626bb636040d2844c6c41e0e1a51b975ba2001c83ae74f1ce987",
+    "studio/native/paths.py": "2b82af77ac3e4ccca30fad9574f9b8963fbb96f38beafc439b4967eeb5d45f1f",
+    "studio/native/render_acceptance.py": "7fd02e12b51cb9fc1e4f52ab67f2c382355eb6561c1eee8b5ecd53eb1fc8dee2",
+    "studio/native/tests/test_classification_acceptance.py": "4ec6af0f80da5d0674d6a89657bc6efaf64d495520e8b73c167ab5fda9ab8ece",
+    "studio/native/tests/test_classification_render.py": "0ec5ee9754b1cd6abd00ce007749e5a15f6fbbd18d8d7b127c7562211cd7f1e4",
+    "studio/native/tests/test_data_callbacks.py": "857f953e5bc6285e8fa787d079d5c1cd019f10d1d59604a051c5dfbfd468b25f",
+    "studio/native/tests/test_document.py": "bb7af5bc474a4fe9953bf5fd9a3f4b9b761a452afc4bee82fd64179de2cf2811",
+    "studio/native/tests/test_experiment_panel.py": "c61b906c4979d9f3b107877f368ceb796424728eaa8c4886cbdf26a4c9d458b1",
+    "studio/native/tests/test_lifecycle.py": "8b5870e7a7bf646ec1f3084b1013f727bdd767ea6cec8a777a473fc84398a208",
+    "studio/native/tests/test_native_experiment.py": "2dd1e51b71dadd593cab35bdb0b73a316743e5ae2d04996a64c76728c4a8ddcd",
+    "studio/native/tests/test_paths.py": "c6cfbd40a68540aa5072da8f3d248b14abd5d2392fdb213e63b2188d187676d9",
+    "studio/native/tests/test_workspace_state.py": "b88cf5a58a3bc380b566ac0a66fc63a9359a29038ca557654fa7d12a1d5ce47f",
+    "studio/native/ui.py": "cf64a6e1031e72078eeab41c31430c543a93bebb00bb68dd04a28096deadc5e3",
+    "studio/native/workspace_state.py": "fe364c92a8fdd15808c060c174c875ce1f94814f7368871d1bd197a68ee7ddc8"
+  },
+  "github": {
+    "uploaded": false,
+    "remote_configured": false,
+    "collaborators_added": false
+  }
+}
