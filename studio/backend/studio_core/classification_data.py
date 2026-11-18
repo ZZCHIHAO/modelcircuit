@@ -4,6 +4,7 @@ Inspection deliberately uses no Torch. CSV matrices are frozen in the manifest;
 image contents are rechecked on every lazy read, before decoding those bytes.
 """
 import copy
+from bisect import bisect_left
 import csv
 import hashlib
 import io
@@ -371,14 +372,15 @@ def _source_name(record):
     return record["source_path"] + (" row " + str(record["row_number"]) if "row_number" in record else "")
 
 
-def _check_partition(records, class_names):
+def _check_partition(records, class_names=None):
     seen = {"id": {}, "path": {}, "content": {}, "group": {}}
     counts = Counter()
-    class_counts = {split: {name: 0 for name in class_names} for split in SPLITS}
+    class_counts = {split: {name: 0 for name in (class_names or ())} for split in SPLITS}
     for record in records:
         split = record["split"]
         counts[split] += 1
-        class_counts[split][record["class_name"]] += 1
+        if class_names is not None:
+            class_counts[split][record["class_name"]] += 1
         identities = {"id": record["id"], "content": record["content_digest"], "group": record.get("group")}
         if "row_number" not in record:
             identities["path"] = record["source_path"]
@@ -389,10 +391,84 @@ def _check_partition(records, class_names):
             if previous["split"] != split:
                 raise ValueError("Cross-split " + kind + " leakage " + str(identity) + ": " + _source_name(record) + " conflicts with " + _source_name(previous))
     for split in SPLITS:
+        if class_names is None and not counts[split]:
+            raise ValueError("Regression split " + split + " is empty")
         missing = [name for name, amount in class_counts[split].items() if not amount]
         if missing:
             raise ValueError("Split " + split + " is missing classes: " + ", ".join(missing))
     return {split: counts[split] for split in SPLITS}, class_counts
+
+
+
+def _fit_csv_features(records, spec, class_names=None):
+    train = [record["features"] for record in records if record["split"] == "train"]
+    width = len(spec["feature_columns"])
+    mean = [math.fsum(row[column] / len(train) for row in train) for column in range(width)] if spec["standardize"] else [0.0] * width
+    std = [math.sqrt(math.fsum(((row[column] - mean[column]) ** 2) / len(train) for row in train)) or 1.0 for column in range(width)] if spec["standardize"] else [1.0] * width
+    if any(not math.isfinite(value) for value in mean + std):
+        raise ValueError("Non-finite train-only standardization")
+    for record in records:
+        processed = [(value - mean[index]) / std[index] for index, value in enumerate(record["features"])]
+        if any(not math.isfinite(value) or abs(value) > MAX_FLOAT32 for value in processed):
+            raise ValueError("Preprocessed float32 value out of range at " + _source_name(record))
+        record["raw_content_digest"] = record["content_digest"]
+        record["content_digest"] = _float32_digest(processed)
+    # Raw double precision rows may be distinct while the actual model
+    # inputs collide after train-only scaling and float32 conversion.
+    _check_partition(records, class_names)
+    preprocessing = {"kind": "standardize" if spec["standardize"] else "identity", "fit_split": "train", "dtype": "float32", "feature_columns": spec["feature_columns"], "mean": mean, "std": std}
+    return preprocessing
+
+
+def _inspect_regression(data_spec, seed, cancelled):
+    import struct
+    spec = _spec(dict(data_spec, kind='csv'))
+    spec['kind'] = 'regression_csv'
+    records = _csv_records(spec, cancelled)
+    for record in records:
+        _cancel(cancelled)
+        try:
+            target = float(record.pop('class_name'))
+            if not math.isfinite(target) or abs(target) > MAX_FLOAT32:
+                raise ValueError('target outside finite float32')
+        except (ValueError, OverflowError) as exc:
+            raise ValueError('Invalid finite numeric target at ' + _source_name(record)) from exc
+        record['label'] = struct.unpack('f', struct.pack('f', target))[0]
+    if spec['split_column'] is None:
+        units = {}
+        for record in records:
+            key = record['group'] if spec['group_column'] is not None else record['id']
+            units.setdefault(key, []).append(record)
+        groups = list(units.values())
+        if len(groups) < 3:
+            raise ValueError('Regression needs at least three rows or independent groups to split')
+        random.Random(seed).shuffle(groups)
+        cumulative = [0]
+        for group in groups:
+            cumulative.append(cumulative[-1] + len(group))
+        def boundary(target, low, high):
+            upper = min(high, bisect_left(cumulative, target, low, high + 1))
+            return min((max(low, upper - 1), upper), key=lambda i: abs(cumulative[i] - target))
+        train_end = boundary(len(records) * (1 - spec['validation_fraction'] - spec['test_fraction']), 1, len(groups) - 2)
+        val_end = boundary(len(records) * (1 - spec['test_fraction']), train_end + 1, len(groups) - 1)
+        for split, partition in zip(SPLITS, (groups[:train_end], groups[train_end:val_end], groups[val_end:])):
+            for group in partition:
+                _cancel(cancelled)
+                for record in group:
+                    record['split'] = split
+    counts, _ = _check_partition(records)
+    preprocessing = _fit_csv_features(records, spec)
+    warnings = []
+    for split in SPLITS:
+        targets = {record['label'] for record in records if record['split'] == split}
+        if len(targets) < 2:
+            warnings.append(f'{split}: constant target or single row; R² is undefined')
+    manifest = {'version': 2, 'kind': 'regression_csv', 'data_spec': spec, 'seed': seed,
+                'input_shape': [None, len(spec['feature_columns'])], 'target_column': spec['target_column'],
+                'counts': counts, 'records': records, 'preprocessing': preprocessing, 'warnings': warnings}
+    manifest['dataset_digest'] = _manifest_digest(manifest)
+    _cancel(cancelled)
+    return manifest
 
 
 def inspect_dataset(data_spec, seed=42, cancelled=None):
@@ -403,6 +479,8 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     if isinstance(data_spec, dict) and data_spec.get("kind") == "paired_csv":
         from .paired_data import inspect_paired_dataset
         return inspect_paired_dataset(data_spec, seed=seed, cancelled=cancelled)
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'regression_csv':
+        return _inspect_regression(data_spec, seed, cancelled)
     spec = _spec(data_spec)
     ignored_files = []
     records = _csv_records(spec, cancelled) if spec["kind"] == "csv" else _image_records(spec, cancelled, ignored_files)
@@ -419,23 +497,8 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
             _stratify(records, spec, seed)
     counts, class_counts = _check_partition(records, class_names)
     if spec["kind"] == "csv":
-        train = [record["features"] for record in records if record["split"] == "train"]
-        width = len(spec["feature_columns"])
-        mean = [math.fsum(row[column] / len(train) for row in train) for column in range(width)] if spec["standardize"] else [0.0] * width
-        std = [math.sqrt(math.fsum(((row[column] - mean[column]) ** 2) / len(train) for row in train)) or 1.0 for column in range(width)] if spec["standardize"] else [1.0] * width
-        if any(not math.isfinite(value) for value in mean + std):
-            raise ValueError("Non-finite train-only standardization")
-        for record in records:
-            processed = [(value - mean[index]) / std[index] for index, value in enumerate(record["features"])]
-            if any(not math.isfinite(value) or abs(value) > MAX_FLOAT32 for value in processed):
-                raise ValueError("Preprocessed float32 value out of range at " + _source_name(record))
-            record["raw_content_digest"] = record["content_digest"]
-            record["content_digest"] = _float32_digest(processed)
-        # Raw double precision rows may be distinct while the actual model
-        # inputs collide after train-only scaling and float32 conversion.
-        _check_partition(records, class_names)
-        preprocessing = {"kind": "standardize" if spec["standardize"] else "identity", "fit_split": "train", "dtype": "float32", "feature_columns": spec["feature_columns"], "mean": mean, "std": std}
-        input_shape = [None, width]
+        preprocessing = _fit_csv_features(records, spec, class_names)
+        input_shape = [None, len(spec['feature_columns'])]
     else:
         preprocessing = {"kind": "resize_scale", "image_size": spec["image_size"], "channels": spec["channels"], "resampling": "bilinear", "scale": 1.0 / 255.0}
         input_shape = [None, spec["channels"], *spec["image_size"]]
@@ -454,8 +517,8 @@ def build_datasets(manifest, cancelled=None):
     if manifest.get("kind") == "paired_csv":
         from .paired_data import build_paired_datasets
         return build_paired_datasets(manifest, cancelled=cancelled)
-    if manifest.get("version") != 2 or manifest.get("kind") not in ("csv", "image_folder"):
-        raise ValueError("Unsupported classification manifest")
+    if manifest.get("version") != 2 or manifest.get("kind") not in ("csv", "image_folder", "regression_csv"):
+        raise ValueError("Unsupported supervised dataset manifest")
     if _manifest_digest(manifest) != manifest.get("dataset_digest"):
         raise ValueError("Dataset manifest digest does not match its contents")
     checked = {}
@@ -477,7 +540,7 @@ def build_datasets(manifest, cancelled=None):
             self.records = records
             self.preprocessing = manifest["preprocessing"]
             self.matrix = None
-            if manifest["kind"] == "csv":
+            if manifest["kind"] in ("csv", "regression_csv"):
                 mean, std = self.preprocessing["mean"], self.preprocessing["std"]
                 self.matrix = torch.tensor([[(value - mean[index]) / std[index] for index, value in enumerate(record["features"])] for record in records], dtype=torch.float32)
 
@@ -498,6 +561,9 @@ def build_datasets(manifest, cancelled=None):
                 height, width = self.preprocessing["image_size"]
                 image = _prepare_image(image, self.preprocessing["image_size"], channels)
                 tensor = torch.frombuffer(bytearray(image.tobytes()), dtype=torch.uint8).reshape(height, width, channels).permute(2, 0, 1).to(dtype=torch.float32).div_(255.0)
-            return tensor, record["label"], record["id"]
+            label = record["label"]
+            if manifest["kind"] == "regression_csv":
+                label = torch.tensor([label], dtype=torch.float32)
+            return tensor, label, record["id"]
 
     return {split: FrozenDataset([record for record in manifest["records"] if record["split"] == split]) for split in SPLITS}

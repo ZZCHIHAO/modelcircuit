@@ -38,6 +38,12 @@ class RuntimePathsTests(unittest.TestCase):
                 (assets / 'release-build.json').touch()
                 self.assertEqual(resolve_data_directory(environ=env), parent / 'ModelCircuitStudio-S4')
                 self.assertEqual(resolve_data_directory(parent / 'override', environ=env), parent / 'override')
+                for variant in ('CPU', 'CUDA'):
+                    with self.subTest(runtime=variant):
+                        (assets / 'release-build.json').write_text(
+                            '{"stage":"S6","runtime":"' + variant + '"}', encoding='utf-8')
+                        self.assertEqual(resolve_data_directory(environ=env), parent / ('ModelCircuitStudio-S6-' + variant))
+
 
 
 if __name__ == '__main__':

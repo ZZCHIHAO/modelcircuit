@@ -8,25 +8,31 @@ class Batch(TypedDict):
     sample_ids: list[str]
 
 
-class BatchStats(TypedDict):
-    loss_sum: float
-    correct: int
-    count: int
-
-
 class TaskAdapter(Protocol):
     id: str
     version: int
+    paired: bool
+    output_name: str
+    prediction_fields: tuple[str, ...]
 
     def validate_contract(self, resolved, shapes, manifest): ...
     def bind_batch(self, raw_batch, device) -> Batch: ...
     def loss(self, outputs, batch): ...
-    def summarize(self, outputs, batch, loss) -> BatchStats: ...
-    def finalize(self, totals: BatchStats) -> dict: ...
+    def validate_outputs(self, outputs, batch, manifest): ...
+    def summarize(self, outputs, batch, loss) -> dict: ...
+    def merge(self, totals, batch) -> dict: ...
+    def finalize(self, totals) -> dict: ...
+    def progress_metrics(self, metrics) -> dict: ...
+    def prediction_rows(self, outputs, batch, manifest) -> list: ...
+    def dataset_details(self, manifest) -> dict: ...
 
 
 def get_task_adapter(identifier, version):
-    if identifier != 'classification' or type(version) is not int or version != 1:
-        raise ValueError('Unknown task adapter or version')
-    from .classification_task import ClassificationTask
-    return ClassificationTask
+    if type(version) is int and version == 1:
+        if identifier == 'classification':
+            from .classification_task import ClassificationTask
+            return ClassificationTask
+        if identifier == 'regression':
+            from .regression_task import RegressionTask
+            return RegressionTask
+    raise ValueError('Unknown task adapter or version')

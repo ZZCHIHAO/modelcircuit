@@ -81,14 +81,15 @@ def main(argv=None):
     parser.add_argument('--render-check', type=Path, help='Run in-process native render/callback diagnostics and write JSON')
     parser.add_argument('--classification-check', type=Path, help='Run real CSV/image classification worker diagnostics')
     parser.add_argument('--classification-render-check', type=Path, help='Run native real-data callback/render diagnostics')
-    parser.add_argument('--check-device', default='cpu', help='Explicit classification diagnostic device, cpu or cuda:N')
+    parser.add_argument('--check-device', default='cpu', help='Explicit diagnostic device, cpu or cuda:N')
     parser.add_argument('--s3-check', type=Path, help='Run paired data and named chip worker diagnostics')
     parser.add_argument('--s3-render-check', type=Path, help='Run paired data and chip editing native callback diagnostics')
     parser.add_argument('--s4-check', type=Path, help='Run S4 catalog, large-model worker and Python diagnostics')
     parser.add_argument('--s4-render-check', type=Path, help='Run S4 native catalog, chip and workspace callback diagnostics')
+    parser.add_argument('--s6-render-check', type=Path, help='Run S6 regression through native controls and real workers')
     args = parser.parse_args(argv)
     diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
-                   args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check]
+                   args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -127,6 +128,9 @@ def main(argv=None):
         elif args.s4_render_check:
             from .s4_render_acceptance import check_s4_render
             report = check_s4_render(manager, paths['data'], resource_root(), args.s4_render_check.parent, device=args.check_device)
+        elif args.s6_render_check:
+            from .s6_acceptance import check_s6
+            report = check_s6(manager, paths['data'], resource_root(), args.s6_render_check.parent, args.check_device)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench

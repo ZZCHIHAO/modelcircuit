@@ -10,19 +10,28 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
         messages.put({"type": "status", "status": "preparing"})
         os.environ.setdefault("OMP_NUM_THREADS", "1")
         os.environ.setdefault("MKL_NUM_THREADS", "1")
-        import torch
-        torch.set_num_threads(1)
-        messages.put({"type": "status", "status": "running"})
         options = {"progress": lambda event: messages.put({"type": "progress", **event}),
                    "cancelled": stop.is_set}
-        if config.get("profile") == "classification-v2":
+        from studio_core.classical_task import contains_classical
+        if contains_classical(graph):
             if artifact_directory is None:
-                raise ValueError("Classification worker requires a managed artifact directory")
-            from studio_core.classification_runtime import run_classification
-            result = run_classification(graph, config, artifact_directory, **options)
+                raise ValueError("Classical worker requires a managed artifact directory")
+            from studio_core.classical_task import run_classical
+            messages.put({"type": "status", "status": "running"})
+            result = run_classical(graph, config, artifact_directory, **options)
         else:
-            from studio_core.runtime import run_experiment
-            result = run_experiment(graph, config, **options)
+            import torch
+            from studio_core.experiment_spec import SUPERVISED_PROFILES
+            torch.set_num_threads(1)
+            messages.put({"type": "status", "status": "running"})
+            if config.get("profile") in SUPERVISED_PROFILES:
+                if artifact_directory is None:
+                    raise ValueError("Supervised worker requires a managed artifact directory")
+                from studio_core.classification_runtime import run_supervised
+                result = run_supervised(graph, config, artifact_directory, **options)
+            else:
+                from studio_core.runtime import run_experiment
+                result = run_experiment(graph, config, **options)
         messages.put({"type": "result", "result": result})
     except InterruptedError:
         messages.put({"type": "cancelled"})

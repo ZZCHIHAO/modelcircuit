@@ -246,7 +246,7 @@ def _resolve_scope(graph, definitions, stack=(), budget=None):
         __dict__ __weakref__ __annotations__ __module__ __doc__ __call__ __contains__
         __getitem__ __setitem__ __delitem__ __iter__ __len__ __getattr__ __dir__
     """.split())
-    allowed_kinds = PRIMITIVES | {'chip'} | (TENSOR_KINDS.keys() if budget.tensor_contracts else set())
+    allowed_kinds = (PRIMITIVES - {"SVC", "SVR"} if budget.tensor_contracts else PRIMITIVES) | {'chip'} | (TENSOR_KINDS.keys() if budget.tensor_contracts else set())
     for instance in instances:
         identifier, kind = instance["id"], instance.get("kind")
         _require(identifier not in reserved, "Instance identifier conflicts with a PyTorch module attribute", identifier, "id")

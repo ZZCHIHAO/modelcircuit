@@ -15,7 +15,14 @@ BLUE = (100, 200, 255)
 MUTED = (145, 154, 164)
 RED = (240, 143, 134)
 PAYLOAD_TYPE = 'MLFORGE_COMPONENT_V1'
-CATEGORIES = {'全部': None, '基础层': 'layers', '激活': 'activation', '归一化': 'normalization',
+LIBRARIES = {
+    '基础组件库': ('layers', 'activation', 'normalization', 'math_fusion', 'shape_pool'),
+    '深度学习模型库': ('backbone', 'transformer', 'model'),
+    '传统机器学习模型库': ('classical',),
+    '网络结构与融合库': ('functional',),
+}
+CATEGORIES = {'全部库': None, **{name: groups for name, groups in LIBRARIES.items()},
+              '全部': None, '基础层': 'layers', '激活': 'activation', '归一化': 'normalization',
               '数学与融合': 'math_fusion', '形状与池化': 'shape_pool', '功能芯片': 'functional',
               '视觉主干': 'backbone', 'Transformer': 'transformer', '完整模型': 'model',
               '工程芯片': 'project', '本地芯片': 'local'}
@@ -108,7 +115,7 @@ class CatalogPanel:
         return run
 
     def build_filters(self):
-        dpg.add_combo(items=list(CATEGORIES), default_value='全部', width=-1,
+        dpg.add_combo(items=[name for name in CATEGORIES if name != '全部'], default_value='全部库', width=-1,
                       tag='native_catalog_category', callback=self.callback(self._category))
         with dpg.group(horizontal=True):
             for identifier, label in (('Linear', 'Linear'), ('ReLU', 'ReLU'), ('Add', 'Add')):
@@ -184,20 +191,41 @@ class CatalogPanel:
             with dpg.tooltip(button):
                 dpg.add_text('从此目录读取有限 JSON 架构包，不加载 Python 或权重。\n' + str(self.local_index.directory), wrap=350)
         static = [] if self.category in ('project', 'local') else list_components(
-            str(query or ''), self.category, registry=self.model_registry, include_tensor=True)
+            str(query or ''), registry=self.model_registry, include_tensor=True)
+        if isinstance(self.category, tuple):
+            static = [spec for spec in static if spec.category in self.category]
+        elif self.category is not None:
+            static = [spec for spec in static if spec.category == self.category]
+        for title, categories in LIBRARIES.items():
+            specs = [spec for spec in static if spec.category in categories]
+            if not specs:
+                continue
+            section = dpg.add_collapsing_header(label=title, parent=parent, default_open=True)
+            for spec in specs:
+                self._render_builtin(spec, section)
         for spec in static:
-            self.visible_ids.append(spec.id)
-            with dpg.group(horizontal=True, parent=parent):
-                label = spec.id.removeprefix('primitive.') if spec.id.startswith('primitive.') else spec.label
-                button = dpg.add_button(label=button_caption(label), width=108,
-                                        tag='native_catalog_add_' + spec.id, callback=self.owned_callback(self._quick, spec.id))
-                self._drag(button, self.payload(spec.id))
-                dpg.add_button(label='配置', width=42, tag='native_catalog_config_' + spec.id,
-                               callback=self.owned_callback(self.open_config, spec.id))
-            with dpg.tooltip(button):
-                dpg.add_text(spec.id + ' · ' + spec.description, wrap=350)
-                dpg.add_text('输入 ' + ', '.join(spec.input_ports) + ' → 输出 ' + ', '.join(spec.output_ports))
-                dpg.add_text('默认 ' + json.dumps(spec.config_defaults, ensure_ascii=False), wrap=350)
+            if spec.id not in self.visible_ids:
+                self._render_builtin(spec, parent)
+        self._render_user_components(parent, query)
+
+    def _render_builtin(self, spec, parent):
+        self.visible_ids.append(spec.id)
+        with dpg.group(horizontal=True, parent=parent):
+            if spec.category == 'classical':
+                label = spec.label + ' (' + spec.aliases[0] + ')'
+            else:
+                label = spec.label
+            button = dpg.add_button(label=button_caption(label), width=108,
+                                    tag='native_catalog_add_' + spec.id, callback=self.owned_callback(self._quick, spec.id))
+            self._drag(button, self.payload(spec.id))
+            dpg.add_button(label='配置', width=42, tag='native_catalog_config_' + spec.id,
+                           callback=self.owned_callback(self.open_config, spec.id))
+        with dpg.tooltip(button):
+            dpg.add_text(spec.id + ' · ' + spec.description, wrap=350)
+            dpg.add_text('输入 ' + ', '.join(spec.input_ports) + ' → 输出 ' + ', '.join(spec.output_ports))
+            dpg.add_text('默认 ' + json.dumps(spec.config_defaults, ensure_ascii=False), wrap=350)
+
+    def _render_user_components(self, parent, query):
         if self.category in (None, 'local'):
             for spec in self.local_index.list_components(str(query or '')):
                 self.visible_ids.append(spec.id)
@@ -299,7 +327,10 @@ class CatalogPanel:
             dpg.add_text(spec.label + ' · ' + spec.id, color=BLUE, parent=parent)
             dpg.add_text(spec.description, wrap=460, parent=parent)
             dpg.add_text('输入 ' + ', '.join(spec.input_ports) + ' → 输出 ' + ', '.join(spec.output_ports), wrap=460, parent=parent)
-            dpg.add_text('可展开：' + ('是' if local or spec.capabilities['expandable'] else '否') + ' · 支持前向 / 训练 / Python 往返 · 无预训练权重', wrap=460, color=MUTED, parent=parent)
+            if not local and spec.category == 'classical':
+                dpg.add_text('CPU 拟合与预测 · 适用于单估计器表格实验', wrap=460, color=MUTED, parent=parent)
+            else:
+                dpg.add_text('可展开：' + ('是' if local or spec.capabilities['expandable'] else '否') + ' · 支持前向 / 训练 / Python 往返 · 无预训练权重', wrap=460, color=MUTED, parent=parent)
             if local:
                 dpg.add_text('版本快照来自 ' + ', '.join(spec.source_names) + '；文件变更后请刷新库。', wrap=460, color=MUTED, parent=parent)
             defaults = {**spec.config_defaults, **self.configs.get(identifier, {})}

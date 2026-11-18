@@ -41,7 +41,8 @@ def check_catalog():
     """Check the shipped finite catalog without importing Torch or DPG."""
     from studio_core.component_catalog import list_components
     from studio_core.model_registry import list_registered_models
-    catalog, models = list_components(), list_registered_models()
+    catalog = [item for item in list_components() if item.category != 'classical']
+    models = list_registered_models()
     _require(len(catalog) == 36 and len(models) == 14, 'expected 36 catalog entries and 14 model entries')
     _require(len({item.id for item in catalog}) == 36, 'duplicate catalog identifiers')
     _require(all(item.capabilities['expandable'] and item.capabilities['weights'] == 'none' for item in models),

@@ -85,10 +85,13 @@ def manifest_summary(manifest):
     shape = ("\n".join(name + " " + shape_text(value) for name, value in manifest["input_shapes"].items())
              if manifest.get("input_shapes") else shape_text(manifest.get("input_shape", [])))
     classes = manifest.get("class_names", [])
-    text = (f"{manifest.get('kind')} · 输入 {shape}\n"
+    regression = manifest.get('kind') == 'regression_csv'
+    dataset_label = "CSV 数值回归" if regression else manifest.get('kind')
+    target = ("目标 " + manifest['target_column'] if regression else
+              f"{len(classes)} 类：" + ", ".join(str(value) for value in classes[:12]) + ("…" if len(classes) > 12 else ""))
+    text = (f"{dataset_label} · 输入 {shape}\n"
             f"train {counts.get('train', 0)} / val {counts.get('val', 0)} / test {counts.get('test', 0)}\n"
-            f"{len(classes)} 类：" + ", ".join(str(value) for value in classes[:12]) + ("…" if len(classes) > 12 else "") +
-            "\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
+            f"{target}\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
     ignored = manifest.get("ignored_files", [])
     if ignored:
         text += f"\n已忽略 {len(ignored)} 个系统/同步附属文件"
@@ -148,7 +151,8 @@ def progress_points(record, after_seq, real):
 
 def result_view(result, progress_history=None):
     result = result or {}
-    real = result.get("profile") == "classification-v2"
+    regression = result.get("profile") == "regression-v1"
+    real = regression or result.get("profile") == "classification-v2"
     history = result.get("history") or list((progress_history or {}).values())
     if history and not isinstance(history[0], dict):
         history = [{"step": step, "loss": value} for step, value in sorted((progress_history or {}).items())]
@@ -156,10 +160,23 @@ def result_view(result, progress_history=None):
         rows = [item for item in history if isinstance(item.get(key), (int, float)) and math.isfinite(item[key])]
         return [[item.get("epoch", item.get("step", 0)) if real else item.get("step", 0) for item in rows], [item[key] for item in rows]]
     train, val = series("train_loss" if real else "loss"), series("val_loss") if real else [[], []]
-    if real:
+    if result.get('execution') == 'classical':
+        test = result.get('metrics', {}).get('test', {})
+        summary = f"{result['algorithm']} · CPU · 已完成拟合"
+        if regression:
+            r2 = _number(test.get('r2')) if test.get('r2') is not None else '未定义'
+            summary += f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}\nR² {r2} · n={test.get('count', '—')}"
+        else:
+            summary += f"\n测试集准确率 {_number(test.get('accuracy'))} · n={test.get('count', '—')}"
+    elif real:
         test = result.get("metrics", {}).get("test")
         summary = f"{result.get('device', '—')} · 最佳 epoch {result.get('best_epoch', '—')}"
-        summary += (f" · final test loss {_number(test.get('loss'))} / accuracy {_number(test.get('accuracy'))} / n={test.get('count', '—')}" if test else " · held-out test 尚未评估")
+        if regression and test:
+            r2 = _number(test["r2"]) if test.get("r2") is not None else "未定义"
+            summary += (f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}"
+                        f"\nR² {r2} · n={test.get('count', '—')}")
+        else:
+            summary += (f" · final test loss {_number(test.get('loss'))} / accuracy {_number(test.get('accuracy'))} / n={test.get('count', '—')}" if test else " · held-out test 尚未评估")
     elif result:
         summary = f"初始损失 {_number(result.get('loss_before'))}   最终损失 {_number(result.get('loss_after'))}   同批次准确率 {_number(result.get('accuracy'))}   {result.get('device', 'cpu')} / synthetic_s1"
     else:

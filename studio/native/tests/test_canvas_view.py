@@ -367,7 +367,7 @@ class CanvasViewTests(unittest.TestCase):
         self.ui._set_param('dense', 'out_features', app_data='9')
         counts = [len(item['graph']['instances']) for item in self.ui.document.graph['definitions']]
         self.ui.workbench.activate(left); self.sync()
-        self.invoke(self.button('native_palette', 'ReLU'))
+        self.invoke('native_catalog_add_primitive.ReLU')
         self.assertEqual([len(item['graph']['instances']) for item in self.ui.document.graph['definitions']], [counts[0] + 1, counts[1]])
 
     def test_registered_undo_removing_the_focused_definition_refreshes_root_panels(self):
@@ -423,7 +423,7 @@ class CanvasViewTests(unittest.TestCase):
         self.invoke(displayed_widget, '10')
         self.assertEqual(self.ui.document.graph['definitions'][0]['graph']['instances'][0]['params']['out_features'], 12)
         self.assertEqual(self.ui.document.graph['definitions'][1]['graph']['instances'][0]['params']['out_features'], 10)
-        self.invoke(self.button('native_palette', 'ReLU'))
+        self.invoke('native_catalog_add_primitive.ReLU')
         self.assertEqual([len(item['graph']['instances']) for item in self.ui.document.graph['definitions']], [counts[0], counts[1] + 1])
         self.assertEqual(displayed_value, '8')
 

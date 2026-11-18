@@ -1051,12 +1051,16 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.run_record = record
         progress = record.get("progress") or {}
         step, total, loss = progress.get("step", 0), progress.get("total", 1), progress.get("loss")
-        real = (self.run_config or {}).get("profile") == "classification-v2"
+        from studio_core.experiment_spec import SUPERVISED_PROFILES
+        real = (self.run_config or {}).get("profile") in SUPERVISED_PROFILES
         for point in progress_points(record, self.last_event, real):
             self.progress_history[point["epoch"] if real else point["step"]] = dict(point)
         dpg.set_value("native_progress", step / max(1, total))
         phase = progress.get("phase")
-        phase_text = (str(phase) + " · epoch " + str(progress.get("epoch", 0)) + "/" + str(progress.get("epochs", "—"))) if phase else f"{step}/{total}"
+        if phase and progress.get('epochs'):
+            phase_text = f"{phase} · epoch {progress.get('epoch', 0)}/{progress['epochs']}"
+        else:
+            phase_text = str(phase) if phase else f"{step}/{total}"
         dpg.configure_item("native_progress", overlay=f"{RUN_LABELS.get(record['status'], record['status'])} · {phase_text} · r{record['revision']}")
         for event in record.get("events", []):
             if event.get("seq", 0) > self.last_event and event.get("type") != "progress":
@@ -1064,6 +1068,8 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             self.last_event = max(self.last_event, event.get("seq", 0))
         if record.get("result"):
             self.result = record["result"]; self.result_key = self.run_key
+            if self.result.get('execution') == 'classical':
+                dpg.set_value('native_bottom_tabs', dpg.get_alias_id('native_artifact_tab'))
             self._render_probe(); self._render_parameters()
         self._render_loss()
         if record["status"] in TERMINAL:

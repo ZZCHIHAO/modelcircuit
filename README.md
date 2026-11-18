@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**版本：`v0.5.0-alpha.2` S5 源码预览；已验收便携包为 `v0.4.0-alpha.1`。** S5 新增可展开 Attention、Transformer Encoder 和小型 ViT 分类器，支持 CPU/单 GPU 图片训练、注意力热图和受限 Python 往返。见 [S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[版本标识](VERSION)及[更新记录](CHANGELOG.md)。完整产品验收后才使用 `v1.0.0`。
+**当前版本 `v0.6.0-alpha.1` · S6 回归与组件库。** 支持从 CSV 检查、可视化建模、CPU 或单张 CUDA GPU 训练，到测试评估和续训。传统机器学习模型库内置 CPU 版支持向量分类和回归。S5 的 Attention、Transformer Encoder、小型 ViT 和注意力热图已纳入该桌面版本。完整产品验收后使用 `v1.0.0`。参见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)、[S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[更新记录](CHANGELOG.md)。
 
 本仓库目前为个人私有仓库，仅所有者访问，未添加协作者。新产品名为 ModelCircuit Studio；源码中的 `MLForgeStudio`、`studio/`、启动脚本及历史验收名称暂时保留，以便核对已有工程和测试。根目录的上游包版本 `1.0.4` **不代表本产品的发行版本**。
 
@@ -51,17 +51,25 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
-**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** 分割、检测、3D、报告生成、LLM、RAG 和成熟传统机器学习后端仍是后续工作。
+**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** 分割、检测、3D、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-当前 **S4 CPU 和 CUDA 便携包**已在本机通过冻结程序验收。已有本地构建时，可双击 `studio/启动模路CPU版.cmd` 或 `studio/启动模路CUDA版.cmd`。使用 ZIP 时，解压整个 `ModelCircuitStudio` 目录，双击其中的 EXE；保留 `_internal`。两版共用独立的 S4 用户状态目录。旧 S3 EXE 和 ZIP 仍保留在原路径。
-
-桌面打包脚本位于 [studio/build-s4-desktop.ps1](studio/build-s4-desktop.ps1)。具体路径、迁移方式及验证见 [S4 桌面交付说明](studio/native/S4_DESKTOP_RELEASE.md)。构建物、虚拟环境和运行数据不随 Git 仓库上传；尚未在干净 Windows 机器上验证，也未签名或公开发行。
+本地 S6 Windows 版可通过 `studio/启动模路S6-CPU.cmd` 或 `studio/启动模路S6-CUDA.cmd` 启动。也可以双击对应 `studio/dist/s6-cpu/` 或 `studio/dist/s6-cuda/` 下的 EXE，移动时保留完整目录。CPU/CUDA 版使用各自的工作区目录。EXE、虚拟环境和运行数据保存在本地，源码可通过脚本重新构建。见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)。
 
 ## 组件与模型库
 
-S4 的目录包含 **36 个内置组件：17 个基础算子、5 个功能芯片、14 个模型入口**。S5 源码版另有 **Attention、Transformer Encoder、小型 ViT** 三个可展开入口，在「Transformer」分类中查看。本地芯片不计入内置目录。
+「全部库」按用途分组，也支持直接切换到某个库。入口支持点击添加、拖入画布和配置参数。
+
+| 组件库 | 内置组件示例 |
+| --- | --- |
+| 基础组件库 | 全连接层（Linear）、二维卷积、激活层、归一化、池化、张量运算 |
+| 深度学习模型库 | ResNet、VGG、SqueezeNet、Transformer Encoder、小型 ViT |
+| 传统机器学习模型库 | 支持向量分类（SVC）、支持向量回归（SVR） |
+| 网络结构与融合库 | 基础残差块、MLP 分类头、拼接投影、加权求和、门控融合 |
+| 工程芯片与本地芯片 | 当前工程的定义，以及已存入本地库的组件 |
+
+内置 SVC 和 SVR 对应数值 CSV 分类和回归，可在数据检查后创建已连线的起始图。传统机器学习实验使用 scikit-learn 在 CPU 上拟合一次。
 
 | 模型族 | 可放置入口 | 说明 |
 |---|---|---|
@@ -180,6 +188,8 @@ flowchart LR
 
 ## 验证证据
 
+S6 的完整测试、冻结 EXE 和独立指标核对见 [S6 验收记录](studio/native/S6_VERIFICATION.md)。
+
 下列是 **2026-11-17 已记录的历史验收**，并非本次文档整理时重新训练或重跑后的结果：
 
 | 项目 | 记录结果 |
@@ -212,7 +222,7 @@ CUDA 微型对照固定初始化种子、关闭 TF32，并启用 cuDNN determini
 | Transformer 模型扩展 | 预训练权重接入、更多模型族和序列任务 | 在保持 S5 固定长度计算图及代码往返兼容的前提下逐步扩展 |
 | 仿真与测量 | 前向、反向、参数更新的交互单步；更完整的探针与性能采集 | 在同一快照定位梯度/更新，采集预算与来源明确，结果可复现 |
 | 完整实验工程 | 数据、配置、训练/评估入口、自定义组件、依赖清单一并导出 | 在独立环境运行，并核对输出、共享关系与必要训练行为 |
-| 任务后端 | 回归、多标签、分割、检测、2D/3D 与传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
+| 任务后端 | 多标签、分割、检测、2D/3D 与更多传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
 | 医学领域适配 | 患者级划分、空间几何、联合变换、原始空间恢复与泄漏审计 | 数据、标注和预测空间一致；划分与评价协议可追溯 |
 | 文本与多模态 | 报告生成、LLM 推理/微调、检索增强生成 | 任务适配、事实一致性、证据来源和生成评价协议齐备 |
 | 执行与交付 | AMP / 多 GPU / 远程 worker、插件分发、干净机器验收 | 设备语义、失败恢复、资源边界和打包许可均有实际证据 |

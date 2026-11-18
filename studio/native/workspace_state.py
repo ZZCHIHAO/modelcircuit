@@ -12,6 +12,8 @@ from pathlib import Path
 import re
 import tempfile
 
+from studio_core.experiment_spec import SUPERVISED_PROFILES
+
 from .document import Document
 from .persistence import replace_with_retry
 
@@ -31,7 +33,7 @@ def _editable_experiment(experiment):
             raise ValueError("Workspace experiment: " + message)
     require(type(experiment) is dict, "must be an object")
     _encoded(experiment)
-    real = experiment.get("profile") == "classification-v2"
+    real = isinstance(experiment.get("profile"), str) and experiment["profile"] in SUPERVISED_PROFILES
     if "profile" in experiment:
         require(real, "unsupported profile")
     integers = {"epochs", "batch_size", "seed", "max_runtime_seconds"} if real else {"steps", "batch_size", "seed"}
@@ -62,7 +64,8 @@ def _editable_experiment(experiment):
     data = experiment.get("data")
     require(type(data) is dict, "data must be an object")
     kind = data.get("kind", "csv")
-    require(kind in ("csv", "image_folder", "paired_csv"), "unsupported data kind")
+    allowed_kinds = ("regression_csv",) if experiment["profile"] == "regression-v1" else ("csv", "image_folder", "paired_csv")
+    require(kind in allowed_kinds, "unsupported data kind")
     mapping=experiment.get('input_ports')
     if kind=='paired_csv':
         if mapping is not None:
@@ -71,7 +74,7 @@ def _editable_experiment(experiment):
                     len(set(mapping.values()))==2,'input_ports must name two distinct graph inputs')
     else:require(mapping is None,'input_ports is only supported for paired_csv')
     common = {"kind", "path", "validation_fraction", "test_fraction"}
-    fields = {"target_column", "feature_columns", "group_column", "split_column", "standardize"} if kind in ("csv","paired_csv") else {"split_mode", "image_size", "channels"}
+    fields = {"target_column", "feature_columns", "group_column", "split_column", "standardize"} if kind in ("csv", "paired_csv", "regression_csv") else {"split_mode", "image_size", "channels"}
     if kind=='paired_csv':fields|={'image_root','image_column','id_column','image_size','channels'}
     require(data.keys() <= common | fields, "unsupported data setting")
     for key in ("path", "target_column", "image_root", "image_column", "id_column"):
@@ -82,7 +85,7 @@ def _editable_experiment(experiment):
             require(type(data[key]) in (int, float), key + " must be numeric")
             require(0 < data[key] < 1, key + " must be between 0 and 1")
     require(data.get("validation_fraction", 0.2) + data.get("test_fraction", 0.2) < 1, "train fraction must be positive")
-    if kind in ("csv","paired_csv"):
+    if kind in ("csv", "paired_csv", "regression_csv"):
         if "feature_columns" in data:
             require(type(data["feature_columns"]) is list and len(data["feature_columns"]) <= 512 and all(type(name) is str for name in data["feature_columns"]), "feature_columns must be a list of up to 512 strings")
         for key in ("group_column", "split_column"):
@@ -209,6 +212,15 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     if not manifest:
         return "请先检查数据。"
     inputs = document.graph.get("inputs", [])
+    from studio_core.classical_task import classical_contract, contains_classical
+    if contains_classical(document.graph):
+        profile = "regression-v1" if manifest.get("kind") == "regression_csv" else "classification-v2"
+        try:
+            classical_contract(document.graph, {"profile": profile, "data": manifest["data_spec"],
+                                                 "input_port": input_port, "device": "cpu"}, manifest)
+        except ValueError as exc:
+            return str(exc)
+        return ""
     if manifest.get('kind')=='paired_csv':
         mapping=input_ports or {'image':'image','tabular':'clinical'}
         if type(mapping) is not dict or set(mapping)!={'image','tabular'} or len(set(mapping.values()))!=2:
@@ -218,7 +230,7 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
         if any(by_id[mapping[modality]].get('shape')!=shape for modality,shape in manifest.get('input_shapes',{}).items()):
             return '两路模型输入形状须分别匹配影像与表格，并使用动态批次 N。'
     elif len(inputs) != 1:
-        return "真实数据分类需要恰好一个模型输入；可从已检查数据创建起始模型。"
+        return "此任务需要恰好一个模型输入；可从已检查数据创建起始模型。"
     elif inputs[0].get("id") != input_port:
         return "实验输入接口与模型输入不一致：" + str(input_port)
     elif inputs[0].get("shape") != manifest.get("input_shape"):
@@ -226,6 +238,15 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     report = document.validation()
     if not report.get("valid"):
         return "模型结构尚未通过校验。"
+    if manifest.get("kind") == "regression_csv":
+        from studio_core.schema import prepare_graph
+        from studio_core.regression_task import RegressionTask
+        try:
+            resolved, shapes, _ = prepare_graph(document.graph)
+            RegressionTask({"input_port": input_port}).validate_contract(resolved, shapes, manifest)
+        except ValueError as exc:
+            return "回归需要 float32 的具名 prediction 输出 [N, 1]。" + str(exc)
+        return ""
     logits = next((item for item in document.graph.get("outputs", []) if item.get("id") == "logits"), None)
     expected = [None, len(manifest.get("class_names", []))]
     if not logits or report.get("shapes", {}).get(logits.get("source")) != expected:
@@ -233,17 +254,31 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     return ""
 
 
-def starter_graph(manifest):
-    """Return an explicit one-input classifier; never mutate the current graph."""
+def starter_graph(manifest, estimator=None):
+    """Return an explicit supervised starter graph; never mutate the current graph."""
+    if estimator is not None:
+        kind = manifest.get('kind')
+        if (kind, estimator) not in (('csv', 'SVC'), ('regression_csv', 'SVR')):
+            raise ValueError('SVC 需要 CSV 数值分类，SVR 需要 CSV 数值回归。')
+        return {'schema_version': 1, 'id': estimator.lower(), 'name': f'{estimator} · 支持向量机', 'revision': 1,
+                'inputs': [{'id': 'x', 'shape': manifest['input_shape'], 'dtype': 'float32', 'position': {'x': 20, 'y': 140}}],
+                'instances': [{'id': 'estimator', 'kind': estimator, 'params': {'C': 1.0, 'kernel': 'rbf'}}],
+                'calls': [{'id': 'fit_model', 'instance_id': 'estimator', 'inputs': {'x': 'input:x'}, 'position': {'x': 260, 'y': 140}}],
+                'outputs': [{'id': 'prediction', 'source': 'call:fit_model', 'position': {'x': 540, 'y': 140}}], 'definitions': []}
     if manifest.get('kind')=='paired_csv':
         from .starter_models import paired_starter_graph
         return paired_starter_graph(manifest)
     shape = manifest.get("input_shape")
     classes = manifest.get("class_names", [])
-    if not isinstance(shape, list) or len(classes) < 2:
-        raise ValueError("Inspect a classification dataset before creating a starter model")
     kind = manifest.get("kind")
-    if kind == "csv" and len(shape) == 2 and type(shape[1]) is int and shape[1] > 0:
+    regression = kind == "regression_csv"
+    if not isinstance(shape, list) or (not regression and len(classes) < 2):
+        raise ValueError("Inspect a supervised dataset before creating a starter model")
+    output_id = "prediction" if regression else "logits"
+    if regression and len(shape) == 2 and type(shape[1]) is int and shape[1] > 0:
+        stages = [("prediction", "Linear", {"in_features": shape[1], "out_features": 1})]
+        name = "CSV 线性回归"
+    elif kind == "csv" and len(shape) == 2 and type(shape[1]) is int and shape[1] > 0:
         stages = [("dense", "Linear", {"in_features": shape[1], "out_features": 16}),
                   ("activation", "ReLU", {}),
                   ("logits", "Linear", {"in_features": 16, "out_features": len(classes)})]
@@ -257,10 +292,10 @@ def starter_graph(manifest):
         name = "ImageFolder 小型 CNN"
     else:
         raise ValueError("Unsupported inspected dataset shape for a starter model")
-    graph = {"schema_version": 1, "id": "data_classifier", "name": name, "revision": 1,
+    graph = {"schema_version": 1, "id": "data_regressor" if regression else "data_classifier", "name": name, "revision": 1,
              "resource_profile": "classification-v2",
              "inputs": [{"id": "x", "name": "数据输入", "shape": list(shape), "dtype": "float32", "position": {"x": -40 if kind == "image_folder" else 10, "y": 40 if kind == "image_folder" else 160}}],
-             "instances": [], "calls": [], "outputs": [{"id": "logits", "source": "call:logits"}], "definitions": []}
+             "instances": [], "calls": [], "outputs": [{"id": output_id, "source": "call:" + output_id}], "definitions": []}
     if kind == "image_folder":
         graph["outputs"][0]["position"] = {"x": 860, "y": 240}
     source = "input:x"
