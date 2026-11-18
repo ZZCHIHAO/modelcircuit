@@ -88,7 +88,6 @@ class RunManager:
         record["events"] = record["events"][-512:]
 
     def submit(self, graph, config):
-        require_executable_profile(graph)
         if not isinstance(config, dict):
             raise ValueError("config must be an object")
         report = validate_graph(graph)
@@ -97,6 +96,11 @@ class RunManager:
         _wire_json({"graph": graph, "config": config}, MAX_BODY, "Run snapshot")
         # Validation never imports torch or scans a dataset on the UI thread.
         classification = config.get("profile") == "classification-v2"
+        typed = graph.get('schema_version') == 2
+        if not classification:
+            require_executable_profile(graph)
+        elif 'attention_probe_requests' in config and not typed:
+            raise ValueError('Attention probes require tensor-v1')
         if classification:
             config = validate_classification_config(config)
         else:

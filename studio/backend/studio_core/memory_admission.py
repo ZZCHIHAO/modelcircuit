@@ -34,6 +34,9 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
         raise ValueError('Memory estimation supports SGD or AdamW')
     if type(host_dataset_bytes) is not int or host_dataset_bytes < 0:
         raise ValueError('host_dataset_bytes must be a nonnegative integer')
+    typed = resolved.get('schema_version') == 2
+    if typed:
+        from .tensor_ops import tensor_parameter_count
     parameter_bytes = trainable_bytes = buffer_bytes = largest_parameter_bytes = trainable_tensors = 0
     pending = [(resolved, False)]
     while pending:
@@ -44,14 +47,17 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
             if kind == 'chip':
                 pending.append((instance['_graph'], frozen))
                 continue
-            count = _parameter_count(kind, params)
+            count = tensor_parameter_count(kind, params) if typed else _parameter_count(kind, params)
             size = 4 * count
             parameter_bytes += size
-            if kind == 'Linear': tensor_sizes = [params['in_features'] * params['out_features'] * 4, params['out_features'] * 4]
+            if kind == 'Linear':
+                bias = params['out_features'] * 4 if params.get('bias', True) or not typed else 0
+                tensor_sizes = [size - bias] + ([bias] if bias else [])
             elif kind == 'Conv2d':
                 bias = params['out_channels'] * 4 if params['bias'] else 0
                 tensor_sizes = [size - bias] + ([bias] if bias else [])
             elif kind in ('LayerNorm', 'BatchNorm2d') and count: tensor_sizes = [size // 2, size // 2]
+            elif kind == 'ParameterTensor': tensor_sizes = [size]
             else: tensor_sizes = []
             largest_parameter_bytes = max([largest_parameter_bytes, *tensor_sizes])
             if not frozen:
@@ -59,6 +65,8 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
                 trainable_tensors += len(tensor_sizes)
             if kind == 'BatchNorm2d' and params['track_running_stats']:
                 buffer_bytes += params['num_features'] * 8 + 8  # two float32 vectors, int64 counter
+            if typed and kind == 'CausalMask':
+                buffer_bytes += params['length'] ** 2
 
     def execute(scope, input_shapes):
         shapes = {'input:' + key: list(shape) for key, shape in input_shapes.items()}
@@ -88,15 +96,43 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
                 {port['id']: origins[port['source']] for port in scope['outputs']}, total)
 
     input_shapes = {port['id']: [batch_size if axis is None else axis for axis in port['shape']] for port in resolved['inputs']}
-    _, _, execution_elements = execute(resolved, input_shapes)
-    input_bytes = sum(math.prod(shape) * 4 for shape in input_shapes.values())
-    minimum_input_bytes = sum(math.prod([minimum_batch_size if axis is None else axis for axis in port['shape']]) * 4
-                              for port in resolved['inputs'])
-    execution_bytes = execution_elements * 4
+    if typed:
+        from .probe_capture import MAX_BYTES
+
+        def elements(spec, batch):
+            return math.prod(batch if axis is None else axis for axis in spec['shape'])
+
+        def nbytes(spec, batch):
+            return elements(spec, batch) * (1 if spec['dtype'] == 'bool' else 4)
+
+        def total_specs(scope):
+            specs = scope['_tensor_specs']
+            # Qualified output refs only; short aliases refer to the same value.
+            values = [spec for ref, spec in specs.items() if ref.startswith('input:') or ref.count(':') == 2]
+            count = sum(elements(spec, batch_size) for spec in values)
+            size = sum(nbytes(spec, batch_size) for spec in values)
+            instances = {instance['id']: instance for instance in scope['instances']}
+            for call in scope['_ordered_calls']:
+                instance = instances[call['instance_id']]
+                if instance['kind'] == 'chip':
+                    child_count, child_size = total_specs(instance['_graph'])
+                    count += child_count
+                    size += child_size
+            return count, size
+
+        execution_elements, execution_bytes = total_specs(resolved)
+        input_bytes = sum(nbytes(port, batch_size) for port in resolved['inputs'])
+        minimum_input_bytes = sum(nbytes(port, minimum_batch_size) for port in resolved['inputs'])
+    else:
+        _, _, execution_elements = execute(resolved, input_shapes)
+        input_bytes = sum(math.prod(shape) * 4 for shape in input_shapes.values())
+        minimum_input_bytes = sum(math.prod([minimum_batch_size if axis is None else axis for axis in port['shape']]) * 4
+                                  for port in resolved['inputs'])
+        execution_bytes = execution_elements * 4
     gradient_bytes = trainable_bytes if training else 0
     optimizer_bytes = (trainable_bytes * 2 + trainable_tensors * 4) if training and optimizer == 'adamw' else 0
     activation_bytes = execution_bytes * (3 if training else 1)
-    capture_bytes = execution_bytes if capture or workflow == 'classification' else 0
+    capture_bytes = (MAX_BYTES if typed else execution_bytes) if capture or workflow == 'classification' else 0
     temporary_bytes = max(input_bytes, largest_parameter_bytes, execution_bytes // 2)
     state_bytes = parameter_bytes + buffer_bytes
     # build_model constructs on CPU then moves to CUDA. Preserve its established
@@ -138,7 +174,8 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
             'batch_size': batch_size, 'minimum_batch_size': minimum_batch_size,
             'training': bool(training), 'optimizer': optimizer if training else None,
             'capture': bool(capture), 'workflow': workflow,
-            'assumptions': ['float32 parameters/inputs, BatchNorm counters int64',
+            'assumptions': [('float32 data and parameters, boolean masks, BatchNorm counters int64' if typed
+                             else 'float32 parameters/inputs, BatchNorm counters int64'),
                 'model constructed on CPU before device transfer',
                 'worker minimum includes root inputs and persistent CPU feature matrices; caller-owned build_model inputs are excluded',
                 'projected batch may exceed mandatory minimum batch when resume progress is not yet loaded',

@@ -2,12 +2,13 @@
 from copy import deepcopy
 import math
 
-from studio_core.component_types import ComponentBundle
+from studio_core.component_types import ComponentBundle, validate_tensor_requirements
 from studio_core.operator_rules import normalize_operator, _parameter_count, _buffer_shapes
 from studio_core.schema import (PRIMITIVES, MAX_ITEMS, MAX_DEFINITIONS, MAX_CHIP_DEPTH, _Budget, _preflight,
     graph_resource_limits, prepare_graph)
 from .document_editing import command, require, identifier
-from .chip_library import _policy, _closure, merge_bundle, policy_satisfies
+from .chip_library import (_policy, _closure, graph_settings, merge_bundle, normalize_legacy_scope,
+                           requires_adoption, resource_policy)
 
 
 def _entry(bundle):
@@ -27,6 +28,8 @@ def _entry(bundle):
     if entry['kind'] == 'chip': identifier(entry.get('definition_id'))
     else: require('definition_id' not in entry and not bundle.definitions, 'Primitive cannot contain chip definitions')
     requirements = bundle.requirements
+    if requirements.get('operator_set') == 'tensor-ops-v1':
+        return entry, validate_tensor_requirements(requirements)
     require(requirements.get('operator_set') == 'vision-ops-v4', 'Unsupported component operator_set')
     if entry['kind'] != 'chip':
         require(set(requirements) == {'operator_set'}, 'Primitive requirements must contain only operator_set')
@@ -37,11 +40,11 @@ def _entry(bundle):
     return entry, policy
 
 
-def _check_entry(definition, entry, definitions, policy):
+def _check_entry(definition, entry, definitions, requirements):
     """Validate actual overrides independently of any unfinished project wires."""
     scope = definition['graph']
     instance = {**entry, 'id': 'component'}
-    prepare_graph({'schema_version': 1, 'id': 'component_validation', 'revision': 1, **policy,
+    prepare_graph({**graph_settings(requirements), 'id': 'component_validation', 'revision': 1,
         'inputs': deepcopy(scope['inputs']), 'instances': [instance],
         'calls': [{'id': 'component_call', 'instance_id': 'component',
                    'inputs': {port['id']: 'input:' + port['id'] for port in scope['inputs']}}],
@@ -79,7 +82,9 @@ class ComponentInsertion:
     def set_execution_policy(self, policy):
         """Explicit project-wide policy edit, including one-step undo/redo."""
         policy = _policy(policy)
-        current = _policy({key: self.graph[key] for key in ('resource_profile', 'resource_batch_bound') if key in self.graph})
+        current = resource_policy(self.graph)
+        require(self.graph['schema_version'] == 1 or policy['resource_profile'] == 'hardware-v5',
+                'Tensor projects require the hardware-v5 policy')
         if current == policy:
             return False
         self.graph.pop('resource_profile', None)
@@ -107,18 +112,30 @@ class ComponentInsertion:
                 try: finite = type(value) in (int, float) and math.isfinite(value)
                 except OverflowError: finite = False
                 require(finite, 'Position coordinates must be finite numbers')
-        current = _policy({key: self.graph[key] for key in ('resource_profile', 'resource_batch_bound') if key in self.graph})
-        compatible = requested is None or policy_satisfies(current, requested)
-        require(compatible or apply_policy,
+        current = resource_policy(self.graph)
+        adoption = requires_adoption(self.graph, bundle.requirements)
+        tensor_bundle = requested is not None and requested.get('schema_version') == 2
+        requires_upgrade = tensor_bundle and self.graph['schema_version'] == 1
+        require(not adoption or apply_policy,
+                'Component requires an explicit schema 2 tensor upgrade and policy confirmation' if requires_upgrade else
                 'Component resource policy does not match the project; explicitly apply policy before adding')
-        policy = current if compatible else requested
+        policy = resource_policy(requested) if adoption else current
+        tensor_project = self.graph['schema_version'] == 2 or tensor_bundle
+        require(not tensor_project or policy['resource_profile'] == 'hardware-v5',
+                'Cannot downgrade a tensor project to a legacy resource policy')
         limits = graph_resource_limits(policy)
+        if requires_upgrade:
+            for scope in self._scopes():
+                normalize_legacy_scope(scope)
+            self.graph.update(schema_version=2, capability_profile='tensor-v1')
         if entry['kind'] == 'chip':
-            payload = {'chip_format_version': 2, 'definition_id': entry['definition_id'],
-                'definitions': deepcopy(bundle.definitions), 'requirements': {'operator_set': 'vision-ops-v4', **policy}}
-            definitions, definition_id = merge_bundle(payload, self.graph.get('definitions', []), resource_policy=policy)
+            requirements = requested if tensor_bundle else {'operator_set': 'vision-ops-v4', **policy}
+            payload = {'chip_format_version': 3 if tensor_bundle else 2, 'definition_id': entry['definition_id'],
+                'definitions': bundle.definitions, 'requirements': requirements}
+            definitions, definition_id = merge_bundle(payload, self.graph.get('definitions', []),
+                                                       resource_policy=policy, tensor_project=tensor_project)
             original = next(item for item in bundle.definitions if item['id'] == entry['definition_id'])
-            _check_entry(original, entry, deepcopy(bundle.definitions), policy)
+            _check_entry(original, entry, bundle.definitions, requirements)
             entry['definition_id'] = definition_id
             closure = _closure(definition_id, {item['id']: item for item in definitions})
             require(self.scope_id not in closure, 'Component would create a recursive chip definition')
@@ -130,7 +147,7 @@ class ComponentInsertion:
             definitions = self.graph.get('definitions', [])
         # The decorator owns rollback if the combined finite storage boundary
         # rejects an otherwise individually valid closure or current scope.
-        if requested is not None and apply_policy:
+        if adoption:
             self.graph.pop('resource_profile', None); self.graph.pop('resource_batch_bound', None)
             if policy['resource_profile'] is not None: self.graph.update(policy)
         if entry['kind'] == 'chip': self.graph['definitions'] = definitions

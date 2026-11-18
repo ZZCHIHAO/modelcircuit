@@ -8,7 +8,7 @@ from .operators import operator_defaults, operator_kinds, operator_spec
 from .operator_rules import normalize_operator
 from .module_templates import make_module
 from .schema import _preflight
-from .model_registry import list_registered_models, build_registered_model
+from .model_registry import list_registered_models, build_registered_model, list_tensor_models, build_tensor_model
 
 
 @dataclass
@@ -74,7 +74,7 @@ def _capabilities(expandable):
             'python_roundtrip': True, 'weights': 'none'}
 
 
-def list_components(query='', category=None, *, registry=None) -> list[ComponentSpec]:
+def list_components(query='', category=None, *, registry=None, include_tensor=False) -> list[ComponentSpec]:
     """Return fresh descriptors in registry then template order."""
     if type(query) is not str or category is not None and type(category) is not str:
         raise ValueError('Component query/category must be strings')
@@ -92,6 +92,10 @@ def list_components(query='', category=None, *, registry=None) -> list[Component
         result.append(ComponentSpec(model.id, model.category, model.label, model.aliases,
             model.description, model.required_config, model.capabilities, model.config_defaults,
             model.input_ports, model.output_ports))
+    if include_tensor:
+        for identifier, group, label, _, defaults, outputs in list_tensor_models():
+            result.append(ComponentSpec(identifier, group, label, ('Transformer',),
+                label + ' · tensor-v1 · 可展开张量运算', (), _capabilities(True), defaults, ('x',), outputs))
     words = query.casefold().split()
     return [item for item in result if (category is None or item.category == category)
             and all(word in ' '.join((item.id, item.label, item.description, *item.aliases)).casefold() for word in words)]
@@ -103,6 +107,8 @@ def build_component(component_id, config, *, registry=None) -> ComponentBundle:
         raise ValueError('Component ID and configuration must be a string and object')
     _finite_json(config)
     if component_id in operator_kinds(): component_id = 'primitive.' + component_id
+    if any(item[0] == component_id for item in list_tensor_models()):
+        return build_tensor_model(component_id, config)
     spec = next((item for item in list_components(registry=registry) if item.id == component_id), None)
     if spec is None: raise ValueError('Unknown component ID: ' + component_id)
     settings = {**spec.config_defaults, **deepcopy(config)}

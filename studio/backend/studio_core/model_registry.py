@@ -12,7 +12,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 
 from .backbone_templates import make_resnet18, make_resnet34, make_resnet50, make_squeezenet, make_vgg
-from .component_types import ComponentBundle
+from .component_types import ComponentBundle, validate_tensor_requirements
 from .schema import _preflight, prepare_graph, resource_limits
 
 
@@ -273,3 +273,41 @@ def build_registered_model(model_id, config, *, registry=None):
     if not isinstance(selected, ModelRegistry):
         raise ValueError('registry must be a ModelRegistry')
     return selected.build(model_id, config)
+
+
+_TENSOR_MODELS = (
+    ('tensor.attention', 'transformer', '多头 Attention', 'make_attention',
+     {'sequence_length': 8, 'hidden_dim': 64, 'num_heads': 4, 'dropout': 0.0,
+      'masked': False, 'causal': False, 'return_attention': False, 'resource_batch_bound': 2}, ('features',)),
+    ('tensor.encoder', 'transformer', 'Transformer Encoder', 'make_encoder',
+     {'sequence_length': 8, 'hidden_dim': 64, 'num_heads': 4, 'mlp_dim': 128,
+      'dropout': 0.0, 'attention_dropout': 0.0, 'depth': 1, 'resource_batch_bound': 2}, ('features',)),
+    ('vit.small_classifier', 'transformer', '小型 ViT 分类器', 'make_small_vit',
+     {'image_size': 32, 'patch_size': 4, 'channels': 3, 'hidden_dim': 64, 'num_heads': 4, 'mlp_dim': 128,
+      'depth': 2, 'num_classes': 2, 'dropout': 0.0, 'attention_dropout': 0.0, 'resource_batch_bound': 2}, ('logits',)),
+)
+
+
+def list_tensor_models():
+    return deepcopy(_TENSOR_MODELS)
+
+
+def build_tensor_model(model_id, config):
+    from . import transformer_templates
+
+    _finite_json(config)
+    record = next((row for row in _TENSOR_MODELS if row[0] == model_id), None)
+    if record is None:
+        raise ValueError('Unknown tensor model ID: ' + model_id)
+    identifier, _, _, factory, defaults, ports = record
+    if not config.keys() <= defaults.keys():
+        raise ValueError('Unknown model configuration field: ' + ', '.join(sorted(config.keys() - defaults.keys())))
+    settings = {**defaults, **config}
+    bundle = getattr(transformer_templates, factory)(**settings)
+    validate_tensor_requirements(bundle.requirements)
+    root = next(item['graph'] for item in bundle.definitions if item['id'] == bundle.entry['definition_id'])
+    inputs = ('x', 'keep') if settings.get('masked') else ('x',)
+    outputs = ports + (('attention',) if settings.get('return_attention') else ())
+    if tuple(item['id'] for item in root['inputs']) != inputs or tuple(item['id'] for item in root['outputs']) != outputs:
+        raise ValueError('Tensor model ports do not match ' + identifier + ' configuration')
+    return bundle

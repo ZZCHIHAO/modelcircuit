@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-18-s5-transformer-task-design.md`。承接 S4 发布计划 Task D；`v0.5.0-alpha.1` 已交付 T0 的后端静态范围，后续从 T1 开始。
 
+**2026-11-18 执行结果：** `v0.5.0-alpha.2` 交付 S5 源码阶段。实际通过的命令、用例和未覆盖范围见 [S5 验收记录](../../../studio/native/S5_TRANSFORMER_VERIFICATION.md)；下文复选框保留原规划，不作为实测报告。本轮将算子声明、推导与构造集中在 `tensor_ops.py`，以现有分类配置承载运行快照中的采样请求，分类适配接口仍为内部接口。未重新冻结 EXE。
+
 ## Global Constraints
 
 - Windows 原生 DearPyGui 桌面；禁用 OS/浏览器输入自动化。允许应用自身回调及 framebuffer。

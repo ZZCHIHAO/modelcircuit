@@ -48,9 +48,12 @@ def validate_classification_config(config):
     data=config.get('data')
     _require(isinstance(data,dict),'data must be an object')
     defaults=default_classification_config(data.get('kind'))
-    _require(config.keys()<=defaults.keys(),'Unsupported experiment option (S2 supports a single CPU/CUDA device)')
+    _require(config.keys() <= defaults.keys() | {'attention_probe_requests'}, 'Unsupported experiment option')
     result=copy.deepcopy(defaults)
     result.update(copy.deepcopy(config))
+    if 'attention_probe_requests' in result:
+        from .probe_capture import normalize_probe_requests
+        result['attention_probe_requests'] = normalize_probe_requests(result['attention_probe_requests'])
     _require(data.keys()<=defaults['data'].keys(),'Unsupported data option')
     effective_data=copy.deepcopy(defaults['data']);effective_data.update(copy.deepcopy(data));result['data']=effective_data
     _hash(result)
@@ -240,6 +243,12 @@ def model_digest(graph):
                     try: instance['params']=normalize_operator(instance['kind'],instance.get('params',{}))
                     except (ValueError,TypeError,KeyError,OverflowError): pass
     semantic_graph=_canonical_s3_graph(aliases) if uses_v4 or _uses_s3_ports(graph) else aliases
+    if graph.get('schema_version') == 2:
+        # Document identity and library versions are display/provenance metadata.
+        # Instance IDs, references, specs and resolved construction remain semantic.
+        semantic_graph.pop('id', None)
+        for definition in _object_list(semantic_graph, 'definitions'):
+            definition.pop('version', None)
     return _hash(_model_semantics(semantic_graph))
 
 
@@ -250,4 +259,7 @@ def experiment_signature(graph,config,dataset_digest=None):
 def checkpoint_signature(graph,config,dataset_digest):
     binding_key='input_ports' if config.get('data',{}).get('kind')=='paired_csv' else 'input_port'
     settings={key:config[key] for key in (binding_key,'optimizer','lr','batch_size','seed')}
-    return _hash({'model':model_digest(graph),'training':settings,'dataset_digest':dataset_digest})
+    identity = {'model':model_digest(graph),'training':settings,'dataset_digest':dataset_digest}
+    if graph.get('schema_version') == 2:
+        identity['adapter'] = {'id': 'classification', 'version': 1}
+    return _hash(identity)

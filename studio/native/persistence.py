@@ -8,6 +8,9 @@ def replace_with_retry(source,target):
         try:
             os.replace(source,target)
             return
-        except PermissionError:
+        except PermissionError as error:
             if attempt==4:raise
-            time.sleep(0.03*(2**attempt))
+            # Antivirus and indexers can hold a new file through the first
+            # few hundred milliseconds. Keep permanent failures bounded.
+            delay = 0.15 if getattr(error, 'winerror', None) in (5, 32, 33) else 0.03
+            time.sleep(delay*(2**attempt))

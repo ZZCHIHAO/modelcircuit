@@ -17,6 +17,7 @@ from .schema import PUBLIC_TYPES
 from .vision_python import VISION_KINDS, HELPER_KINDS, HELPERS as VISION_HELPERS, POLICY_HELPER, parse_policy, exact_policy_helper, remove_policy_guard
 from .operators import operator_spec
 from .operator_rules import normalize_operator
+from . import tensor_python
 
 
 _PARAMS = {
@@ -127,8 +128,8 @@ def _export_output_mode(definition):
 
 
 def python_profile(graph):
-    from .tensor_specs import require_executable_profile
-    require_executable_profile(graph)
+    if graph.get('schema_version') == 2:
+        return 'tensor-pytorch-v1'
     scopes = [graph] + [definition['graph'] for definition in graph.get('definitions', [])]
     if graph.get('resource_profile') == 'hardware-v5':
         return 'vision-pytorch-v5'
@@ -159,6 +160,7 @@ def export_python(graph):
     definitions = graph.get("definitions", [])
     by_id = {_id(d["id"]): d for d in definitions}
     profile = python_profile(graph)
+    typed = profile == 'tensor-pytorch-v1'
     metadata = {
         "profile": profile, "id": graph.get("id", "imported_model"),
         "name": graph.get("name", "Model"), "revision": graph.get("revision", 1),
@@ -170,14 +172,17 @@ def export_python(graph):
     lines = ['"""Standalone PyTorch model. Import profile: ' + profile + '."""', "import torch", "from torch import nn", "", "STUDIO_VISUAL_METADATA = " + repr(metadata), "", _HELPERS]
     if profile == 'vision-pytorch-v5':
         lines.insert(1, '# Hardware-v5: actual PyTorch allocation applies; platform memory estimates are not reproduced here.')
-    if profile in ('vision-pytorch-v4', 'vision-pytorch-v5'):
+    if typed or profile in ('vision-pytorch-v4', 'vision-pytorch-v5'):
         lines.append(VISION_HELPERS)
         policy = {'resource_profile': graph.get('resource_profile')}
         if graph.get('resource_profile') in ('vision-v4', 'hardware-v5'):
             policy['resource_batch_bound'] = graph['resource_batch_bound']
+        if typed:
+            policy['capability_profile'] = 'tensor-v1'
+            lines.append(tensor_python.HELPERS)
         lines.extend(["MLFORGE_EXECUTION_POLICY = " + repr(policy), ''])
     if graph.get('resource_profile') in ('vision-v4', 'hardware-v5'):
-        lines.append(POLICY_HELPER)
+        lines.append(tensor_python.GUARD if typed else POLICY_HELPER)
 
     def emit(class_name, scope, definition=None):
         public = definition.get("public_parameters", []) if definition else []
@@ -185,7 +190,9 @@ def export_python(graph):
         public_defaults = {p["id"]: p["default"] for p in public}
         if any(keyword.iskeyword(p) for p in public_ids):
             raise ValueError("Public parameter names cannot be Python keywords")
-        reserved = _PUBLIC_RESERVED | (_V4_RESERVED if profile in ('vision-pytorch-v4', 'vision-pytorch-v5') else set()) | {"Chip_" + identifier for identifier in by_id}
+        reserved = _PUBLIC_RESERVED | (_V4_RESERVED if typed or profile in ('vision-pytorch-v4', 'vision-pytorch-v5') else set()) | {"Chip_" + identifier for identifier in by_id}
+        if typed:
+            reserved |= tensor_python.PARAMS.keys()
         if graph.get('resource_profile') in ('vision-v4', 'hardware-v5'): reserved.add('_check_execution_policy')
         if public_ids & reserved:
             raise ValueError("Public parameter uses a reserved exporter name: " + ", ".join(sorted(public_ids & reserved)))
@@ -207,6 +214,9 @@ def export_python(graph):
                     raise ValueError("Unknown chip definition")
                 constructor = "Chip_" + child["id"]
                 params = dict(instance.get("params", {}))
+            elif typed and kind in tensor_python.PARAMS:
+                constructor = kind
+                params = dict(instance.get('params', {}))
             elif kind in _PARAMS:
                 constructor = kind if kind in ("Add", "Concat", *HELPER_KINDS) else "nn." + kind
                 params = dict(instance.get("params", {}))
@@ -242,10 +252,11 @@ def export_python(graph):
         arguments = []
         for item in scope.get("inputs", []):
             annotation = item.get("dtype", "float32") + "[" + ",".join("?" if d is None else str(d) for d in item["shape"]) + "]"
-            arguments.append(item["id"] + ": " + repr(annotation))
+            arguments.append(item["id"] + ": " + repr(tensor_python.annotation(item) if typed else annotation))
         lines.extend(["", "    def forward(self" + "".join(", " + i for i in arguments) + "):"])
         if definition is None and graph.get('resource_profile') in ('vision-v4', 'hardware-v5'):
-            lines.append("        _check_execution_policy(" + ', '.join(input_ids) + ")")
+            lines.append('        ' + tensor_python.guard_call(scope['inputs']) if typed else
+                         "        _check_execution_policy(" + ', '.join(input_ids) + ")")
         sources = {"input:" + i: i for i in input_ids}
         instances_by_id = {i["id"]: i for i in scope.get("instances", [])}
         for call in _ordered_calls(scope, by_id):
@@ -256,7 +267,7 @@ def export_python(graph):
             for port, source in call["inputs"].items():
                 if source not in sources:
                     raise ValueError("Missing call source: " + source)
-                argument_name = "input" if kind not in ("chip", "Add", "Concat", "Multiply") and port == "x" else _id(port)
+                argument_name = "input" if kind not in ("chip", "Add", "Concat", "Multiply", *tensor_python.PARAMS) and port == "x" else _id(port)
                 arguments.append(argument_name + "=" + sources[source])
             lines.append("        " + variable + " = self.components[" + repr(call["instance_id"]) + "](" + ", ".join(arguments) + ")")
             ports = output_port_ids(instance, by_id)
@@ -317,7 +328,7 @@ def _public_annotation(annotation):
     return annotation.value
 
 
-def _function_signature(method, defaults_required=False, *, reserved=None):
+def _function_signature(method, defaults_required=False, *, reserved=None, typed=False):
     args = method.args
     if method.decorator_list or method.returns is not None or args.posonlyargs or args.vararg or args.kwarg or args.kwonlyargs:
         _fail(method, "Unsupported function signature")
@@ -329,7 +340,7 @@ def _function_signature(method, defaults_required=False, *, reserved=None):
             if defaults_required:
                 if index == 0: _fail(argument, "Unsupported self annotation")
                 _public_annotation(argument.annotation)
-            else:
+            elif not typed:
                 _annotation_spec(argument.annotation)
     names = names[1:]
     if defaults_required and set(names) & (_PUBLIC_RESERVED if reserved is None else reserved):
@@ -374,7 +385,7 @@ def _class_output_contract(node):
     return ["out"], "tensor"
 
 
-def _read_class(node, all_classes, helper_names=None, reserved=None):
+def _read_class(node, all_classes, helper_names=None, reserved=None, *, typed=False):
     helper_names = {'Add', 'Concat'} if helper_names is None else helper_names
     methods = {}
     for child in node.body:
@@ -431,12 +442,14 @@ def _read_class(node, all_classes, helper_names=None, reserved=None):
             if path in {"nn." + p for p in _PARAMS if p not in ("Add", "Concat", "Multiply", "Scale", "OneMinus")}:
                 kind = path[3:]
                 parameter_ids = _PARAMS[kind]
+                if typed:
+                    parameter_ids += {'Linear': ('bias',), 'LayerNorm': ('eps', 'elementwise_affine')}.get(kind, ())
                 instance = {"id": instance_id, "kind": kind, "name": instance_id, "params": dict(_DEFAULTS.get(kind, {})) if kind == "Dropout" else {}}
             elif path in helper_names:
                 if path not in all_classes:
                     _fail(expression, "Missing helper class: " + path)
                 kind = path
-                parameter_ids = _PARAMS[kind]
+                parameter_ids = tensor_python.PARAMS[kind] if typed and kind in tensor_python.PARAMS else _PARAMS[kind]
                 instance = {"id": instance_id, "kind": kind, "name": instance_id, "params": {}}
             elif path in all_classes and path not in helper_names:
                 child = all_classes[path]
@@ -462,15 +475,29 @@ def _read_class(node, all_classes, helper_names=None, reserved=None):
                     instance["params"][parameter] = _literal(parameter_value)
             kind = instance["kind"]
             required_ids = operator_spec(kind).required if kind in VISION_KINDS else (CNN_PARAMETERS[kind][0] if kind in CNN_PARAMETERS else (() if kind in ("chip", "Concat") else parameter_ids))
+            if typed and kind in ('Linear', 'LayerNorm'):
+                required_ids = _PARAMS[kind]
             if any(p not in instance["params"] for p in required_ids):
                 _fail(expression, "Missing required constructor argument")
-            _validate_params(instance, expression)
+            if typed and kind != 'chip':
+                from .tensor_ops import normalize_tensor_operator
+                try:
+                    normalize_tensor_operator(kind, instance['params'])
+                except ValueError as error:
+                    _fail(expression, str(error))
+            else:
+                _validate_params(instance, expression)
             instances.append(instance)
     if not found_components or not found_super:
         _fail(constructor, "Expected super().__init__() and self.components ModuleDict")
     forward = methods["forward"]
-    input_ids = _function_signature(forward)
-    inputs = [{"id": _id(arg.arg), "name": arg.arg, **_annotation_spec(arg.annotation)} for arg in forward.args.args[1:]]
+    input_ids = _function_signature(forward, typed=typed)
+    def parse_annotation(arg):
+        try:
+            return tensor_python.parse_annotation(arg.annotation) if typed else _annotation_spec(arg.annotation)
+        except ValueError as error:
+            _fail(arg, str(error))
+    inputs = [{"id": _id(arg.arg), "name": arg.arg, **parse_annotation(arg)} for arg in forward.args.args[1:]]
     references = {i: "input:" + i for i in input_ids}
     bundles = {}
     defined_names = {"self", *input_ids}
@@ -535,8 +562,12 @@ def _read_class(node, all_classes, helper_names=None, reserved=None):
             child_forward = next((m for m in all_classes[child_class].body if isinstance(m, ast.FunctionDef) and m.name == "forward"), None)
             if child_forward is None:
                 _fail(expression, "Chip has no forward")
-            ports = _function_signature(child_forward)
+            ports = _function_signature(child_forward, typed=typed)
             result_ports, result_mode = _class_output_contract(all_classes[child_class])
+        elif typed and instance['kind'] in tensor_python.PARAMS:
+            from .tensor_ops import TENSOR_KINDS
+            ports = TENSOR_KINDS[instance['kind']]
+            result_ports, result_mode = ['out'], 'tensor'
         else:
             ports = ["a", "b"] if instance["kind"] in ("Add", "Concat", "Multiply") else ["input"]
             result_ports, result_mode = ["out"], "tensor"
@@ -727,6 +758,7 @@ def import_python(code):
     metadata = {}
     policy = None
     policy_helper = False
+    tensor_guard = False
     global_bindings = {}
 
     def bind_global(name, node):
@@ -761,9 +793,11 @@ def import_python(code):
             bind_global('MLFORGE_EXECUTION_POLICY', node)
             continue
         if isinstance(node, ast.FunctionDef) and node.name == '_check_execution_policy':
-            if policy_helper or not exact_policy_helper(node):
+            tensor_form = ast.dump(node) == ast.dump(ast.parse(tensor_python.GUARD).body[0])
+            if policy_helper or not (tensor_form or exact_policy_helper(node)):
                 _fail(node, 'Unsupported modified execution policy helper')
             policy_helper = True
+            tensor_guard = tensor_form
             bind_global('_check_execution_policy', node)
             continue
         if isinstance(node, ast.ClassDef):
@@ -776,10 +810,16 @@ def import_python(code):
     active_globals = set()
     if policy is not None: active_globals.add('MLFORGE_EXECUTION_POLICY')
     if policy_helper: active_globals.add('_check_execution_policy')
+    typed = bool(policy and policy.get('capability_profile') == 'tensor-v1')
+    if tensor_guard != typed:
+        raise ValueError('Tensor execution helper requires an explicit matching tensor-v1 policy')
     _check_active_global_bindings(global_bindings, active_globals)
     normalizer = _AliasNormalizer(aliases)
-    expected_helpers = {node.name: node for node in ast.parse(_HELPERS + '\n' + VISION_HELPERS).body}
+    expected_helpers = {node.name: node for node in ast.parse(_HELPERS + '\n' + VISION_HELPERS +
+                                                             ('\n' + tensor_python.HELPERS if typed else '')).body}
     helper_names = {'Add', 'Concat'}
+    if typed:
+        helper_names.update(tensor_python.PARAMS)
     for name, node in list(classes.items()):
         if name in aliases:
             _fail(node, "Class name conflicts with an imported module")
@@ -804,13 +844,14 @@ def import_python(code):
     if policy_helper and policy is None:
         raise ValueError('Execution policy helper requires MLFORGE_EXECUTION_POLICY')
     graph_classes = {name: node for name, node in classes.items() if name not in helper_names}
-    guarded = {name: remove_policy_guard(node, policy, policy_helper) for name, node in graph_classes.items()}
+    guarded = {name: (tensor_python.strip_guard(node) if typed else remove_policy_guard(node, policy, policy_helper))
+               for name, node in graph_classes.items()}
     if not graph_classes:
         raise ValueError("No supported nn.Module model class found")
     reserved = _PUBLIC_RESERVED | helper_names
     if policy is not None: reserved |= {'MLFORGE_EXECUTION_POLICY'}
     if policy_helper: reserved |= {'_check_execution_policy'}
-    parsed = {name: _read_class(node, classes, helper_names, reserved) for name, node in graph_classes.items()}
+    parsed = {name: _read_class(node, classes, helper_names, reserved, typed=typed) for name, node in graph_classes.items()}
     referenced = {i["definition_id"] for scope, _, _ in parsed.values() for i in scope["instances"] if i["kind"] == "chip"}
     roots = [name for name in parsed if (name[5:] if name.startswith("Chip_") else name) not in referenced]
     if "Model" in roots and all(name == "Model" or name.startswith("Chip_") for name in roots):
@@ -860,11 +901,12 @@ def import_python(code):
         for instance in scope["instances"]:
             if instance["kind"] == "chip" and instance.get("frozen") is False and has_frozen_descendant(instance["definition_id"], set()):
                 _fail(graph_classes[class_name], "Recursive unfreeze of chip " + instance["id"] + " over frozen descendants is unsupported")
-    for definition in definitions:
-        _infer_shapes(definition["graph"], by_id, {definition["id"]})
-    _infer_shapes(root_scope, by_id)
-    result = {"schema_version": 1, "id": "imported_model", "name": root_name, "revision": 1, **root_scope, "definitions": definitions}
-    if metadata.get("profile") in ("s1-pytorch-v1", "classification-pytorch-v2", "ports-pytorch-v3", "vision-pytorch-v4", "vision-pytorch-v5"):
+    if not typed:
+        for definition in definitions:
+            _infer_shapes(definition["graph"], by_id, {definition["id"]})
+        _infer_shapes(root_scope, by_id)
+    result = {"schema_version": 2 if typed else 1, "id": "imported_model", "name": root_name, "revision": 1, **root_scope, "definitions": definitions}
+    if metadata.get("profile") in ("s1-pytorch-v1", "classification-pytorch-v2", "ports-pytorch-v3", "vision-pytorch-v4", "vision-pytorch-v5", "tensor-pytorch-v1"):
         if isinstance(metadata.get("id"), str):
             result["id"] = metadata["id"]
         if isinstance(metadata.get("name"), str):

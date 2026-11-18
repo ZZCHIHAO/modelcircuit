@@ -1,5 +1,9 @@
 # 新对话交接：模路 S4 桌面交付与 S5 起点
 
+## 2026-11-18：S5 源码阶段验收
+
+`v0.5.0-alpha.2` 已实现并验证可展开 Attention/Encoder/小型 ViT、实际训练、注意力热图、Python 静态往返和分类任务适配。先读 [S5 使用指南](native/S5_TRANSFORMER_GUIDE.md)及 [S5 验收](native/S5_TRANSFORMER_VERIFICATION.md)。S4 EXE 不包含 S5 功能；在现有 CPU/CUDA 环境使用独立源码入口。下一阶段先实现第二个任务适配器，用回归或多头训练验证任务协议的可扩展性。
+
 ## 2026-11-18：S5 张量静态契约首个源码预览
 
 `v0.5.0-alpha.1` 已完成计划 T0 的后端静态范围。schema v2 / `tensor-v1` 接受 float32 和 bool 的显式张量契约，旧 schema v1 保持独立路径。未接入 v2 执行、导出和桌面编辑；下一步 T1 新增有限张量算子与参数源。CPU 环境 backend 327 通过 + 1 权限跳过，native 265 通过。便携版继续使用 S4 的 `v0.4.0-alpha.1`；S4 交付已提交私库 PR #1。本节覆盖下方历史状态。

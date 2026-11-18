@@ -2,6 +2,8 @@
 
 日期：2026-11-18。产品：**ModelCircuit Studio｜模路**。状态：后续阶段设计，**尚未实现**。承接用户已批准的 S5 方向及 `docs/superpowers/plans/2026-11-18-s4-desktop-release.md` Task D；S4 CPU/CUDA 桌面包先完成交付，本文件不改变 S4 的发布退出关口。
 
+这是历史设计基线。`v0.5.0-alpha.2` 的落地范围和实测结果以 [S5 验收记录](../../../studio/native/S5_TRANSFORMER_VERIFICATION.md) 为准。
+
 ## 1. 目标与阶段边界
 
 用户能够在原生桌面左侧组件库放置 Attention、Encoder、小型 ViT，展开芯片看到真实张量运算，修改参数与连线，在现有页签/分屏里定位类型错误和观测结果，完成本地图片分类短训练，并导出、编辑、重新导入受支持的静态 Python。成功标准是结构、计算、梯度、参数共享、状态、训练与桌面操作共同成立；增加菜单名称不算完成。

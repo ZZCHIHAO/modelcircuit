@@ -110,6 +110,13 @@ def workspace_payload(document, experiment, workbench=None):
         # runtime handles, warning messages or document state.
         WorkbenchState._parse(workbench)
         payload.update(workspace_version=3, workbench=deepcopy(workbench))
+    if model['schema_version'] == 2 and document.attention_probe_requests:
+        from .attention_probe_panel import normalize_probe_requests
+        payload.update(workspace_version=3,
+                       attention_probe_requests=normalize_probe_requests(document.attention_probe_requests))
+        if workbench is None:
+            from .workbench_state import WorkbenchState
+            payload['workbench'] = WorkbenchState().to_payload()
     if len(_encoded(payload).encode('utf-8')) > 8 * 1024 * 1024:
         raise ValueError('Workspace JSON exceeds 8 MiB limit')
     return payload
@@ -137,12 +144,17 @@ def read_workspace_full(path):
     version = payload["workspace_version"]
     if type(version) is not int or version not in (2, 3):
         raise ValueError("Workspace workspace_version must equal 2 or 3")
-    fields = {"workspace_version", "model", "experiment"} | ({"workbench"} if version == 3 else set())
+    fields = {"workspace_version", "model", "experiment"} | ({"workbench", "attention_probe_requests"} if version == 3 else set())
     required = {"workspace_version", "model", "experiment"}
     if not required <= payload.keys() or payload.keys() - fields:
         raise ValueError("Workspace requires exactly the versioned model, experiment and view fields")
     document = Document(payload["model"])
     workspace_payload(document, payload["experiment"])
+    if 'attention_probe_requests' in payload:
+        from .attention_probe_panel import normalize_probe_requests
+        if document.graph['schema_version'] != 2:
+            raise ValueError('Attention probe requests require schema 2')
+        document.attention_probe_requests = normalize_probe_requests(payload['attention_probe_requests'])
     if version == 3:
         from .workbench_state import WorkbenchState
         restored = WorkbenchState.from_payload(payload.get('workbench'), document)

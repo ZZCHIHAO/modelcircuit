@@ -25,6 +25,8 @@ from .canvas_view import CanvasHost, CanvasToken
 from .canvas_commands import CanvasCommands, bind_legacy_commands
 from .workbench_panel import WorkbenchPanel
 from .catalog_panel import CatalogPanel, screen_rect
+from .tensor_panel import TensorPanel
+from .attention_probe_panel import AttentionProbePanel
 from studio_core.operators import operator_spec
 
 
@@ -108,6 +110,8 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                                       on_sync=self._canvas_synced, themes=self.node_themes)
         self.workbench_panel = WorkbenchPanel(self)
         self.catalog_panel = CatalogPanel(self, model_registry=model_registry)
+        self.tensor_panel = TensorPanel(self)
+        self.attention_probe_panel = AttentionProbePanel(self)
         self.canvas_host.catalog_panel = self.catalog_panel
         self._init_experiment(experiment)
         self._init_chip_controls()
@@ -349,10 +353,14 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         # measured client area so the right pane remains fully visible.
         width = max(1000, dpg.get_viewport_client_width() or 1380)
         height = max(720, dpg.get_viewport_client_height() or 820)
-        if (width, height) == self.last_size:
+        attention_result = self.document.graph['schema_version'] == 2 and bool((self.result or {}).get('probes'))
+        size_key = (width, height, True) if attention_result else (width, height)
+        if size_key == self.last_size:
             return
-        self.last_size = (width, height)
+        self.last_size = size_key
         left, right, bottom = 205, 305, max(160, min(180, int(height * 0.19)))
+        if attention_result:
+            bottom = 225
         middle = max(355, height - 77 - bottom - 35)
         canvas = width - left - right - 40
         for tag, pos, size in (("native_library", (8, 77), (left, middle)), ("native_canvas", (left + 16, 77), (canvas, middle)), ("native_right", (width - right - 8, 77), (right, middle)), ("native_bottom", (8, middle + 85), (width - 16, bottom))):
@@ -393,6 +401,9 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         if instance["kind"] == "chip":
             definition = self._definition(instance.get("definition_id"))
             return [item["id"] for item in definition["graph"]["inputs"]] if definition else ["x"]
+        if self.document.graph['schema_version'] == 2:
+            from studio_core.tensor_ops import tensor_input_ports
+            return tensor_input_ports(instance['kind'])
         return operator_spec(instance['kind']).input_ports
 
     def _refresh(self, graph=True):
@@ -585,8 +596,11 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                 dpg.add_text(name + " → " + ", ".join(paths), color=(122, 177, 204), wrap=260, parent=parent)
             dpg.add_checkbox(label="冻结此实例参数", default_value=bool(instance.get("frozen")), parent=parent, callback=self.guarded(self._freeze, instance["id"]))
             shared = [item["id"] for item in self._scope()["calls"] if item["instance_id"] == instance["id"]]
-            dpg.add_text("同一实例调用：" + ", ".join(shared), color=MUTED, wrap=260, parent=parent)
+            dpg.add_text(f"共享实例 × {len(shared)} 次：" + ", ".join(shared), color=MUTED, wrap=260, parent=parent)
             dpg.add_button(label="添加共享调用", width=-1, parent=parent, callback=self.guarded(self._share, call["id"]))
+            if self.document.graph['schema_version'] == 2:
+                dpg.add_button(label='复制为独立实例', width=-1, parent=parent,
+                               callback=self.guarded(self._copy_call, call['id']))
             if definition:
                 dpg.add_button(label="进入此调用内部", width=-1, parent=parent, callback=self.guarded(self._enter, call["id"]))
                 dpg.add_button(label="编辑芯片接口与公开参数", width=-1, parent=parent, callback=self.guarded(self._open_chip_tools, definition["id"]))
@@ -607,7 +621,10 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         elif selected and selected.startswith("input:"):
             item = next(item for item in self._scope()["inputs"] if "input:" + item["id"] == selected)
             dpg.add_text("模型输入：" + item["id"], color=MINT, parent=parent)
-            dpg.add_text(_shape(item.get("shape")) + " · " + item.get("dtype", "float32"), parent=parent)
+            if self.document.graph['schema_version'] == 2:
+                self.tensor_panel.render(parent, item)
+            else:
+                dpg.add_text(_shape(item.get("shape")) + " · " + item.get("dtype", "float32"), parent=parent)
         else:
             dpg.add_text("选择节点以检查接口、共享关系和参数。", color=MUTED, wrap=260, parent=parent)
             dpg.add_text(f"输入 {len(self._scope()['inputs'])} / 调用 {len(self._scope()['calls'])} / 输出 {len(self._scope()['outputs'])}", color=MUTED, parent=parent)
@@ -634,6 +651,9 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         context = result_view(self.result)["probe"]
         if context:
             dpg.add_text(context, color=MUTED, wrap=1250, parent=parent)
+        if self.document.graph['schema_version'] == 2:
+            self.attention_probe_panel.render(parent, source, probe, stale)
+            return
         if not probe:
             dpg.add_text("尚未采集", color=MUTED, parent=parent)
             call = self.document.selected_call
@@ -724,6 +744,10 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         ref = self.document.share(call_id)
         if ref:
             self.document.select(ref)
+        self._refresh()
+
+    def _copy_call(self, call_id, **_):
+        self.document.copy_call(call_id)
         self._refresh()
 
     def _set_param(self, instance_id, name, sender=None, app_data=None, **_):
@@ -881,6 +905,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self._protected_save_paths.update(getattr(document, 'workspace_protected_paths', ()))
         self.document.replace_graph(document.graph)
         self._reset_canvas_document()
+        self.document.attention_probe_requests = document.attention_probe_requests
         self._restore_workbench(workbench_payload)
         for warning in getattr(document, 'workspace_load_warnings', ()):
             self.log(warning, '提示')
@@ -1002,9 +1027,11 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.report = self.document.validation()
         if not self.report.get("valid"):
             self._validate(); return
-        config = self._run_configuration()
+        config = deepcopy(self._run_configuration())
+        if self.document.graph['schema_version'] == 2:
+            config['attention_probe_requests'] = self.attention_probe_panel.run_requests()
         self.run_record = self.manager.submit(self.document.graph, config)
-        self.run_config = dict(config)
+        self.run_config = deepcopy(config)
         self.run_key = self._experiment_identity(); self.result = None; self.result_key = None
         self.progress_history = {}; self.last_event = 0
         dpg.configure_item("native_run", enabled=False); dpg.configure_item("native_cancel", enabled=True)

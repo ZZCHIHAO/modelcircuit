@@ -86,9 +86,14 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
     gradients describe that selected epoch's last optimization minibatch.
     """
     from .experiment_spec import checkpoint_signature, model_digest, validate_classification_config
-    from .tensor_specs import require_executable_profile
-    require_executable_profile(graph)
+    from .task_adapters import get_task_adapter
     config = validate_classification_config(config)
+    typed = isinstance(graph, dict) and graph.get('schema_version') == 2
+    if not typed and 'attention_probe_requests' in config:
+        raise ValueError('Attention probes require tensor-v1')
+    task = get_task_adapter('classification', 1)(config)
+    checkpoint_version = 3 if typed else 2
+    adapter_info = {'adapter': {'id': task.id, 'version': task.version}} if typed else {}
     from .execution_policy import check_config_batch
     check_config_batch(graph, config["batch_size"])
     started = time.monotonic()
@@ -118,29 +123,13 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
         raise ValueError("Dataset digest changed since inspection")
     from .schema import prepare_graph
     resolved, shapes, parameter_count = prepare_graph(graph)
-    paired = manifest["kind"] == "paired_csv"
+    paired = task.paired
+    output_sources = task.validate_contract(resolved, shapes, manifest)
     if paired:
         input_ports = config["input_ports"]
-        graph_ports = {port["id"]: port for port in resolved["inputs"]}
-        if set(graph_ports) != set(input_ports.values()):
-            raise ValueError("Paired input_ports must map exactly all graph root inputs")
-        for modality, name in input_ports.items():
-            if graph_ports[name]["shape"] != manifest["input_shapes"][modality] or graph_ports[name]["dtype"] != "float32":
-                raise ValueError("Paired " + modality + " input shape/dtype must match " + str(manifest["input_shapes"][modality]))
         input_metadata = {"input_shapes": manifest["input_shapes"], "input_ports": dict(input_ports)}
     else:
-        if len(resolved["inputs"]) != 1:
-            raise ValueError("Classification requires exactly one root input")
-        port = resolved["inputs"][0]
-        if port["id"] != config["input_port"]:
-            raise ValueError("input_port does not match the single graph input")
-        if port["shape"] != manifest["input_shape"]:
-            raise ValueError("Classification input shape must match dataset with a null batch dimension: " + str(manifest["input_shape"]))
-        input_ports = {"features": config["input_port"]}
         input_metadata = {"input_shape": manifest["input_shape"]}
-    output_sources = {output["id"]: output["source"] for output in resolved["outputs"]}
-    if "logits" not in output_sources or shapes[output_sources["logits"]] != [None, len(manifest["class_names"])]:
-        raise ValueError("Classification requires named logits with shape [batch, class_count]")
     from .devices import resolve_device
     device = resolve_device(config["device"])
     memory_report = None
@@ -168,7 +157,6 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                                      optimizer=config['optimizer'], capture=False, workflow='classification',
                                      resume=config['resume_checkpoint'] is not None, host_dataset_bytes=host_dataset_bytes)
     import torch
-    from torch import nn
     from torch.utils.data import DataLoader
     from .runtime import _shared_instances, build_model
     datasets = build_datasets(manifest, cancelled=scanning_cancelled)
@@ -192,7 +180,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
     if device.type == "cuda":
         environment["cuda"] = torch.version.cuda
         environment["cudnn"] = torch.backends.cudnn.version()
-    _write_json(paths["run_spec"], {"version": 2, "profile": "classification-v2", "graph": graph, "config": config, "environment": environment,
+    _write_json(paths["run_spec"], {"version": checkpoint_version, "profile": "classification-v2", **adapter_info, "graph": graph, "config": config, "environment": environment,
                                   "model_digest": model_digest(graph), "dataset_digest": manifest["dataset_digest"], "checkpoint_signature": identity,
                                   "resolved_device": str(device), "data_spec": manifest["data_spec"],
                                   **({'memory_report': memory_report} if memory_report is not None else {})})
@@ -207,7 +195,9 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
             if device.type == "cuda":
                 with torch.cuda.device(device):
                     torch.cuda.manual_seed(config["seed"])
-            model = build_model(graph, device=device, capture=False, **({'memory_report': memory_report} if memory_report is not None else {}))
+            capture_options = {'capture_policy': {'requests': config.get('attention_probe_requests', [])}} if typed else {}
+            model = build_model(graph, device=device, capture=False, **capture_options,
+                                **({'memory_report': memory_report} if memory_report is not None else {}))
             parameters = dict(model.named_parameters())
             trainable = [parameter for parameter in parameters.values() if parameter.requires_grad]
             if not trainable:
@@ -225,7 +215,9 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
                 except (OSError, RuntimeError, ValueError) as exc:
                     raise ValueError("Cannot load local classification checkpoint: " + str(checkpoint_path) + ": " + str(exc)) from exc
-                if not isinstance(checkpoint, dict) or checkpoint.get("version") != 2 or checkpoint.get("profile") != "classification-v2" or checkpoint.get("checkpoint_signature") != identity:
+                if (not isinstance(checkpoint, dict) or checkpoint.get('version') != checkpoint_version
+                        or checkpoint.get('profile') != 'classification-v2' or checkpoint.get('checkpoint_signature') != identity
+                        or (typed and checkpoint.get('adapter') != adapter_info['adapter'])):
                     raise ValueError("Classification checkpoint identity does not match graph, data, preprocessing or optimizer")
                 completed_epochs = checkpoint["completed_epochs"]
                 if type(completed_epochs) is not int or completed_epochs < 1 or completed_epochs > config["epochs"]:
@@ -246,22 +238,13 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 _atomic_write(paths["last_checkpoint"], lambda stream: torch.save(checkpoint, stream))
                 _atomic_write(paths["best_checkpoint"], lambda stream: torch.save(dict(best, best=best), stream))
 
-            def checked_forward(features, batch_size):
-                if paired:
-                    if not isinstance(features, dict) or set(features) != set(input_ports):
-                        raise ValueError("Paired batch must contain exactly image and tabular modalities")
-                    inputs = {name: features[modality] for modality, name in input_ports.items()}
-                else:
-                    inputs = {config["input_port"]: features}
-                for name, value in inputs.items():
-                    if not isinstance(value, torch.Tensor) or value.dtype != torch.float32 or value.ndim < 1 or len(value) != batch_size:
-                        raise ValueError("Input batch size/dtype does not match labels for " + name)
-                outputs = model(**{name: value.to(device) for name, value in inputs.items()})
+            def checked_forward(batch):
+                outputs = model(**batch['features'])
                 for name, value in outputs.items():
                     if not bool(torch.isfinite(value).all()):
                         raise ValueError("Non-finite classification output " + name + " from " + output_sources[name])
                 logits = outputs["logits"]
-                if logits.ndim != 2 or logits.shape != (batch_size, len(manifest["class_names"])):
+                if logits.ndim != 2 or logits.shape != (len(batch['targets']), len(manifest["class_names"])):
                     raise ValueError("Runtime logits shape does not match batch/class count")
                 return outputs
 
@@ -275,15 +258,18 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 with torch.no_grad():
                     for batch_index, (features, labels, identifiers) in enumerate(loader, 1):
                         check()
-                        labels = labels.to(device)
-                        logits = checked_forward(features, len(labels))["logits"]
-                        loss = nn.functional.cross_entropy(logits, labels)
+                        batch = task.bind_batch((features, labels, identifiers), device)
+                        labels = batch['targets']
+                        outputs = checked_forward(batch)
+                        logits = outputs['logits']
+                        loss = task.loss(outputs, batch)
                         if not bool(torch.isfinite(loss)):
                             raise ValueError("Non-finite " + split + " loss")
                         predicted = logits.argmax(dim=1)
-                        total_loss += float(loss) * len(labels)
-                        correct += int((predicted == labels).sum())
-                        count += len(labels)
+                        stats = task.summarize(outputs, batch, loss)
+                        total_loss += stats['loss_sum']
+                        correct += stats['correct']
+                        count += stats['count']
                         if prediction_rows is not None:
                             probabilities = logits.softmax(1).detach().cpu().tolist()
                             for identifier, label, prediction, probability in zip(identifiers, labels.cpu().tolist(), predicted.cpu().tolist(), probabilities):
@@ -292,19 +278,19 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                                                         "probabilities": json.dumps(probability, separators=(",", ":"), allow_nan=False)})
                         emit(split, epoch, batch_index, len(loader), global_step, loss=float(loss), accuracy=correct / count)
                 check()
-                return {"loss": total_loss / count, "accuracy": correct / count, "count": count}
+                return task.finalize({'loss_sum': total_loss, 'correct': correct, 'count': count})
 
             for epoch in range(completed_epochs + 1, config["epochs"] + 1):
                 check()
                 model.train()
                 model.set_capture(False)
                 total_loss, correct, count = 0.0, 0, 0
-                for batch_index, (features, labels, _) in enumerate(train_loader, 1):
+                for batch_index, raw_batch in enumerate(train_loader, 1):
                     check()
-                    labels = labels.to(device)
+                    batch = task.bind_batch(raw_batch, device)
                     optimizer.zero_grad(set_to_none=True)
-                    logits = checked_forward(features, len(labels))["logits"]
-                    loss = nn.functional.cross_entropy(logits, labels)
+                    outputs = checked_forward(batch)
+                    loss = task.loss(outputs, batch)
                     if not bool(torch.isfinite(loss)):
                         raise ValueError("Non-finite training loss")
                     if not loss.requires_grad:
@@ -318,11 +304,12 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                         if not bool(torch.isfinite(parameter).all()):
                             raise ValueError("Non-finite training parameter after optimizer step: " + name)
                     global_step += 1
-                    total_loss += float(loss.detach()) * len(labels)
-                    correct += int((logits.detach().argmax(1) == labels).sum())
-                    count += len(labels)
+                    stats = task.summarize(outputs, batch, loss)
+                    total_loss += stats['loss_sum']
+                    correct += stats['correct']
+                    count += stats['count']
                     emit("train", epoch, batch_index, train_batches, global_step, loss=float(loss.detach()), accuracy=correct / count)
-                train_metrics = {"loss": total_loss / count, "accuracy": correct / count, "count": count}
+                train_metrics = task.finalize({'loss_sum': total_loss, 'correct': correct, 'count': count})
                 val_metrics = evaluate("val", epoch)
                 measurements = [{"name": name, "shape": list(parameter.shape), "trainable": parameter.requires_grad,
                                  "grad_norm": float(parameter.grad.detach().double().norm()) if parameter.grad is not None else None,
@@ -331,7 +318,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 history.append({"epoch": epoch, "train_loss": train_metrics["loss"], "train_accuracy": train_metrics["accuracy"],
                                 "val_loss": val_metrics["loss"], "val_accuracy": val_metrics["accuracy"], "step": global_step, "loss": train_metrics["loss"]})
                 completed_epochs = epoch
-                snapshot = {"version": 2, "profile": "classification-v2", "checkpoint_signature": identity, "model_digest": model_digest(graph),
+                snapshot = {"version": checkpoint_version, "profile": "classification-v2", **adapter_info, "checkpoint_signature": identity, "model_digest": model_digest(graph),
                             "dataset_digest": manifest["dataset_digest"], "preprocessing": manifest["preprocessing"], "class_names": manifest["class_names"],
                             **input_metadata, "config": config, "completed_epochs": completed_epochs, "global_step": global_step,
                             "model_state": _cpu_tree(model.state_dict()), "optimizer_state": _cpu_tree(optimizer.state_dict()), "initial_state": initial_state,
@@ -369,7 +356,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
             model.eval()
             model.set_capture(True)
             with torch.no_grad():
-                outputs = checked_forward(features, len(probe_labels))
+                outputs = checked_forward(task.bind_batch((features, probe_labels, identifiers), device))
             check()
             warnings = list(memory_report['warnings']) if memory_report is not None else []
             observations = list(model.last_values.items())
@@ -377,7 +364,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 observations = observations[:128]
                 warnings.append("Tensor probes are limited to the first 128 observed sources")
             probe_limit = min(64, 4096 // max(1, len(observations)))
-            probes = {source: _probe(value, probe_limit) for source, value in observations}
+            probes = model.last_probes if typed else {source: _probe(value, probe_limit) for source, value in observations}
             limit = min(256, 4096 // max(1, len(outputs)))
             output_previews, output_metadata = {}, {}
             for name, value in outputs.items():
@@ -402,6 +389,8 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                       "artifacts": {key: str(path) for key, path in paths.items()},
                       "probe_context": {"split": "val", "sample_ids": list(identifiers), "epoch": best["completed_epochs"], "mode": "eval", "device": str(device),
                                         "gradient_source": "last training minibatch of selected checkpoint epoch", "parameter_update_source": "selected checkpoint minus initial parameters"}}
+            if typed:
+                result.update(adapter_info, capture_policy=capture_options['capture_policy'])
             if memory_report is not None: result['memory_report'] = memory_report
             if paired:
                 result["probe_context"].update(input_metadata)

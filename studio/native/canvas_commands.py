@@ -183,6 +183,7 @@ class CanvasCommands:
 
     def _reset_canvas_document(self):
         self.canvas_host.reset_document()
+        self.document.attention_probe_requests = []
         self._bound_canvas_id = None
         self._modal_tokens.clear()
         self.probe_selection.clear()

@@ -8,7 +8,7 @@ import dearpygui.dearpygui as dpg
 
 from studio_core.component_catalog import build_component, list_components
 from studio_core.component_types import ComponentBundle
-from .chip_library import _closure, policy_satisfies
+from .chip_library import _closure, project_requirements, requires_adoption, resource_policy
 from .local_components import LocalComponentIndex
 
 BLUE = (100, 200, 255)
@@ -17,7 +17,8 @@ RED = (240, 143, 134)
 PAYLOAD_TYPE = 'MLFORGE_COMPONENT_V1'
 CATEGORIES = {'全部': None, '基础层': 'layers', '激活': 'activation', '归一化': 'normalization',
               '数学与融合': 'math_fusion', '形状与池化': 'shape_pool', '功能芯片': 'functional',
-              '视觉主干': 'backbone', '完整模型': 'model', '工程芯片': 'project', '本地芯片': 'local'}
+              '视觉主干': 'backbone', 'Transformer': 'transformer', '完整模型': 'model',
+              '工程芯片': 'project', '本地芯片': 'local'}
 
 
 @dataclass(frozen=True)
@@ -182,7 +183,8 @@ class CatalogPanel:
                                     tag='native_catalog_refresh_local', callback=self.callback(self.refresh_local))
             with dpg.tooltip(button):
                 dpg.add_text('从此目录读取有限 JSON 架构包，不加载 Python 或权重。\n' + str(self.local_index.directory), wrap=350)
-        static = [] if self.category in ('project', 'local') else list_components(str(query or ''), self.category, registry=self.model_registry)
+        static = [] if self.category in ('project', 'local') else list_components(
+            str(query or ''), self.category, registry=self.model_registry, include_tensor=True)
         for spec in static:
             self.visible_ids.append(spec.id)
             with dpg.group(horizontal=True, parent=parent):
@@ -290,7 +292,7 @@ class CatalogPanel:
                 self._config_field(parent, parameter['id'], parameter.get('default'))
         else:
             local = identifier.startswith('local:')
-            matches = self.local_index.list_components() if local else list_components(registry=self.model_registry)
+            matches = self.local_index.list_components() if local else list_components(registry=self.model_registry, include_tensor=True)
             spec = next((item for item in matches if item.id == identifier), None)
             if spec is None:
                 raise ValueError('组件已变化，请刷新并重新选择。')
@@ -369,11 +371,8 @@ class CatalogPanel:
         if type(identifier) is not str or identifier not in definitions:
             raise ValueError('目标已变化')
         closure = _closure(identifier, definitions)
-        policy = {'resource_profile': self.ui.document.graph.get('resource_profile')}
-        if policy['resource_profile'] in ('vision-v4', 'hardware-v5'):
-            policy['resource_batch_bound'] = self.ui.document.graph['resource_batch_bound']
         return ComponentBundle({'kind': 'chip', 'definition_id': identifier, 'params': deepcopy(payload['config'])},
-                               [deepcopy(definitions[key]) for key in closure], {'operator_set': 'vision-ops-v4', **policy})
+                               [deepcopy(definitions[key]) for key in closure], project_requirements(self.ui.document.graph))
 
     def drop_callback(self, token):
         def dropped(sender=None, app_data=None, user_data=None):
@@ -410,24 +409,23 @@ class CatalogPanel:
                 return False
             bundle = self._bundle(payload)
             position = self.drop_position(token, screen_point) if screen_point is not None else None
-            requirement = {k: v for k, v in bundle.requirements.items() if k != 'operator_set'}
             graph = self.ui.document.graph
-            current = {'resource_profile': graph.get('resource_profile')}
-            if current['resource_profile'] in ('vision-v4', 'hardware-v5'):
-                current['resource_batch_bound'] = graph['resource_batch_bound']
-            if requirement and not policy_satisfies(current, requirement):
+            if requires_adoption(graph, bundle.requirements):
+                requirement = resource_policy(bundle.requirements)
+                current = resource_policy(graph)
+                upgrade = bundle.requirements.get('schema_version') == 2 and graph['schema_version'] == 1
                 self.pending = (deepcopy(bundle), token, position)
                 self._request_serial += 1
                 request = PolicyRequest(self._request_serial, deepcopy(bundle), token, deepcopy(position))
                 self._policy_request = request
-                dpg.configure_item('native_catalog_policy_apply', label='应用策略并添加', callback=self.callback(self.confirm_policy, request), user_data=request)
+                dpg.configure_item('native_catalog_policy_apply', label='升级并添加' if upgrade else '应用策略并添加', callback=self.callback(self.confirm_policy, request), user_data=request)
                 cancel = self.callback(self.cancel_policy, request)
                 dpg.configure_item('native_catalog_policy_cancel', callback=cancel, user_data=request)
-                dpg.configure_item('native_catalog_policy', label='应用组件所需的执行策略', on_close=cancel)
+                dpg.configure_item('native_catalog_policy', label='升级为张量工作区' if upgrade else '应用组件所需的执行策略', on_close=cancel)
                 dpg.set_value('native_catalog_policy_text', '目标：' + self.ui.workbench_panel.title(token.view_id)
                               + '\n当前：' + self.policy_description(current)
                               + '\n组件要求：' + self.policy_description(requirement)
-                              + '\n应用后，本工程将采用上述执行策略。')
+                              + ('\n升级至 schema 2 / tensor-v1；为现有浮点接口补全轴名。' if upgrade else '\n应用后，本工程将采用上述执行策略。'))
                 dpg.set_value('native_catalog_policy_footer', '本次操作将策略和组件作为一步撤销。实验批大小保持当前配置；运行前请检查。')
                 dpg.show_item('native_catalog_policy')
                 return False
