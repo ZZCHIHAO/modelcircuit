@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from native.paths import create_runtime_paths, resolve_data_directory, resource_root
 
@@ -25,6 +26,18 @@ class RuntimePathsTests(unittest.TestCase):
 
     def test_source_assets_resolve_without_changing_working_directory(self):
         self.assertTrue((resource_root() / 'icon.ico').is_file())
+
+    def test_s4_frozen_default_is_independent_of_legacy_autosave(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            assets = parent / 'assets'
+            assets.mkdir()
+            with patch('native.paths.sys.frozen', True, create=True), patch('native.paths.sys._MEIPASS', directory, create=True):
+                env = {'LOCALAPPDATA': directory}
+                self.assertEqual(resolve_data_directory(environ=env), parent / 'MLForgeStudio')
+                (assets / 'release-build.json').touch()
+                self.assertEqual(resolve_data_directory(environ=env), parent / 'ModelCircuitStudio-S4')
+                self.assertEqual(resolve_data_directory(parent / 'override', environ=env), parent / 'override')
 
 
 if __name__ == '__main__':

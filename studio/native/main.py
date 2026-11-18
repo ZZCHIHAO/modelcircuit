@@ -75,7 +75,7 @@ def close_workers(manager):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='ML Forge Studio native DearPyGui desktop')
+    parser = argparse.ArgumentParser(description='ModelCircuit Studio native DearPyGui desktop')
     parser.add_argument('--data-dir', type=Path, help='Override the user-owned state directory')
     parser.add_argument('--self-test', type=Path, help='Run the real worker diagnostic and write its JSON report')
     parser.add_argument('--render-check', type=Path, help='Run in-process native render/callback diagnostics and write JSON')
@@ -84,8 +84,11 @@ def main(argv=None):
     parser.add_argument('--check-device', default='cpu', help='Explicit classification diagnostic device, cpu or cuda:N')
     parser.add_argument('--s3-check', type=Path, help='Run paired data and named chip worker diagnostics')
     parser.add_argument('--s3-render-check', type=Path, help='Run paired data and chip editing native callback diagnostics')
+    parser.add_argument('--s4-check', type=Path, help='Run S4 catalog, large-model worker and Python diagnostics')
+    parser.add_argument('--s4-render-check', type=Path, help='Run S4 native catalog, chip and workspace callback diagnostics')
     args = parser.parse_args(argv)
-    diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,args.s3_check,args.s3_render_check]
+    diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
+                   args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -118,6 +121,12 @@ def main(argv=None):
         elif args.s3_render_check:
             from .s3_render_acceptance import check_s3_render
             report = check_s3_render(manager,paths['data'],resource_root(),args.s3_render_check.parent,device=args.check_device)
+        elif args.s4_check:
+            from .s4_acceptance import check_s4_runtime
+            report = check_s4_runtime(manager, paths['data'], device=args.check_device)
+        elif args.s4_render_check:
+            from .s4_render_acceptance import check_s4_render
+            report = check_s4_render(manager, paths['data'], resource_root(), args.s4_render_check.parent, device=args.check_device)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench
@@ -130,7 +139,7 @@ def main(argv=None):
         if not output_report:
             import ctypes
             log_hint = str(paths['logs'] / 'desktop.log') if paths else '数据目录无法初始化，请选择可写目录。'
-            ctypes.windll.user32.MessageBoxW(None, 'ML Forge Studio 启动或运行失败。\n' + str(error) + '\n日志：' + log_hint, 'ML Forge Studio', 0x10)
+            ctypes.windll.user32.MessageBoxW(None, 'ModelCircuit Studio 启动或运行失败。\n' + str(error) + '\n日志：' + log_hint, 'ModelCircuit Studio', 0x10)
         return_code = 1
     finally:
         try:

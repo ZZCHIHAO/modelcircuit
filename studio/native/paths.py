@@ -9,7 +9,9 @@ def resolve_data_directory(override=None, environ=None):
         return Path(override).expanduser().resolve()
     environment = os.environ if environ is None else environ
     parent = environment.get('LOCALAPPDATA')
-    return Path(parent) / 'MLForgeStudio' if parent else Path.home() / 'AppData' / 'Local' / 'MLForgeStudio'
+    name = ('ModelCircuitStudio-S4' if getattr(sys, 'frozen', False)
+            and (resource_root() / 'release-build.json').is_file() else 'MLForgeStudio')
+    return (Path(parent) if parent else Path.home() / 'AppData' / 'Local') / name
 
 
 def resource_root(bundle_root=None):
