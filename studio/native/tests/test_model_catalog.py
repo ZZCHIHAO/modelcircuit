@@ -33,6 +33,18 @@ class ModelCatalogTests(unittest.TestCase):
     def invoke(self, tag, data=None):
         return dpg.get_item_callback(tag)(tag, data, dpg.get_item_user_data(tag))
 
+    def test_built_in_libraries_separate_layers_deep_models_and_svm(self):
+        panel = self.ui.catalog_panel
+        expected = {'基础组件库': 'primitive.Linear', '深度学习模型库': 'vit.small_classifier',
+                    '传统机器学习模型库': 'primitive.SVC', '网络结构与融合库': 'fusion.gated'}
+        self.assertTrue(set(expected) <= set(dpg.get_item_configuration('native_catalog_category')['items']))
+        for library, component in expected.items():
+            self.invoke('native_catalog_category', library)
+            self.assertIn(component, panel.visible_ids)
+            self.assertTrue(all(other not in panel.visible_ids for other in set(expected.values()) - {component}))
+        self.invoke('native_catalog_category', '传统机器学习模型库')
+        self.assertEqual(panel.visible_ids, ['primitive.SVC', 'primitive.SVR'])
+
     def test_local_search_configuration_and_policy_insertion_are_atomic(self):
         self.assertIn('本地芯片', dpg.get_item_configuration('native_catalog_category')['items'])
         self.invoke('native_catalog_category', '本地芯片')

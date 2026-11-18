@@ -71,4 +71,4 @@ class S5ContractTests(unittest.TestCase):
         self.assertEqual(task.finalize(task.summarize({'logits': logits}, batch, loss)),
                          {'loss': float(loss.detach()), 'accuracy': 1., 'count': 2})
         with self.assertRaisesRegex(ValueError, 'Unknown task'):
-            get_task_adapter('regression', 1)
+            get_task_adapter('classification', 999)

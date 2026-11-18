@@ -29,7 +29,7 @@ _EDITOR_DEFAULTS = {
     "MaxPool2d": {"kernel_size": 2}, "AdaptiveAvgPool2d": {"output_size": [1, 1]},
     "Flatten": {"start_dim": 1, "end_dim": -1},
     "BatchNorm2d": {"num_features": 8}, "Identity": {}, "Sigmoid": {},
-    "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {},
+    "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {}, "SVC": {"C": 1.0, "kernel": "rbf"}, "SVR": {"C": 1.0, "kernel": "rbf"},
 }
 
 
@@ -59,6 +59,8 @@ _SPECS.update({
     "Multiply": _spec("Multiply", ports=("a", "b")),
     "Scale": _spec("Scale", defaults={"factor": 1.0}),
     "OneMinus": _spec("OneMinus"),
+    "SVC": _spec("SVC", defaults={"C": 1.0, "kernel": "rbf"}),
+    "SVR": _spec("SVR", defaults={"C": 1.0, "kernel": "rbf"}),
 })
 
 

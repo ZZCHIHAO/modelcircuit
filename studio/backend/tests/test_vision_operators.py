@@ -59,7 +59,7 @@ class OperatorDeclarationTests(unittest.TestCase):
     def test_registered_specs_keep_constructor_and_editor_defaults_distinct(self):
         operators = api("operators")
         expected = {"Linear", "ReLU", "GELU", "Add", "Concat", "LayerNorm", "Dropout",
-                    "Conv2d", "MaxPool2d", "AdaptiveAvgPool2d", "Flatten", *NEW_KINDS}
+                    "Conv2d", "MaxPool2d", "AdaptiveAvgPool2d", "Flatten", "SVC", "SVR", *NEW_KINDS}
         self.assertEqual(set(operators.operator_kinds()), expected)
         self.assertIsInstance(operators.operator_kinds(), tuple)
         self.assertEqual(operators.operator_spec("Dropout").defaults["p"], 0.5)

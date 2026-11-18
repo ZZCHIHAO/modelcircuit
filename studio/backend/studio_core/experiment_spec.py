@@ -26,6 +26,22 @@ def default_classification_config(data_kind='csv'):
             'resume_checkpoint':None,'expected_dataset_digest':None}
 
 
+SUPERVISED_PROFILES = frozenset({'classification-v2', 'regression-v1'})
+
+
+def default_regression_config():
+    config = default_classification_config()
+    config.update(profile='regression-v1')
+    config['data'].update(kind='regression_csv', target_column='')
+    return config
+
+
+def validate_classification_config(config):
+    _require(isinstance(config, dict) and config.get('profile') == 'classification-v2',
+             'Expected classification-v2 profile')
+    return validate_supervised_config(config)
+
+
 def _require(condition, message):
     if not condition: raise ValueError(message)
 
@@ -42,12 +58,16 @@ def _hash(value):
     return hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
 
-def validate_classification_config(config):
+def validate_supervised_config(config):
     _require(isinstance(config,dict),'Experiment config must be an object')
-    _require(config.get('profile')=='classification-v2','Expected classification-v2 profile')
+    _require(isinstance(config.get('profile'), str) and config['profile'] in SUPERVISED_PROFILES, 'Unsupported supervised profile')
     data=config.get('data')
     _require(isinstance(data,dict),'data must be an object')
-    defaults=default_classification_config(data.get('kind'))
+    if config['profile'] == 'regression-v1':
+        _require(data.get('kind') == 'regression_csv', 'Regression requires regression_csv data')
+        defaults = default_regression_config()
+    else:
+        defaults = default_classification_config(data.get('kind'))
     _require(config.keys() <= defaults.keys() | {'attention_probe_requests'}, 'Unsupported experiment option')
     result=copy.deepcopy(defaults)
     result.update(copy.deepcopy(config))
@@ -81,7 +101,7 @@ def validate_classification_config(config):
     for key in ('validation_fraction','test_fraction'):
         _require(_number(effective_data[key]) and 0<effective_data[key]<1,key+' must be between 0 and 1')
     _require(effective_data['validation_fraction']+effective_data['test_fraction']<1,'Train fraction must be positive')
-    if effective_data['kind'] in ('csv','paired_csv'):
+    if effective_data['kind'] in ('csv','paired_csv','regression_csv'):
         target=effective_data['target_column'];features=effective_data['feature_columns']
         _require(isinstance(target,str) and bool(target.strip()),'Select a CSV target column')
         _require(isinstance(features,list) and 0<len(features)<=512 and all(isinstance(x,str) and bool(x.strip()) for x in features),
@@ -260,6 +280,8 @@ def checkpoint_signature(graph,config,dataset_digest):
     binding_key='input_ports' if config.get('data',{}).get('kind')=='paired_csv' else 'input_port'
     settings={key:config[key] for key in (binding_key,'optimizer','lr','batch_size','seed')}
     identity = {'model':model_digest(graph),'training':settings,'dataset_digest':dataset_digest}
-    if graph.get('schema_version') == 2:
+    if config.get('profile') == 'regression-v1':
+        identity['adapter'] = {'id': 'regression', 'version': 1}
+    elif graph.get('schema_version') == 2:
         identity['adapter'] = {'id': 'classification', 'version': 1}
     return _hash(identity)

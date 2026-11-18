@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """S4 uses independent output paths; the legacy S3 spec remains untouched."""
+import json
 import os
 from pathlib import Path
 import sys
@@ -21,9 +22,11 @@ data = [
     (str(repository / 'licenses' / 'torchvision-BSD-3-Clause.txt'), 'licenses'),
     (str(python_license), 'licenses/Python'),
 ]
+s6 = json.loads(build_manifest.read_text(encoding='utf-8')).get('stage') == 'S6'
+classical_packages = ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl') if s6 else ()
 for package in ('torch', 'dearpygui', 'numpy', 'Pillow', 'sympy', 'networkx', 'filelock',
                 'fsspec', 'Jinja2', 'MarkupSafe', 'mpmath', 'typing_extensions', 'packaging',
-                'setuptools', 'pyinstaller'):
+                'setuptools', 'pyinstaller') + classical_packages:
     # Full dist-info includes nested licenses, torch NOTICE and bootloader COPYING.
     data += copy_metadata(package)
 for package in ('torch', 'dearpygui', 'numpy', 'PIL', 'sympy', 'networkx', 'filelock',
@@ -35,9 +38,10 @@ analysis = Analysis(
     pathex=[str(studio), str(studio / 'backend')],
     binaries=[], datas=data,
     hiddenimports=['native.ui', 'native.s4_acceptance', 'native.s4_render_acceptance',
-                   'studio_core.runtime', 'worker', 'torch', 'dearpygui.dearpygui'],
+                   'studio_core.runtime', 'worker', 'torch', 'dearpygui.dearpygui'] +
+                  (['sklearn.svm', 'sklearn.utils._cyutility', 'scipy.special._cdflib'] if s6 else []),
     hookspath=[], hooksconfig={}, runtime_hooks=[],
-    excludes=['pandas', 'scipy', 'matplotlib', 'IPython', 'pytest', 'tensorboard', 'tensorflow',
+    excludes=([] if s6 else ['scipy', 'sklearn']) + ['pandas', 'matplotlib', 'IPython', 'pytest', 'tensorboard', 'tensorflow',
               'jax', 'torchvision', 'torchaudio', 'artifact_tool_v2', 'notebook', 'lxml',
               'torch.utils.tensorboard'],
     noarchive=False,

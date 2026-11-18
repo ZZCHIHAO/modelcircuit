@@ -18,9 +18,9 @@ class CatalogTests(unittest.TestCase):
     def test_every_registry_operator_and_five_factories_build(self):
         module = catalog()
         specs = module.list_components()
-        self.assertEqual(len(specs), 36)
-        self.assertEqual([item.id for item in specs[:17]], ['primitive.' + kind for kind in operator_kinds()])
-        self.assertEqual([item.id for item in specs[17:22]], ['head.mlp', 'fusion.concat_projection',
+        self.assertEqual(len(specs), 38)
+        self.assertEqual([item.id for item in specs[:19]], ['primitive.' + kind for kind in operator_kinds()])
+        self.assertEqual([item.id for item in specs[19:24]], ['head.mlp', 'fusion.concat_projection',
             'fusion.weighted_sum', 'fusion.gated', 'block.residual_basic'])
         for item in specs:
             with self.subTest(component=item.id):
@@ -47,6 +47,13 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual({item.id for item in module.list_components(category='normalization')}, {'primitive.BatchNorm2d', 'primitive.LayerNorm'})
         self.assertEqual(module.list_components(category='future'), [])
         self.assertEqual(module.list_components('not_a_component'), [])
+
+    def test_svm_requires_its_own_library_and_uses_academic_aliases(self):
+        module = catalog()
+        expected = {'primitive.SVC', 'primitive.SVR'}
+        self.assertEqual({item.id for item in module.list_components(category='classical')}, expected)
+        self.assertEqual({item.id for item in module.list_components('支持向量机')}, expected)
+        self.assertEqual({item.id for item in module.list_components('svm')}, expected)
 
     def test_defaults_and_bundles_are_independent(self):
         module = catalog()

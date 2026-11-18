@@ -28,6 +28,7 @@ class ComponentSpec:
 # Display metadata only. Supported primitives, parameters and ports come from
 # the operator registry; this table cannot register an unsupported constructor.
 _DISPLAY = {
+    'SVC': ('classical', '支持向量分类'), 'SVR': ('classical', '支持向量回归'),
     'Linear': ('layers', '全连接层'), 'Conv2d': ('layers', '二维卷积'),
     'ReLU': ('activation', 'ReLU 激活'), 'GELU': ('activation', 'GELU 激活'),
     'Sigmoid': ('activation', 'Sigmoid 激活'),
@@ -82,7 +83,10 @@ def list_components(query='', category=None, *, registry=None, include_tensor=Fa
     for kind in operator_kinds():
         operator = operator_spec(kind)
         group, label = _DISPLAY.get(kind, ('layers', kind))
-        result.append(ComponentSpec('primitive.' + kind, group, label, (kind,), label + ' · ' + kind,
+        classical = group == 'classical'
+        aliases = (kind, 'SVM', '支持向量机', 'Support Vector Machine') if classical else (kind,)
+        description = label + (' · ' + kind + ' · CPU 拟合 · 单模型 CSV 实验' if classical else ' · ' + kind)
+        result.append(ComponentSpec('primitive.' + kind, group, label, aliases, description,
             tuple(operator.required), _capabilities(False), {**operator.defaults, **operator_defaults(kind)}, tuple(operator.input_ports), ('out',)))
     for identifier, label, aliases, required, defaults, inputs, outputs in _MODULES:
         result.append(ComponentSpec(identifier, 'functional', label, aliases,

@@ -16,11 +16,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from studio_core.classical_task import classical_contract, contains_classical
 from studio_core.examples import example_graph
 from studio_core.python_io import export_python, import_python, python_profile
 from studio_core.schema import validate_graph
 from studio_core.tensor_specs import require_executable_profile
-from studio_core.experiment_spec import validate_classification_config
+from studio_core.experiment_spec import SUPERVISED_PROFILES, validate_supervised_config
 from worker import experiment_worker
 
 TERMINAL = {"succeeded", "failed", "cancelled"}
@@ -95,14 +96,19 @@ class RunManager:
             raise ValueError("; ".join(issue["message"] for issue in report["errors"]))
         _wire_json({"graph": graph, "config": config}, MAX_BODY, "Run snapshot")
         # Validation never imports torch or scans a dataset on the UI thread.
-        classification = config.get("profile") == "classification-v2"
+        supervised = isinstance(config.get("profile"), str) and config["profile"] in SUPERVISED_PROFILES
         typed = graph.get('schema_version') == 2
-        if not classification:
+        classical = contains_classical(graph)
+        if classical and not supervised:
+            classical_contract(graph, config)  # Reports the required CSV task.
+        if not supervised:
             require_executable_profile(graph)
         elif 'attention_probe_requests' in config and not typed:
             raise ValueError('Attention probes require tensor-v1')
-        if classification:
-            config = validate_classification_config(config)
+        if supervised:
+            config = validate_supervised_config(config)
+            if classical:
+                classical_contract(graph, config)
         else:
             allowed = {"steps", "lr", "seed", "batch_size"}
             if not config.keys() <= allowed:
@@ -135,14 +141,15 @@ class RunManager:
             messages, stop = self.context.Queue(), self.context.Event()
             record = {"run_id": run_id, "status": "queued", "revision": graph.get("revision", 1),
                       "created_at": datetime.now(timezone.utc).isoformat(),
-                      "profile": "classification-v2" if classification else "s1-pytorch-v1",
-                      "progress": {"step": 0, "total": 0 if classification else config.get("steps", 20), "loss": None},
+                      "profile": config["profile"] if supervised else "s1-pytorch-v1",
+                      **({"execution": "classical"} if classical else {}),
+                      "progress": {"step": 0, "total": 0 if supervised else config.get("steps", 20), "loss": None},
                       "result": None, "error": None, "events": [],
                       "graph": copy.deepcopy(graph), "config": copy.deepcopy(config),
                       "_queue": messages, "_stop": stop, "_seq": 0, "_cancel_at": None,
                       "_started": time.monotonic(),
-                      "_time_limit": config["max_runtime_seconds"] if classification else self.timeout}
-            worker_options = {"artifact_directory": str(self.directory / run_id)} if classification else {}
+                      "_time_limit": config["max_runtime_seconds"] if supervised else self.timeout}
+            worker_options = {"artifact_directory": str(self.directory / run_id)} if supervised else {}
             process = self.context.Process(target=self.worker_target,
                                            args=(record["graph"], record["config"], messages, stop),
                                            kwargs=worker_options,
@@ -185,7 +192,8 @@ class RunManager:
             self._event(record, "status", status=event["status"])
         elif kind == "progress":
             allowed = {"step", "total", "loss", "phase", "epoch", "epochs", "batch", "batches",
-                       "train_loss", "val_loss", "train_accuracy", "val_accuracy"}
+                       "train_loss", "val_loss", "train_accuracy", "val_accuracy",
+                       "train_mae", "val_mae", "train_rmse", "val_rmse", "train_r2", "val_r2"}
             progress = {name: value for name, value in event.items() if name in allowed}
             if any(type(value) not in (int, float, str, type(None)) for value in progress.values()):
                 record["_pending_error"] = "Worker progress must contain scalar values"
@@ -330,7 +338,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             available = importlib.util.find_spec("torch") is not None
             version = importlib.metadata.version("torch") if available else None
             return self._json(200, {"ok": True, "version": "0.1.0", "torch_available": available,
-                                    "torch_version": version, "capabilities": ["s1-pytorch-v1", "classification-pytorch-v2", "classification-v2", "local-cpu", "hierarchical-chips", "measured-probes"]})
+                                    "torch_version": version, "capabilities": ["s1-pytorch-v1", "classification-pytorch-v2", "classification-v2", "regression-v1", "local-cpu", "hierarchical-chips", "measured-probes"]})
         if route == "/api/example":
             return self._json(200, {"graph": example_graph()})
         if route.startswith("/api/runs/"):

@@ -1,4 +1,5 @@
 """Read-only assets and user-owned state never share a directory."""
+import json
 import os
 import sys
 from pathlib import Path
@@ -9,8 +10,17 @@ def resolve_data_directory(override=None, environ=None):
         return Path(override).expanduser().resolve()
     environment = os.environ if environ is None else environ
     parent = environment.get('LOCALAPPDATA')
-    name = ('ModelCircuitStudio-S4' if getattr(sys, 'frozen', False)
-            and (resource_root() / 'release-build.json').is_file() else 'MLForgeStudio')
+    name = 'MLForgeStudio'
+    if getattr(sys, 'frozen', False):
+        manifest = resource_root() / 'release-build.json'
+        if manifest.is_file():
+            name = 'ModelCircuitStudio-S4'
+            try:
+                info = json.loads(manifest.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                info = None
+            if isinstance(info, dict) and info.get('stage') == 'S6' and info.get('runtime') in ('CPU', 'CUDA'):
+                name = 'ModelCircuitStudio-S6-' + info['runtime']
     return (Path(parent) if parent else Path.home() / 'AppData' / 'Local') / name
 
 

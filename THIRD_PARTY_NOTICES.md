@@ -61,3 +61,15 @@ S4 的 ResNet18/34/50、VGG11/13/16/19 和 SqueezeNet1.0/1.1 结构核查，以�
 ## 后续维护
 
 引入新的依赖、代码片段、模型、权重或素材时，应同步补充来源、确切版本、许可证和修改说明。无法确认再分发依据的内容，先保留在个人参考资料中，待权利明确后再纳入仓库及分发物。发现本文件遗漏或归属错误时，由仓库所有者核对并修订。
+
+
+## S6 classical machine learning runtime
+
+The table-based SVC and SVR components use scikit-learn and its dependencies. The S6 portable Windows packages include the installed distributions’ license and notice files in their respective `.dist-info` directories.
+
+| Distribution | License documentation |
+| --- | --- |
+| scikit-learn 1.7.2 | BSD 3-Clause and bundled license notices |
+| SciPy 1.15.3 | BSD 3-Clause and binary wheel third-party notices |
+| joblib 1.5.2 | BSD 3-Clause |
+| threadpoolctl 3.6.0 | BSD 3-Clause |

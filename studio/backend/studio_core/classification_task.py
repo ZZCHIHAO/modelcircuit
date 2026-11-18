@@ -1,9 +1,14 @@
 """Data and output contracts for the existing supervised classification task."""
 
 
+import json
+
+
 class ClassificationTask:
     id = 'classification'
     version = 1
+    output_name = 'logits'
+    prediction_fields = ('sample_id', 'label', 'label_name', 'prediction', 'prediction_name', 'probabilities')
 
     def __init__(self, config):
         self.mapping = config['input_ports'] or {'features': config['input_port']}
@@ -57,3 +62,24 @@ class ClassificationTask:
     def finalize(self, totals):
         count = totals['count']
         return {'loss': totals['loss_sum'] / count, 'accuracy': totals['correct'] / count, 'count': count}
+
+    def validate_outputs(self, outputs, batch, manifest):
+        if outputs['logits'].shape != (len(batch['targets']), len(manifest['class_names'])):
+            raise ValueError('Runtime logits shape does not match batch/class count')
+
+    def merge(self, totals, batch):
+        return {key: totals.get(key, 0) + value for key, value in batch.items()}
+
+    def progress_metrics(self, metrics):
+        return {'accuracy': metrics['accuracy']}
+
+    def prediction_rows(self, outputs, batch, manifest):
+        logits = outputs['logits']
+        names = manifest['class_names']
+        return [dict(sample_id=identifier, label=label, label_name=names[label], prediction=prediction,
+                     prediction_name=names[prediction], probabilities=json.dumps(probability, separators=(',', ':'), allow_nan=False))
+                for identifier, label, prediction, probability in zip(batch['sample_ids'], batch['targets'].cpu().tolist(),
+                                                                     logits.argmax(1).cpu().tolist(), logits.softmax(1).cpu().tolist())]
+
+    def dataset_details(self, manifest):
+        return {'class_names': manifest['class_names']}

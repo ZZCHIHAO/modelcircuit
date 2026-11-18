@@ -1,4 +1,4 @@
-"""Real, resumable supervised classification on a single selected device."""
+"""Real, resumable supervised training on a single selected device."""
 import csv
 import io
 import json
@@ -77,32 +77,41 @@ def _result_bytes(result):
     return len(json.dumps({"type": "result", "result": result}, ensure_ascii=False, allow_nan=False).encode("utf-8"))
 
 
-@hardware_memory_errors
 def run_classification(graph, config, artifact_directory, progress=None, cancelled=None):
+    """Preserve the classification-only public entry point."""
+    from .experiment_spec import validate_classification_config
+    return run_supervised(graph, validate_classification_config(config), artifact_directory, progress, cancelled)
+
+
+@hardware_memory_errors
+def run_supervised(graph, config, artifact_directory, progress=None, cancelled=None):
     """Train complete epochs, select by validation loss, then test best once.
 
     CPU continuation restores model/optimizer, Torch/Python RNG, and the train
     DataLoader generator at the last fully committed epoch boundary. Probe
     gradients describe that selected epoch's last optimization minibatch.
     """
-    from .experiment_spec import checkpoint_signature, model_digest, validate_classification_config
+    from .experiment_spec import checkpoint_signature, model_digest, validate_supervised_config
     from .task_adapters import get_task_adapter
-    config = validate_classification_config(config)
+    config = validate_supervised_config(config)
+    profile = config["profile"]
+    regression = profile == "regression-v1"
+    task_label = "Regression" if regression else "Classification"
     typed = isinstance(graph, dict) and graph.get('schema_version') == 2
     if not typed and 'attention_probe_requests' in config:
         raise ValueError('Attention probes require tensor-v1')
-    task = get_task_adapter('classification', 1)(config)
-    checkpoint_version = 3 if typed else 2
-    adapter_info = {'adapter': {'id': task.id, 'version': task.version}} if typed else {}
+    task = get_task_adapter('regression' if regression else 'classification', 1)(config)
+    checkpoint_version = 3 if typed or regression else 2
+    adapter_info = {'adapter': {'id': task.id, 'version': task.version}} if typed or regression else {}
     from .execution_policy import check_config_batch
     check_config_batch(graph, config["batch_size"])
     started = time.monotonic()
 
     def check():
         if cancelled is not None and cancelled():
-            raise InterruptedError("Classification experiment cancelled")
+            raise InterruptedError(f"{task_label} experiment cancelled")
         if time.monotonic() - started > config["max_runtime_seconds"]:
-            raise TimeoutError("Classification experiment exceeded max_runtime_seconds")
+            raise TimeoutError(f"{task_label} experiment exceeded max_runtime_seconds")
 
     total_steps = 0
 
@@ -136,7 +145,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
     if graph.get('resource_profile') == 'hardware-v5':
         from .memory_admission import admit_memory
         host_dataset_bytes = 0
-        if manifest['kind'] in ('csv', 'paired_csv'):
+        if manifest['kind'] in ('csv', 'paired_csv', 'regression_csv'):
             feature_shape = manifest['input_shapes']['tabular'] if paired else manifest['input_shape']
             host_dataset_bytes = sum(manifest['counts'].values()) * math.prod(feature_shape[1:]) * 4
         # drop_last=False caps each loader at its inspected partition size.
@@ -180,7 +189,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
     if device.type == "cuda":
         environment["cuda"] = torch.version.cuda
         environment["cudnn"] = torch.backends.cudnn.version()
-    _write_json(paths["run_spec"], {"version": checkpoint_version, "profile": "classification-v2", **adapter_info, "graph": graph, "config": config, "environment": environment,
+    _write_json(paths["run_spec"], {"version": checkpoint_version, "profile": profile, **adapter_info, "graph": graph, "config": config, "environment": environment,
                                   "model_digest": model_digest(graph), "dataset_digest": manifest["dataset_digest"], "checkpoint_signature": identity,
                                   "resolved_device": str(device), "data_spec": manifest["data_spec"],
                                   **({'memory_report': memory_report} if memory_report is not None else {})})
@@ -201,7 +210,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
             parameters = dict(model.named_parameters())
             trainable = [parameter for parameter in parameters.values() if parameter.requires_grad]
             if not trainable:
-                raise ValueError("Classification logits require at least one trainable parameter")
+                raise ValueError(f"{task_label} {task.output_name} requires at least one trainable parameter")
             optimizer_class = torch.optim.SGD if config["optimizer"] == "sgd" else torch.optim.AdamW
             optimizer = optimizer_class(trainable, lr=config["lr"])
             initial_state = _cpu_tree(model.state_dict())
@@ -214,11 +223,11 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 try:
                     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
                 except (OSError, RuntimeError, ValueError) as exc:
-                    raise ValueError("Cannot load local classification checkpoint: " + str(checkpoint_path) + ": " + str(exc)) from exc
+                    raise ValueError(f"Cannot load local {task_label.lower()} checkpoint: " + str(checkpoint_path) + ": " + str(exc)) from exc
                 if (not isinstance(checkpoint, dict) or checkpoint.get('version') != checkpoint_version
-                        or checkpoint.get('profile') != 'classification-v2' or checkpoint.get('checkpoint_signature') != identity
-                        or (typed and checkpoint.get('adapter') != adapter_info['adapter'])):
-                    raise ValueError("Classification checkpoint identity does not match graph, data, preprocessing or optimizer")
+                        or checkpoint.get('profile') != profile or checkpoint.get('checkpoint_signature') != identity
+                        or (adapter_info and checkpoint.get('adapter') != adapter_info['adapter'])):
+                    raise ValueError(f"{task_label} checkpoint identity does not match graph, data, preprocessing or optimizer")
                 completed_epochs = checkpoint["completed_epochs"]
                 if type(completed_epochs) is not int or completed_epochs < 1 or completed_epochs > config["epochs"]:
                     raise ValueError("Checkpoint completed epochs exceed requested epochs or are invalid")
@@ -242,10 +251,8 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 outputs = model(**batch['features'])
                 for name, value in outputs.items():
                     if not bool(torch.isfinite(value).all()):
-                        raise ValueError("Non-finite classification output " + name + " from " + output_sources[name])
-                logits = outputs["logits"]
-                if logits.ndim != 2 or logits.shape != (len(batch['targets']), len(manifest["class_names"])):
-                    raise ValueError("Runtime logits shape does not match batch/class count")
+                        raise ValueError(f"Non-finite {task_label.lower()} output " + name + " from " + output_sources[name])
+                task.validate_outputs(outputs, batch, manifest)
                 return outputs
 
             def evaluate(split, epoch, prediction_rows=None):
@@ -254,37 +261,28 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 # consuming dropout RNG or changing training shuffle order.
                 loader = DataLoader(datasets[split], batch_size=config["batch_size"], shuffle=False, num_workers=0,
                                     generator=torch.Generator().manual_seed(config["seed"] + 1))
-                total_loss, correct, count = 0.0, 0, 0
+                totals = {}
                 with torch.no_grad():
                     for batch_index, (features, labels, identifiers) in enumerate(loader, 1):
                         check()
                         batch = task.bind_batch((features, labels, identifiers), device)
-                        labels = batch['targets']
                         outputs = checked_forward(batch)
-                        logits = outputs['logits']
                         loss = task.loss(outputs, batch)
                         if not bool(torch.isfinite(loss)):
                             raise ValueError("Non-finite " + split + " loss")
-                        predicted = logits.argmax(dim=1)
-                        stats = task.summarize(outputs, batch, loss)
-                        total_loss += stats['loss_sum']
-                        correct += stats['correct']
-                        count += stats['count']
+                        totals = task.merge(totals, task.summarize(outputs, batch, loss))
                         if prediction_rows is not None:
-                            probabilities = logits.softmax(1).detach().cpu().tolist()
-                            for identifier, label, prediction, probability in zip(identifiers, labels.cpu().tolist(), predicted.cpu().tolist(), probabilities):
-                                prediction_rows.append({"sample_id": identifier, "label": label, "label_name": manifest["class_names"][label],
-                                                        "prediction": prediction, "prediction_name": manifest["class_names"][prediction],
-                                                        "probabilities": json.dumps(probability, separators=(",", ":"), allow_nan=False)})
-                        emit(split, epoch, batch_index, len(loader), global_step, loss=float(loss), accuracy=correct / count)
+                            prediction_rows.extend(task.prediction_rows(outputs, batch, manifest))
+                        emit(split, epoch, batch_index, len(loader), global_step, loss=float(loss),
+                             **task.progress_metrics(task.finalize(totals)))
                 check()
-                return task.finalize({'loss_sum': total_loss, 'correct': correct, 'count': count})
+                return task.finalize(totals)
 
             for epoch in range(completed_epochs + 1, config["epochs"] + 1):
                 check()
                 model.train()
                 model.set_capture(False)
-                total_loss, correct, count = 0.0, 0, 0
+                totals = {}
                 for batch_index, raw_batch in enumerate(train_loader, 1):
                     check()
                     batch = task.bind_batch(raw_batch, device)
@@ -294,7 +292,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                     if not bool(torch.isfinite(loss)):
                         raise ValueError("Non-finite training loss")
                     if not loss.requires_grad:
-                        raise ValueError("Classification logits must depend on trainable parameters")
+                        raise ValueError(f"{task_label} {task.output_name} must depend on trainable parameters")
                     loss.backward()
                     for name, parameter in parameters.items():
                         if parameter.grad is not None and not bool(torch.isfinite(parameter.grad).all()):
@@ -304,22 +302,22 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                         if not bool(torch.isfinite(parameter).all()):
                             raise ValueError("Non-finite training parameter after optimizer step: " + name)
                     global_step += 1
-                    stats = task.summarize(outputs, batch, loss)
-                    total_loss += stats['loss_sum']
-                    correct += stats['correct']
-                    count += stats['count']
-                    emit("train", epoch, batch_index, train_batches, global_step, loss=float(loss.detach()), accuracy=correct / count)
-                train_metrics = task.finalize({'loss_sum': total_loss, 'correct': correct, 'count': count})
+                    totals = task.merge(totals, task.summarize(outputs, batch, loss))
+                    emit('train', epoch, batch_index, train_batches, global_step, loss=float(loss.detach()),
+                         **task.progress_metrics(task.finalize(totals)))
+                train_metrics = task.finalize(totals)
                 val_metrics = evaluate("val", epoch)
                 measurements = [{"name": name, "shape": list(parameter.shape), "trainable": parameter.requires_grad,
                                  "grad_norm": float(parameter.grad.detach().double().norm()) if parameter.grad is not None else None,
                                  "update_norm": float((parameter.detach().cpu().double() - initial_state[name].double()).norm())}
                                 for name, parameter in parameters.items()]
-                history.append({"epoch": epoch, "train_loss": train_metrics["loss"], "train_accuracy": train_metrics["accuracy"],
-                                "val_loss": val_metrics["loss"], "val_accuracy": val_metrics["accuracy"], "step": global_step, "loss": train_metrics["loss"]})
+                epoch_metrics = {'train_loss': train_metrics['loss'], 'val_loss': val_metrics['loss']}
+                for split, metrics in (('train', train_metrics), ('val', val_metrics)):
+                    epoch_metrics.update({f'{split}_{key}': value for key, value in task.progress_metrics(metrics).items()})
+                history.append({'epoch': epoch, 'step': global_step, 'loss': train_metrics['loss'], **epoch_metrics})
                 completed_epochs = epoch
-                snapshot = {"version": checkpoint_version, "profile": "classification-v2", **adapter_info, "checkpoint_signature": identity, "model_digest": model_digest(graph),
-                            "dataset_digest": manifest["dataset_digest"], "preprocessing": manifest["preprocessing"], "class_names": manifest["class_names"],
+                snapshot = {"version": checkpoint_version, "profile": profile, **adapter_info, "checkpoint_signature": identity, "model_digest": model_digest(graph),
+                            "dataset_digest": manifest["dataset_digest"], "preprocessing": manifest["preprocessing"], **task.dataset_details(manifest),
                             **input_metadata, "config": config, "completed_epochs": completed_epochs, "global_step": global_step,
                             "model_state": _cpu_tree(model.state_dict()), "optimizer_state": _cpu_tree(optimizer.state_dict()), "initial_state": initial_state,
                             "history": list(history), "metrics": {"train": train_metrics, "val": val_metrics}, "parameters": measurements,
@@ -334,8 +332,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 _write_json(paths["metrics"], {"history": history, "best_epoch": best["completed_epochs"], "completed_epochs": completed_epochs,
                                                "global_step": global_step, "metrics": snapshot["metrics"]})
                 emit("epoch", epoch, train_batches, train_batches, global_step, loss=train_metrics["loss"],
-                     train_loss=train_metrics["loss"], val_loss=val_metrics["loss"],
-                     train_accuracy=train_metrics["accuracy"], val_accuracy=val_metrics["accuracy"])
+                     **epoch_metrics)
 
             check()
             # Reload the actual atomic best artifact using the restricted loader.
@@ -345,7 +342,7 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
             predictions = []
             test_metrics = evaluate("test", best["completed_epochs"], predictions)
             output = io.StringIO(newline="")
-            writer = csv.DictWriter(output, fieldnames=["sample_id", "label", "label_name", "prediction", "prediction_name", "probabilities"])
+            writer = csv.DictWriter(output, fieldnames=task.prediction_fields)
             writer.writeheader()
             writer.writerows(predictions)
             _atomic_write(paths["predictions"], lambda stream: stream.write(output.getvalue().encode("utf-8")))
@@ -381,16 +378,17 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
             if len(measurements) > 1024:
                 warnings.append("Parameter summary is limited to 1024 entries; full measurements are in parameters.json")
                 measurements = measurements[:1024]
-            result = {"status": "succeeded", "device": str(device), "seed": config["seed"], "profile": "classification-v2", "data_source": manifest["kind"],
+            result = {"status": "succeeded", "device": str(device), "seed": config["seed"], "profile": profile, "data_source": manifest["kind"],
                       "history": history, "metrics": metrics, "best_epoch": best["completed_epochs"], "completed_epochs": completed_epochs, "global_step": global_step,
                       "probes": probes, "parameters": measurements, "parameter_count": parameter_count, "shared_instances": _shared_instances(model),
                       "outputs": output_previews, "output_metadata": output_metadata, "warnings": warnings,
-                      "dataset": {"dataset_digest": manifest["dataset_digest"], "class_names": manifest["class_names"], "counts": manifest["counts"], "manifest_path": str(paths["manifest"])},
+                      "dataset": {"dataset_digest": manifest["dataset_digest"], **task.dataset_details(manifest), "counts": manifest["counts"], "manifest_path": str(paths["manifest"])},
                       "artifacts": {key: str(path) for key, path in paths.items()},
                       "probe_context": {"split": "val", "sample_ids": list(identifiers), "epoch": best["completed_epochs"], "mode": "eval", "device": str(device),
                                         "gradient_source": "last training minibatch of selected checkpoint epoch", "parameter_update_source": "selected checkpoint minus initial parameters"}}
             if typed:
-                result.update(adapter_info, capture_policy=capture_options['capture_policy'])
+                result.update(capture_policy=capture_options['capture_policy'])
+            result.update(adapter_info)
             if memory_report is not None: result['memory_report'] = memory_report
             if paired:
                 result["probe_context"].update(input_metadata)
@@ -402,13 +400,13 @@ def run_classification(graph, config, artifact_directory, progress=None, cancell
                 result["probes"] = dict(_bounded_entries(list(probes.items()), 256 * 1024))
                 result["parameters"] = _bounded_entries(measurements, 256 * 1024)
                 result["shared_instances"] = _bounded_entries(result["shared_instances"], 128 * 1024)
-                names = ["logits"] + [name for name in output_previews if name != "logits"]
+                names = [task.output_name] + [name for name in output_previews if name != task.output_name]
                 selected = _bounded_entries([({name: output_previews[name]}, {name: output_metadata[name]}) for name in names], 256 * 1024)
                 result["outputs"] = {name: value for preview, _ in selected for name, value in preview.items()}
                 result["output_metadata"] = {name: value for _, metadata in selected for name, value in metadata.items()}
                 warnings.append("Instrument entries exceeding the control-message byte budget are saved in instruments.json")
             if _result_bytes(result) >= MAX_RESULT_BYTES:
-                raise ValueError("Classification result summary exceeds the 2MB limit")
+                raise ValueError(f"{task_label} result summary exceeds the 2MB limit")
             return result
     finally:
         random.setstate(python_rng)

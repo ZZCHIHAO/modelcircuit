@@ -62,6 +62,10 @@ def normalize_operator(kind, params):
         _require(momentum is None or (_finite(momentum) and 0 <= momentum <= 1), "BatchNorm2d momentum must be None or finite between 0 and 1")
         for name in ("affine", "track_running_stats"):
             _require(type(result[name]) is bool, "BatchNorm2d " + name + " must be a boolean")
+    elif kind in ("SVC", "SVR"):
+        result = {**spec.defaults, **result}
+        _require(_finite(result["C"]) and result["C"] > 0, "SVM C must be positive and finite", "C")
+        _require(result["kernel"] in ("rbf", "linear"), "SVM kernel must be rbf or linear", "kernel")
     elif kind == "Scale":
         result = {**spec.defaults, **result}
         _require(_finite(result["factor"]), "Scale factor must be a finite scalar")
@@ -118,6 +122,9 @@ def infer_operator(kind, params, input_shapes):
         output = list(input_shapes["x"])
         if kind in CNN_PARAMETERS:
             output = cnn_output_shape(kind, params, output)
+        elif kind in ("SVC", "SVR"):
+            _require(len(output) == 2, "SVM requires tabular input [batch, feature]")
+            output[-1] = 1
         elif kind == "Linear":
             _require(output[-1] == params["in_features"], "Linear input dimension mismatch", "in_features")
             output[-1] = params["out_features"]

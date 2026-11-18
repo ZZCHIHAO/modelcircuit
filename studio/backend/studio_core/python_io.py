@@ -157,6 +157,10 @@ def export_python(graph):
         report = validate_graph(graph)
         if not report["valid"]:
             raise ValueError("Invalid graph: " + "; ".join(e["message"] for e in report["errors"]))
+    from .classical_task import contains_classical
+    if contains_classical(graph):
+        from .classical_python import export_classical
+        return export_classical(graph)
     definitions = graph.get("definitions", [])
     by_id = {_id(d["id"]): d for d in definitions}
     profile = python_profile(graph)
@@ -753,6 +757,9 @@ def import_python(code):
         tree = ast.parse(code)
     except (SyntaxError, ValueError, RecursionError) as error:
         raise ValueError("Invalid Python syntax: " + str(error)) from None
+    if any(isinstance(node, ast.ImportFrom) and node.module == "sklearn.svm" for node in tree.body):
+        from .classical_python import import_classical
+        return import_classical(tree)
     aliases = {}
     classes = {}
     metadata = {}
