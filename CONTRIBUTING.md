@@ -4,15 +4,13 @@ ModelCircuit Studio · 模路处于 **pre-alpha 源码研发阶段**。这是工
 
 ## 仓库访问与协作方式
 
-当前仓库是个人私有仓库，仅仓库所有者访问，不开放协作者邀请。本指南用于约束项目维护，以及将来由所有者明确开放的协作；阅读本文件、提出建议或提交修改不会自动获得仓库访问权或合并权限。
+本仓库公开接受问题反馈和贡献。请 fork 仓库，在自己的分支开发，向对应目标分支提交 Pull Request。较大改动可先通过 Issue 沟通范围，合并由维护者决定。
 
-GitHub 对个人仓库提供所有者与协作者两类权限；协作者可向个人仓库写入，因此邀请协作者不等于只授予只读权限。若未来需要“能阅读、可提交建议、由维护者决定合并”的多人流程，可另行评估组织仓库的 Read 角色与私有 fork / Pull Request。此方案取决于套餐及仓库、组织、企业的 fork 策略，Read 权限本身不保证私有 fork 可用；仅在所有者完成配置并明确授权后采用。依据见 [个人仓库权限](https://docs.github.com/en/account-and-profile/reference/permission-levels-for-a-personal-account-repository)、[组织仓库角色](https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization)及[私有 fork 策略](https://docs.github.com/en/organizations/managing-organization-settings/managing-the-forking-policy-for-your-organization)。
-
-仓库可见性决定谁能从 GitHub 获取内容，项目许可证规定取得副本后的使用权。MIT 允许接收者依其条款修改自己的副本；访问控制不能保证他人无法修改本地代码。对本仓库受保护分支的修改，仍由仓库所有者决定。
+本仓库按 [MIT License](LICENSE) 许可。根据授权条款，你可以修改并分发自己的副本。引入第三方内容时，请保留其原许可和版权声明。
 
 ## 提出问题或修改建议
 
-通过与所有者事先约定的渠道反馈；仅在获得仓库访问权且相应功能开放后使用 Issues 或 Pull Requests。报告问题时提供：
+使用 GitHub Issues 反馈问题或建议。请提供以下信息。
 
 1. 所用源码版本或提交号，以及操作系统、Python、PyTorch 和相关依赖版本。
 2. 最短复现步骤，预期行为与实际行为。
@@ -70,7 +68,7 @@ npm run build
 
 ## 提交、审查与许可证
 
-在所有者明确开放协作后，先就较大的范围变化达成约定，再使用独立分支提交聚焦的修改。变更说明应交代问题、修改后的行为、验证证据、兼容性或迁移影响；小修订可简短说明。是否合并以及何时发布，由仓库所有者审查决定。
+使用独立分支提交聚焦的修改。变更说明应交代问题、修改后的行为、验证证据、兼容性或迁移影响；小修订可简短说明。是否合并以及何时发布，由仓库所有者审查决定。
 
 不得在未核查来源时把第三方代码、图标、商业界面截图、权重或数据加入提交。引入依赖和模型时同步更新 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，保留原作者声明与对应许可证。不得删改根目录 [LICENSE](LICENSE) 中的原版权声明 `Copyright (c) 2026 zaina-ml`。
 

@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish:
-    # This private Studio derivative must not publish the upstream package.
+    # Publishing the inherited ML Forge package from Studio is disabled.
     if: ${{ false }}
     runs-on: ubuntu-latest
     steps:

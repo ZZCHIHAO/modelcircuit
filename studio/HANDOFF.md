@@ -1,6 +1,8 @@
-# 新对话交接：S4多模型、硬件容量与工作区，GitHub继续暂停
+# 新对话交接：S4多模型、硬件容量与工作区，历史记录
 
-## 最新执行位置：多模型、硬件容量与工作区源码已完成
+> 本页记录早期开发与验收。当前 GitHub 发布和协作方式见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+
+## 历史执行位置：多模型、硬件容量与工作区源码已完成
 
 2026-11-17用户继续推进并要求主流模型可扩展，执行中明确“代码理论上不应该有参数上限，只有硬件上限”。当前以补充规格/计划`docs/superpowers/*/2026-11-17-s4-model-registry-workspace*`为准，不能再使用旧20M决策阻挡新模型。新增hardware-v5三项容量为None，编辑/校验/导出不查询硬件，执行前按所选CPU/GPU查询和分账估算；真实最低存储超容量硬拒绝，保守峰值只预警。旧v1–v4兼容/身份/黄金值保留，旧工程有明确、可撤销的硬件策略升级入口。
 
@@ -14,7 +16,7 @@
 
 当前最终原生图像：N1-fix1九帧/19callbacks/两精确投放与hardware-v5/v3重开；W1-fix1六布局帧/10callbacks及额外真实CPU探针帧。使用应用自身回调/framebuffer，未用电脑控制；精确pan/zoom、人手手势和小分屏所有节点完整可见均不保证。23,512,130参数ResNet50两类还分别通过实际CPU/cuda:0的RunManager→worker→运行记录与产物全路径，一轮两SGD步，子进程全部关闭。下一任务从I2新CPU/CUDA便携包开始，不要把旧EXE当作当前源码。本轮源关口关闭，详见[可携带验收记录](../docs/评审附件/2026-11-17-S4-多模型与硬件工作区验收记录.json)和[验证说明](native/S4_MODELS_WORKSPACE_VERIFICATION.md)。
 
-最后更新：2026-11-17。项目根目录：`D:\学习\岳广辉课题组\科研工具\ml_forge-main`。
+最后更新：2026-11-17。项目根目录：`.`。
 
 ## 当前执行位置：A3/B3、基础目录与直角连线源码已完成
 
@@ -50,7 +52,7 @@ B2每view独立常驻容器/editor，生产回调携带view/generation/context/d
 
 新增算子为BN2d/Identity/Sigmoid/Multiply/Scale/OneMinus；旧11项保留。BN四组合、冻结/共享/独立实例与buffers规则有验证。WorkbenchState/view_scope无GUI依赖；不会制造实际页签，也不承诺原生选择或视口恢复。Document.add新kind在原生尚未接线时明确ValueError；Python导出仍拒绝六种新kind，A2 v4未做。
 
-下一未实施项：A2预算/Python契约、B2 CanvasHost/事件路由。A3/A4/A5、B3/B4、I1/I2仍后续。正式EXE/ZIP仍S3，本轮未打包；原ml_forge、ui.py和python_io.py未改，GitHub继续暂停。可携带记录：`docs/评审附件/2026-11-16-S4-A1-B1验收记录.json`。D0/原规划段落是历史追记，不覆盖本段。
+下一未实施项：A2预算/Python契约、B2 CanvasHost/事件路由。A3/A4/A5、B3/B4、I1/I2仍后续。正式EXE/ZIP仍S3，本轮未打包；原ml_forge、ui.py和python_io.py未改，历史记录。可携带记录：`docs/评审附件/2026-11-16-S4-A1-B1验收记录.json`。D0/原规划段落是历史追记，不覆盖本段。
 
 ## 最新执行追记：2026-11-16 D0调查完成，预算Go关口未过
 
@@ -58,7 +60,7 @@ B2每view独立常驻容器/editor，生产回调携带view/generation/context/d
 
 A0新增17项、B0修复后6项定向通过；CPU完整backend运行192项，日志OK（1项symlink权限跳过）；完整native73项通过。backend包裹脚本在测试结束后解码Windows日志失败，子进程退出码未保存，未冒称捕获退出0；原始unittest摘要已核对。B0清理失败误记成功的P2已修复并范围复审。既有回归中的微型合成/CSV/PNG短训练单列，不作为新ResNet能力；无长训练、权重/数据下载或依赖安装。
 
-双editor限定验证可行，但精确pan/zoom、原生正选择与真实鼠标手势未验。候选17定义ResNet18按现计费的条件累计batch1/2为148,151,712 / 296,303,424，均超134,217,728；独立复算接受，**只改batch_bound不可行**。后续可先做独立A1算子及B1视图状态；A2必须先重新明确仅新profile的编译/执行预算口径，不能抬旧档全局阈值、缩窄网络或合并真实调用。S3源核心/旧文件、EXE和ZIP保留，GitHub继续暂停。
+双editor限定验证可行，但精确pan/zoom、原生正选择与真实鼠标手势未验。候选17定义ResNet18按现计费的条件累计batch1/2为148,151,712 / 296,303,424，均超134,217,728；独立复算接受，**只改batch_bound不可行**。后续可先做独立A1算子及B1视图状态；A2必须先重新明确仅新profile的编译/执行预算口径，不能抬旧档全局阈值、缩窄网络或合并真实调用。S3源核心/旧文件、EXE和ZIP保留，历史记录。
 
 ## 已规划的下一阶段：S4（尚未实施）
 
@@ -112,19 +114,3 @@ S3 源码测试与独立审查覆盖共享/嵌套具名输出、手写前向/梯
 S2 CPU/CUDA 的既有记录与 ZIP 保留；CPU 包不可 CUDA，CUDA 包单设备可选 cpu/cuda:N。S3 CPU 续训的模型/优化器/RNG/shuffle/历史/指标逐位一致已验证，CUDA 验证连续性与推理容差，不承诺跨设备或 CUDA 位级一致。未编辑 Python 导回保持测量有效；工作区重开仍需重新检查外部数据。上述均非干净 Windows/全部显卡、代码签名或安装器认证。
 
 下一路线仍包括多 loss/可配置训练协议图、交互式前向/反向/优化器单步与完整训练工程导出；本切片不声称完成这些，也不包含3D/分割、LLM/RAG、多 GPU、DDP 或远程执行。
-
-## 暂停中的 GitHub 状态与未来恢复步骤
-
-以下只供用户未来明确恢复上传时使用，本轮不执行。
-
-1. 本地 `.git` 的 main 仍无提交/远端，之前源码暂存供审查；工作区后续 S3 修改应重新核对。不要初始化第二个仓库、删除旧业务文件或为本轮伪造提交。
-2. `.work/`、node_modules、.venv、dist/build、日志/运行状态与 `output` 已忽略；上传前以 `git ls-files` 重新检查暂存源码，避免把本地数据或运行文件加入历史。上游 PyPI 发布工作流保留参考但 publish job 已禁用，不要擅自启用。
-3. Git 路径：`C:/Users/chong/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/cmd/git.exe`；另有 `D:/Git/cmd/git.exe`。项目 core.quotepath=false、core.autocrlf=false。
-4. GitHub CLI 曾下载校验，路径 `C:/Users/chong/AppData/Local/MLForgeStudio-build-tools/gh_2.104.0_windows_amd64/bin/gh.exe`，**未登录**。`studio/登录GitHub.cmd` 可供用户自己授权；不要自动批准新的 OAuth 权限、读取 cookie/凭据或索要秘密。
-5. 用户此前允许未来上传使用 Tabbit 已登录会话及专用 CLI：`%LOCALAPPDATA%/Tabbit/LocalAgent/bin/tabbit-cli.exe`。恢复时先读 tabbit 技能并核对可见登录身份；旧 404 标签页不是身份依据。此前首页 ERR_CONNECTION_RESET、创建页超时，没有创建仓库、上传源码或改变 GitHub 设置。
-6. 未来目标保持用户个人 **private 私有仓库，仅本人访问，不加协作者**。用户名与仓库名尚未可靠核实，不能猜测；建议名 ml-forge-studio 仍需届时确认。`studio/publish-private.ps1` 只做过语法检查，未真实执行上传；用户恢复授权后仍须审查再使用，不 force push。
-7. 若未来改用网页上传，核对 owner、Private、可见源码、提交和访问列表；不要把“选择文件”当成上传完成。EXE 不进入源码 Git 历史，私有 Release 产物需按届时明确的交付范围处理。
-
-未来新对话可使用：
-
-> 读取 studio/HANDOFF.md 与 studio/native/S3_VERIFICATION.md，保留 S2 历史并核对现有 S3 归档和验收状态后，继续上传到我的个人 GitHub 私有仓库，仅我自己访问，不添加协作者。使用 Tabbit 已登录会话或我完成授权后的 GitHub CLI；不使用 Use Computer 调试。先核实网络、登录身份和需要上传的源码，不重复已记录通过的构建。

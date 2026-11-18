@@ -353,7 +353,7 @@
       "bytes": 2474635489
     },
     "source_archive": {
-      "path": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
+      "path": ".\\studio\\dist\\desktop\\MLForgeStudio-source-S3.zip",
       "sha256": "d835252a45ef11458abf21754dc7e1f2d67eb7c17157c2ac3074484d6c0156e4",
       "matches_s3": true,
       "bytes": 7009316
