@@ -222,7 +222,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                     with dpg.texture_registry():
                         texture = dpg.add_static_texture(width, height, data, tag="native_logo_texture")
                     dpg.add_image(texture, width=24, height=24, tag="native_logo")
-                dpg.add_text("ML Forge", color=BLUE)
+                dpg.add_text("ModelCircuit Studio", color=BLUE)
                 dpg.add_spacer(width=10)
                 for label, function in (("打开 JSON", self._open_json), ("保存 JSON", self._save_json), ("Python 双向编辑", self._open_python), ("校验模型", self._validate)):
                     dpg.add_button(label=label, callback=self.guarded(function))
@@ -1220,10 +1220,10 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         icon = self.resource_directory / "icon.ico"
         # DPG 2.3.1's Windows viewport title path access-violates on Unicode.
         # The branded OS title stays ASCII; the entire workbench is Chinese.
-        dpg.create_viewport(title="ML Forge Studio", width=1380, height=860, min_width=1100, min_height=760, small_icon=str(icon) if icon.exists() else "", large_icon=str(icon) if icon.exists() else "")
+        dpg.create_viewport(title="ModelCircuit Studio", width=1380, height=860, min_width=1100, min_height=760, small_icon=str(icon) if icon.exists() else "", large_icon=str(icon) if icon.exists() else "")
         self._build(); self._sync_experiment_widgets(); self._refresh(); self._render_parameters(); self._render_loss()
         dpg.setup_dearpygui(); dpg.show_viewport(); dpg.set_primary_window("native_main", True)
-        self._resize(); self.log("ML Forge 原生工作台已就绪。支持命名芯片端口及 CSV、ImageFolder、配对分类。", "完成")
+        self._resize(); self.log("ModelCircuit Studio 已就绪。", "完成")
         self._refresh_devices()
         dpg.render_dearpygui_frame()
         self._built = True

@@ -1,4 +1,10 @@
-# 新对话交接：S4多模型、硬件容量与工作区，GitHub继续暂停
+# 新对话交接：模路 S4 桌面交付与 S5 起点
+
+## 2026-11-18：S4 本地便携交付
+
+先读 [S4 桌面交付说明](native/S4_DESKTOP_RELEASE.md)。CPU/CUDA 新包使用 `studio/dist/s4-cpu/` 和 `studio/dist/s4-cuda/`，保留旧 S3 产物。开发分支为 `codex/s4-desktop-release`，基线 `a4a3315`。本轮本地构建和验收，未推送新分支或创建 GitHub Release。此前基线已在个人私库 `ZZCHIHAO/modelcircuit`；下方关于此前无 Git 提交、旧包仍为唯一可用便携版的文字是历史记录。
+
+后续研发从 [S5 设计](../docs/superpowers/specs/2026-11-18-s5-transformer-task-design.md) 和 [S5 计划](../docs/superpowers/plans/2026-11-18-s5-transformer-task.md) 起步。先验证序列张量、显式掩码与可组合注意力，再做可展开 Encoder/小型 ViT 和最小分类任务接口。尚无 S5 生产代码。
 
 ## 最新执行位置：多模型、硬件容量与工作区源码已完成
 

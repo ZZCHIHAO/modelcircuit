@@ -1,5 +1,7 @@
 # ModelCircuit Studio · 模路：贡献与维护指南
 
+每个验收完成的开发阶段使用独立 PR。同步更新根目录 `VERSION` 和 `CHANGELOG.md`，PR 标题带 `v` 前缀版本号，正文说明具体变化、验证结果、兼容性和未覆盖范围。开发阶段使用 `0.x.y-alpha.N` 等预览版本；`v1.0.0` 留给完整产品通过验收后。产品版本不修改上游 `pyproject.toml` 包版本；开 PR 不等于合并、打标签或发布安装包。
+
 ModelCircuit Studio · 模路处于 **pre-alpha 源码研发阶段**。这是工作台的新产品名，`MLForgeStudio` 等源码标识、启动脚本和历史验收名称暂时保留；更名不改变既有来源与版权声明。当前主要工作对象是 `studio/` 原生桌面工作台，原 `ml_forge/` 作为上游保留入口继续存在。功能范围与路线图见 [README](README.md)，具体行为以[S4 使用指南](studio/native/S4_MODELS_WORKSPACE_GUIDE.md)、[验证说明](studio/native/S4_MODELS_WORKSPACE_VERIFICATION.md)及对应测试为准。
 
 ## 仓库访问与协作方式

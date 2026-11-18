@@ -1,0 +1,219 @@
+{
+  "date": "2026-11-18",
+  "product": "ModelCircuit Studio",
+  "stage": "S4 local Windows x64 portable build",
+  "base_commit": "a4a33153927273d7cf526777ef11f9a537aaf388",
+  "source_tests": {
+    "CPU": {
+      "backend_pass": 318,
+      "backend_skip": 1,
+      "native_pass": 265
+    },
+    "CUDA": {
+      "backend_pass": 318,
+      "backend_skip": 1,
+      "native_pass": 265
+    }
+  },
+  "archives": {
+    "CPU": {
+      "archive": "studio/dist/s4-cpu/ModelCircuitStudio-Windows-x64-S4-CPU.zip",
+      "archive_bytes": 166952137,
+      "archive_sha256": "e5c6fa3b1a60300517b5f1058eb86f41dad292e1147ccb3e5689f4256f103bc5",
+      "files": 2165,
+      "crc_and_content_verified": true,
+      "exe": "studio/dist/s4-cpu/ModelCircuitStudio/ModelCircuitStudio.exe",
+      "exe_sha256": "f98db377b54b9b021fae33e9d4cf97de16f60aed524fd03e6728c9fb589f86a2",
+      "torch": "2.6.0+cpu",
+      "source_snapshot_sha256": "63ee67ee28039ab48425da64755df8a26d1da4eafb39b041600cd0486493aceb",
+      "notices_verified": true
+    },
+    "CUDA": {
+      "archive": "studio/dist/s4-cuda/ModelCircuitStudio-Windows-x64-S4-CUDA.zip",
+      "archive_bytes": 2563811376,
+      "archive_sha256": "da48bd3bf04816166306f6015229bba600a3cf77a3ac9cb7b7ed606c4999e3fb",
+      "files": 2182,
+      "crc_and_content_verified": true,
+      "exe": "studio/dist/s4-cuda/ModelCircuitStudio/ModelCircuitStudio.exe",
+      "exe_sha256": "1ae84735c73300b8079d3afab4c51caebe11adf3ac76d5448d33f46e427f8d46",
+      "torch": "2.6.0+cu124",
+      "source_snapshot_sha256": "63ee67ee28039ab48425da64755df8a26d1da4eafb39b041600cd0486493aceb",
+      "notices_verified": true
+    }
+  },
+  "diagnostics": {
+    "cpu-s4-check": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cpu",
+      "fixtures_cleaned": true,
+      "gpu_execution": {
+        "executed": false,
+        "device": "cpu"
+      },
+      "training": {
+        "parameter_count": 23512130,
+        "global_step": 1,
+        "completed_epochs": 1,
+        "updated_parameter_tensors": 161
+      },
+      "python_comparisons": {
+        "metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "no_metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "standalone": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        }
+      },
+      "local_report": "output/s4-release/cpu-s4-check/report.json",
+      "report_sha256": "ecb844394d56f96f00691ac8266fc135c9f00933391552bbcb2a2f2539eacc3f"
+    },
+    "cpu-s4-render-check": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cpu",
+      "fixtures_cleaned": true,
+      "gpu_execution": {
+        "executed": false,
+        "reason": "Native catalog/workbench diagnostic; no training is launched"
+      },
+      "frames": 4,
+      "callbacks": 22,
+      "workspace_reopen": true,
+      "local_report": "output/s4-release/cpu-s4-render-check/report.json",
+      "report_sha256": "89a93e41559c0328436d03d1d1092db74f590a431ef2d34dc883fd9c854aeffb"
+    },
+    "cpu-s3-check": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cpu",
+      "gpu_execution": {
+        "executed": false,
+        "reason": "Explicit CPU-only diagnostic"
+      },
+      "local_report": "output/s4-release/cpu-s3-check/report.json",
+      "report_sha256": "601fd636f6b0c8e6567ce151bfde0e231936ed5fe5c6b37f8bd0b78c49094298"
+    },
+    "cuda-s4-runtime": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cuda:0",
+      "fixtures_cleaned": true,
+      "gpu_execution": {
+        "executed": true,
+        "device": "cuda:0"
+      },
+      "training": {
+        "parameter_count": 23512130,
+        "global_step": 1,
+        "completed_epochs": 1,
+        "updated_parameter_tensors": 161
+      },
+      "python_comparisons": {
+        "metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "no_metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "standalone": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        }
+      },
+      "local_report": "output/s4-release/cuda-s4-runtime/report.json",
+      "report_sha256": "e3e9cbeb0273817c81323fbb5fdcc92c4f8751009af04a401beb3e73dd8952e1"
+    },
+    "cuda-s4-render": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cuda:0",
+      "fixtures_cleaned": true,
+      "gpu_execution": {
+        "executed": false,
+        "reason": "Native catalog/workbench diagnostic; no training is launched"
+      },
+      "frames": 4,
+      "callbacks": 22,
+      "workspace_reopen": true,
+      "local_report": "output/s4-release/cuda-s4-render/report.json",
+      "report_sha256": "dfcc1b49484dc198bdf9188a1d41dd92aeab70cab539586c07102ea3006e5b98"
+    },
+    "cuda-cpu-s4-runtime": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cpu",
+      "fixtures_cleaned": true,
+      "gpu_execution": {
+        "executed": false,
+        "device": "cpu"
+      },
+      "training": {
+        "parameter_count": 23512130,
+        "global_step": 1,
+        "completed_epochs": 1,
+        "updated_parameter_tensors": 161
+      },
+      "python_comparisons": {
+        "metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "no_metadata": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        },
+        "standalone": {
+          "bit_equal": true,
+          "close": true,
+          "maximum_absolute_error": 0.0
+        }
+      },
+      "local_report": "output/s4-release/cuda-cpu-s4-runtime/report.json",
+      "report_sha256": "83c5b879bfbd6839b44ccbd67be8cf64e201a2a549ba3c089e40e7da9bc80c97"
+    },
+    "cuda-s3-runtime": {
+      "status": "passed",
+      "frozen": true,
+      "workers_stopped": true,
+      "device": "cuda:0",
+      "gpu_execution": {
+        "executed": true,
+        "device": "cuda:0",
+        "reason": "Actual paired classification workers completed"
+      },
+      "local_report": "output/s4-release/cuda-s3-runtime/report.json",
+      "report_sha256": "6babe8803812119866c4c9cd7c8d2289ec6bfed15aa38b255ed0da4cf56df97c"
+    }
+  },
+  "protected_s3_sha256": {
+    "programs/cpu": "7e430e940c5770dbd6e4059635bfdfdda837c5909cb386f22cc43e8fa58bec67",
+    "programs/cuda": "cd554182d91aafe12f1e76eaf36673f190a8e9eb55b9f594674e372c477de221",
+    "portable_archives/cpu": "17fb00be3b3e6b887c1bf1e3bdda228092046ed873f3a49d10a8a777843cc63b",
+    "portable_archives/cuda": "2c600092b2f3a9fa26b1f490f4668feb631d8278f60c641ebf64df50baad5f66",
+    "source_archive": "d835252a45ef11458abf21754dc7e1f2d67eb7c17157c2ac3074484d6c0156e4"
+  },
+  "scope": "One local Windows host; no clean-machine or signing validation. Generated fixtures only. No computer control."
+}

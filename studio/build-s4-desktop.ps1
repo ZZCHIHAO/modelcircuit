@@ -1,0 +1,34 @@
+param([ValidateSet('CPU','CUDA')][string]$Runtime='CPU')
+$ErrorActionPreference = 'Stop'
+$studioPath = $PSScriptRoot
+$repositoryPath = Split-Path -Parent $studioPath
+$environmentName = if ($Runtime -eq 'CUDA') { '.venv-cuda' } else { '.venv' }
+$desktopPython = Join-Path $studioPath ($environmentName + '\Scripts\python.exe')
+if (-not (Test-Path -LiteralPath $desktopPython)) { throw 'Prepare the selected environment before building. This script does not install dependencies.' }
+$targetName = 's4-' + $Runtime.ToLowerInvariant()
+$distributionPath = Join-Path $studioPath ('dist\' + $targetName)
+$buildPath = Join-Path $studioPath ('build\' + $targetName)
+$buildManifestPath = Join-Path $buildPath 'release-build.json'
+$oldPythonPath = $env:PYTHONPATH
+$oldManifest = $env:MODELCIRCUIT_RELEASE_MANIFEST
+$oldEncoding = $env:PYTHONIOENCODING
+try {
+    $env:PYTHONPATH = $studioPath + ';' + (Join-Path $studioPath 'backend')
+    $env:PYTHONIOENCODING = 'utf-8'
+    & $desktopPython -m native.release_metadata --repository $repositoryPath --runtime $Runtime --output $buildManifestPath
+    if ($LASTEXITCODE -ne 0) { throw 'Release identity or runtime variant check failed.' }
+    & $desktopPython -m unittest discover -s (Join-Path $studioPath 'native\tests') -v
+    if ($LASTEXITCODE -ne 0) { throw 'Native regression failed; build stopped.' }
+    $env:MODELCIRCUIT_RELEASE_MANIFEST = $buildManifestPath
+    & $desktopPython -m PyInstaller --noconfirm --distpath $distributionPath --workpath $buildPath (Join-Path $studioPath 'native\ModelCircuitStudio.spec')
+    if ($LASTEXITCODE -ne 0) { throw 'S4 desktop build failed.' }
+    $desktopExe = Join-Path $distributionPath 'ModelCircuitStudio\ModelCircuitStudio.exe'
+    if (-not (Test-Path -LiteralPath $desktopExe)) { throw 'Expected S4 executable is missing.' }
+    Copy-Item -LiteralPath $buildManifestPath -Destination (Join-Path (Split-Path -Parent $desktopExe) 'release-build.json')
+    Write-Output ('S4 ' + $Runtime + ' application: ' + $desktopExe)
+    Write-Output 'Keep the complete ModelCircuitStudio directory, including _internal and release-build.json.'
+} finally {
+    $env:PYTHONPATH = $oldPythonPath
+    $env:MODELCIRCUIT_RELEASE_MANIFEST = $oldManifest
+    $env:PYTHONIOENCODING = $oldEncoding
+}

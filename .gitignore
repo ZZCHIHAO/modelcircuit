@@ -226,6 +226,7 @@ output/
 .playwright-cli/
 studio/build/
 studio/dist/
+studio/artifacts/
 studio/.processes.json
 studio/runs/
 studio/logs/
@@ -233,6 +234,7 @@ studio/frontend/node_modules/
 studio/frontend/.vite/
 studio/frontend/.playwright-cli/
 !studio/native/MLForgeStudio.spec
+!studio/native/ModelCircuitStudio.spec
 
 # Local secrets, developer state and non-redistributable design references
 .env.*
