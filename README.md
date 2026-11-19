@@ -8,6 +8,10 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。S6 统一桌面版 `v0.6.0-alpha.2` 在[第 5 号 PR](https://github.com/ZZCHIHAO/modelcircuit/pull/5)及其依赖分支中接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
+> **非商业用途声明**
+>
+> 本项目面向非商业科研、教学与个人学习。维护者倡议将本项目用于上述场景，避免用于商业产品、收费服务、付费部署或营利性生产。源码及第三方材料的使用权以各自许可证为准。[MIT License](LICENSE) 允许依其条款进行商业使用。详见[用途与许可说明](THIRD_PARTY_NOTICES.md#科研引用与使用范围)。
+
 ![S4 原生桌面工作台：组件库、具名端口、层级画布与实验面板](docs/images/native-s4-models-workspace.png)
 
 ## 目录
