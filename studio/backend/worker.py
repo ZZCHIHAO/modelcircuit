@@ -14,7 +14,18 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
                    "cancelled": stop.is_set}
         from studio_core.classical_task import contains_classical
         from studio_core.inference_spec import PROFILE as INFERENCE_PROFILE
-        if config.get('profile') == INFERENCE_PROFILE:
+        from studio_core.project_runner import PROFILE as PROJECT_PROFILE
+        if config.get('profile') == PROJECT_PROFILE:
+            if artifact_directory is None:
+                raise ValueError('Project training requires a managed artifact directory')
+            import torch
+            from studio_core.project_runner import train_project
+            torch.set_num_threads(1)
+            messages.put({'type': 'status', 'status': 'running'})
+            result = train_project(config['project_path'], config['data_path'], artifact_directory,
+                                   source_root=config['source_root'], device=config['device'],
+                                   expected_model_digest=config['expected_model_digest'], defer_report=True, **options)
+        elif config.get('profile') == INFERENCE_PROFILE:
             if artifact_directory is None:
                 raise ValueError('Segmentation inference requires a managed artifact directory')
             import torch

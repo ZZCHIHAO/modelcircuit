@@ -21,6 +21,7 @@ from .chip_panel import ChipControls
 from .experiment_panel import progress_points, result_view
 from .segmentation_panel import SegmentationPanel
 from .inference_panel import InferencePanel
+from .project_panel import ProjectPanel
 from .workspace_state import read_workspace_full, save_workspace, workspace_payload
 from .workbench_state import WorkbenchState
 from .canvas_view import CanvasHost, CanvasToken
@@ -116,6 +117,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.attention_probe_panel = AttentionProbePanel(self)
         self.segmentation_panel = SegmentationPanel(self)
         self.inference_panel = InferencePanel(self)
+        self.project_panel = ProjectPanel(self)
         self.canvas_host.catalog_panel = self.catalog_panel
         self._init_experiment(experiment)
         self._init_chip_controls()
@@ -284,6 +286,9 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                     with dpg.tab(label='推理', tag='native_inference_tab'):
                         with dpg.child_window(width=-1, height=-1, border=False):
                             self.inference_panel.build_controls()
+                    with dpg.tab(label='工程', tag='native_project_tab'):
+                        with dpg.child_window(width=-1, height=-1, border=False):
+                            self.project_panel.build_controls()
             with dpg.child_window(tag="native_bottom", pos=(8, 575), width=1355, height=210):
                 dpg.add_text("尚未运行 · 设计快照与实验快照分开记录", tag="native_result_version", color=MUTED)
                 with dpg.tab_bar(tag="native_bottom_tabs"):
@@ -304,6 +309,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                             dpg.add_text("", tag="native_artifacts", color=MUTED, wrap=1250)
                     self.segmentation_panel.build()
                     self.inference_panel.build_results()
+                    self.project_panel.build_results()
                     with dpg.tab(label="参数与梯度", tag="native_parameter_tab"):
                         dpg.add_text("梯度：末次更新前；更新范数：初始到最终", tag="native_gradient_context", color=MUTED, wrap=1250)
                         with dpg.child_window(height=-1, width=-1, horizontal_scrollbar=True):
@@ -318,6 +324,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self._build_data_dialogs()
         self.segmentation_panel.build_resources()
         self.inference_panel.build_resources()
+        self.project_panel.build_resources()
         self._build_chip_dialogs()
         self.catalog_panel.build_dialogs()
         with dpg.handler_registry():
@@ -929,6 +936,26 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self._sync_experiment_widgets()
         self._refresh(); self.log("已打开模型与实验设置", "完成")
 
+    def project_runtime_source(self):
+        import sys
+        if getattr(sys, 'frozen', False):
+            return self.resource_directory / 'project_runtime' / 'studio_core'
+        return None
+
+    def _install_portable_project(self, project, config, manifest):
+        from .workspace_state import data_identity
+
+        self.document.replace_graph(project['graph'])
+        self._reset_canvas_document()
+        self._restore_workbench(project.get('workbench'))
+        self.python_initialized = False
+        self.python_dirty = False
+        self._install_experiment(config)
+        self.manifest = manifest
+        self.inspection_key = data_identity(config) if manifest is not None else None
+        self._sync_experiment_widgets()
+        self._refresh()
+
     def _json_saved(self, app_data=None, **_):
         path = self._file_path(app_data, ".json")
         save_workspace(path, self.document, self._configuration(), workbench=self.workbench.to_payload())
@@ -1249,6 +1276,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                         self._commit_canvas_positions(view_key)
             self._poll_run()
             self.inference_panel.poll()
+            self.project_panel.poll()
         if now - self.last_draft >= 2:
             self.last_draft = now; self._save_draft()
 
@@ -1300,6 +1328,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             finally:
                 try:
                     self.queries.close()
+                    self.project_panel.close()
                 finally:
                     self.closed = True; self._context_created = False; self._built = False
                     dpg.destroy_context()

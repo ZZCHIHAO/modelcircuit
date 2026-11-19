@@ -19,7 +19,7 @@ def resolve_data_directory(override=None, environ=None):
                 info = json.loads(manifest.read_text(encoding='utf-8'))
             except (OSError, ValueError):
                 info = None
-            if isinstance(info, dict) and info.get('stage') in ('S7', 'S8', 'S9') and info.get('runtime') == 'Unified':
+            if isinstance(info, dict) and info.get('stage') in ('S7', 'S8', 'S9', 'S10') and info.get('runtime') == 'Unified':
                 name = 'ModelCircuitStudio-' + info['stage']
             if isinstance(info, dict) and info.get('stage') == 'S6':
                 runtime = info.get('runtime')
