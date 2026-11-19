@@ -35,4 +35,7 @@ def get_task_adapter(identifier, version):
         if identifier == 'regression':
             from .regression_task import RegressionTask
             return RegressionTask
+        if identifier == 'segmentation':
+            from .segmentation_task import SegmentationTask
+            return SegmentationTask
     raise ValueError('Unknown task adapter or version')

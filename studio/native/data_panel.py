@@ -19,7 +19,12 @@ MUTED = (145, 154, 164)
 BLUE = (100, 200, 255)
 AMBER = (235, 190, 110)
 RED = (240, 143, 134)
-MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv"}
+MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv", "2D / 3D 医学影像分割": "segmentation_csv"}
+SEGMENTATION_FORMATS = {"二维图片 + PNG/TIFF 掩码": "image", "三维 NIfTI 图像 + 掩码": "nifti"}
+SEGMENTATION_COLUMNS = (("id_column", "样本 ID 列", "sample_id"), ("group_column", "患者 ID 列", "patient_id"),
+                        ("image_column", "影像路径列", "image_path"), ("mask_column", "掩码路径列", "mask_path"),
+                        ("split_column", "划分列（可选）", "自动划分"))
+IMAGE_MODES = ('image_folder', 'paired_csv', 'research_csv', 'segmentation_csv')
 
 
 class ExperimentControls:
@@ -40,7 +45,9 @@ class ExperimentControls:
 
     @staticmethod
     def _supervised_defaults(kind):
-        from studio_core.experiment_spec import default_classification_config, default_regression_config
+        from studio_core.experiment_spec import default_classification_config, default_regression_config, default_segmentation_config
+        if kind == 'segmentation_csv':
+            return default_segmentation_config()
         return default_regression_config() if kind == "regression_csv" else default_classification_config(data_kind=kind)
 
     def _install_experiment(self, experiment):
@@ -99,7 +106,7 @@ class ExperimentControls:
 
     def _build_data_dialogs(self):
         with dpg.window(tag="native_data", label="数据与实验设置", show=False, modal=True, width=790, height=690, no_collapse=True):
-            dpg.add_text("数值 CSV / ImageFolder / 配对图片与表格；检查会冻结共同样本和划分。", color=MUTED)
+            dpg.add_text("先选择数据，再检查样本、划分和模型输入。", color=MUTED)
             with dpg.group(horizontal=True):
                 dpg.add_input_text(label="数据路径", tag="native_data_path", width=580, on_enter=True, callback=self.guarded(self._experiment_changed))
                 dpg.add_button(label="浏览…", callback=self.guarded(self._browse_data))
@@ -130,6 +137,22 @@ class ExperimentControls:
                     dpg.add_input_text(label="强度上限", tag="native_research_max", width=95)
                 dpg.add_input_text(label="样本 ID / 分组 / 路径 / 标签 / 划分列", tag="native_research_columns", width=350)
                 dpg.add_text("CSV 列名按顺序填写。路径相对样本根目录，分组必填。末尾划分列可省略。", color=MUTED)
+            with dpg.group(tag="native_segmentation_settings", show=False):
+                with dpg.group(horizontal=True):
+                    dpg.add_combo(list(SEGMENTATION_FORMATS), label="影像与掩码格式", tag="native_segmentation_format",
+                                  default_value=next(iter(SEGMENTATION_FORMATS)), width=245,
+                                  callback=self.guarded(self._segmentation_format_changed))
+                    dpg.add_input_int(label="模型深度 D", tag="native_segmentation_depth", default_value=16, width=115,
+                                      min_value=2, max_value=128, min_clamped=True, max_clamped=True)
+                dpg.add_input_text(label="路径根目录（默认 CSV 所在目录）", tag="native_segmentation_root", width=410)
+                dpg.add_button(label="读取 CSV 列", tag="native_segmentation_read_columns", callback=self.guarded(self._read_columns))
+                for start in range(0, len(SEGMENTATION_COLUMNS), 2):
+                    with dpg.group(horizontal=True):
+                        for key, label, default in SEGMENTATION_COLUMNS[start:start + 2]:
+                            dpg.add_combo([default], label=label, tag='native_seg_' + key, width=175, default_value=default,
+                                          callback=self.guarded(self._experiment_changed))
+                dpg.add_input_text(label="掩码标签值（背景为 0）", tag="native_segmentation_values", width=280, default_value="0, 1")
+                dpg.add_text("按从小到大填写整数标签。例 0, 255。划分列使用 train / val / test。", color=MUTED, wrap=730)
             with dpg.group(tag="native_image_settings", show=False):
                 with dpg.group(tag="native_image_directory_settings"):
                     dpg.add_combo(label="目录拆分", tag="native_image_split", items=["stratified", "directories"], default_value="stratified", width=230, callback=self.guarded(self._experiment_changed))
@@ -194,10 +217,23 @@ class ExperimentControls:
                               native_research_min='' if data['intensity_min'] is None else str(data['intensity_min']),
                               native_research_max='' if data['intensity_max'] is None else str(data['intensity_max']),
                               native_research_columns=','.join(data[k] or '' for k in ('id_column','group_column','path_column','target_column','split_column')))
+            if self.experiment_mode == 'segmentation_csv':
+                fmt_label = next(label for label, fmt in SEGMENTATION_FORMATS.items() if fmt == data['format'])
+                values.update(native_segmentation_root=data['source_root'], native_segmentation_format=fmt_label,
+                              native_segmentation_depth=data['depth'] if data['depth'] > 1 else 16,
+                              native_segmentation_values=', '.join(map(str, data['mask_values'])))
+                for key, _, default in SEGMENTATION_COLUMNS:
+                    tag = 'native_seg_' + key
+                    choice = data[key] or default
+                    dpg.configure_item(tag, items=list(dict.fromkeys(dpg.get_item_configuration(tag)['items'] + [choice])))
+                    values[tag] = choice
+                self._show_segmentation_dimension(data['format'] == 'nifti')
+            else:
+                dpg.configure_item('native_image_channels', enabled=True)
             fit = {**FITNETS_DEFAULTS, **config.get('fitnets', {})}
             values.update(native_fitnets_enabled=config['profile']=='fitnets-v1', native_teacher_checkpoint=fit['teacher_checkpoint'],
                           native_hint_epochs=fit['hint_epochs'], native_distill_temperature=fit['temperature'], native_distill_weight=fit['distill_weight'])
-            if self.experiment_mode in ("image_folder", "paired_csv", "research_csv"):
+            if self.experiment_mode in IMAGE_MODES:
                 values.update({"native_image_split": data.get("split_mode", "stratified"), "native_image_height": data.get("image_size", [32, 32])[0], "native_image_width": data.get("image_size", [32, 32])[1], "native_image_channels": str(data.get("channels", 3))})
             if self.experiment_mode == "paired_csv":
                 ports = config.get("input_ports") or {"image": "image", "tabular": "clinical"}
@@ -207,7 +243,8 @@ class ExperimentControls:
         dpg.configure_item("native_csv_settings", show=self.experiment_mode in ("csv", "paired_csv", "regression_csv"))
         dpg.configure_item("native_csv_target", label="连续目标列" if self.experiment_mode == "regression_csv" else "标签列")
         dpg.configure_item("native_csv_group", label="分组列（必选）" if self.experiment_mode == "paired_csv" else "分组列（可选）")
-        dpg.configure_item("native_image_settings", show=self.experiment_mode in ("image_folder", "paired_csv", "research_csv"))
+        dpg.configure_item("native_image_settings", show=self.experiment_mode in IMAGE_MODES)
+        dpg.configure_item('native_segmentation_settings', show=self.experiment_mode == 'segmentation_csv')
         dpg.configure_item('native_research_settings', show=self.experiment_mode == 'research_csv')
         dpg.configure_item('native_fitnet_options', show=self.experiment_mode in ('csv','image_folder','research_csv'))
         dpg.configure_item("native_image_directory_settings", show=self.experiment_mode == "image_folder")
@@ -215,6 +252,16 @@ class ExperimentControls:
         dpg.configure_item("native_paired_ports", show=self.experiment_mode == "paired_csv")
         dpg.configure_item("native_input_port", show=self.experiment_mode != "paired_csv")
         self._render_experiment_summary()
+
+    def _show_segmentation_dimension(self, volume):
+        dpg.configure_item('native_segmentation_depth', show=volume)
+        dpg.configure_item('native_image_channels', enabled=not volume)
+        if volume:
+            dpg.set_value('native_image_channels', '1')
+
+    def _segmentation_format_changed(self, app_data=None, **_):
+        self._show_segmentation_dimension(SEGMENTATION_FORMATS[app_data] == 'nifti')
+        self._experiment_changed()
 
     def _research_format_changed(self, app_data=None, **_):
         if app_data in ('image','gray16'):
@@ -264,6 +311,20 @@ class ExperimentControls:
                          "split_column": None if dpg.get_value("native_csv_split") == "无" else dpg.get_value("native_csv_split"), "standardize": dpg.get_value("native_standardize")})
         if self.experiment_mode == "image_folder":
             data.update({"split_mode": dpg.get_value("native_image_split"), "image_size": [dpg.get_value("native_image_height"), dpg.get_value("native_image_width")], "channels": int(dpg.get_value("native_image_channels"))})
+        elif self.experiment_mode == 'segmentation_csv':
+            fmt = SEGMENTATION_FORMATS[dpg.get_value('native_segmentation_format')]
+            values = dpg.get_value('native_segmentation_values')
+            try:
+                values = [int(part.strip()) for part in values.split(',')]
+            except ValueError:
+                pass  # Preserve the draft value for the validation error.
+            data.update(format=fmt, source_root=dpg.get_value('native_segmentation_root').strip(), mask_values=values,
+                        depth=dpg.get_value('native_segmentation_depth') if fmt == 'nifti' else 1,
+                        image_size=[dpg.get_value('native_image_height'), dpg.get_value('native_image_width')],
+                        channels=int(dpg.get_value('native_image_channels')))
+            for key, _, default in SEGMENTATION_COLUMNS:
+                choice = dpg.get_value('native_seg_' + key)
+                data[key] = None if key == 'split_column' and choice == default else choice
         elif self.experiment_mode == 'research_csv':
             data.update(format=dpg.get_value('native_research_format'), source_root=dpg.get_value('native_research_root').strip(),
                         modality=dpg.get_value('native_research_modality'), depth=dpg.get_value('native_research_depth'),
@@ -332,7 +393,7 @@ class ExperimentControls:
     def _data_path_chosen(self, app_data=None, **_):
         dpg.set_value("native_data_path", app_data["file_path_name"])
         self._experiment_changed()
-        if self.experiment_mode in ("csv", "paired_csv", "regression_csv"):
+        if self.experiment_mode in ("csv", "paired_csv", "regression_csv", "segmentation_csv"):
             self._read_columns()
 
     def _read_columns(self, **_):
@@ -361,7 +422,7 @@ class ExperimentControls:
 
     def _inspect_data(self, **_):
         if self.experiment_mode == "synthetic_s1":
-            raise ValueError("请选择 CSV 回归、CSV 分类或影像分类任务。")
+            raise ValueError("请选择一个使用真实数据的实验任务。")
         from studio_core.experiment_spec import validate_supervised_config
         editable = self._configuration()
         inspect_config = editable
@@ -404,6 +465,19 @@ class ExperimentControls:
                 if dpg.get_value("native_data_path").strip() != self._columns_path:
                     continue
                 self.csv_header = value
+                if self.experiment_mode == 'segmentation_csv':
+                    missing = []
+                    for key, label, default in SEGMENTATION_COLUMNS:
+                        tag = 'native_seg_' + key
+                        items = [default, *value] if key == 'split_column' else value
+                        dpg.configure_item(tag, items=items)
+                        if dpg.get_value(tag) not in items:
+                            dpg.set_value(tag, default if default in items else '')
+                            if key != 'split_column' and default not in items:
+                                missing.append(label)
+                    message = ('请选择' + '、'.join(missing)) if missing else '请核对样本、患者、影像及掩码列。'
+                    dpg.set_value('native_data_error', f'已读取 {len(value)} 列。' + message)
+                    continue
                 dpg.configure_item("native_csv_target", items=value)
                 for tag in ("native_csv_group", "native_csv_split"):
                     dpg.configure_item(tag, items=["无"] + value)
@@ -450,7 +524,8 @@ class ExperimentControls:
         dpg.set_value("native_dataset_summary", summary)
         dpg.configure_item("native_inspect", enabled=not self.inspecting)
         dpg.configure_item("native_data_inspect", enabled=not self.inspecting)
-        dpg.configure_item("native_starter", enabled=bool(manifest))
+        dpg.configure_item("native_starter", enabled=bool(manifest),
+                           label="创建分割起始图…" if self.experiment_mode == 'segmentation_csv' else "从数据创建起始模型…")
         fit_templates = self.experiment_mode in ('csv','image_folder','research_csv')
         dpg.configure_item('native_fitnet_templates', show=fit_templates)
         for tag in ('native_teacher_starter','native_fitnets_starter'):
@@ -467,6 +542,9 @@ class ExperimentControls:
         if manifest:
             if manifest.get("kind") == "regression_csv":
                 details = "连续目标：" + manifest["target_column"] + " · 特征预处理仅使用训练集拟合。"
+            elif manifest.get('kind') == 'segmentation_csv':
+                details = '各划分标签像素/体素数（标签顺序 ' + ', '.join(map(str, manifest['mask_values'])) + '）\n'
+                details += '  '.join(split + ' ' + str(counts) for split, counts in manifest['class_pixels'].items())
             else:
                 details = "类别分布：" + json.dumps(manifest.get("class_counts", {}), ensure_ascii=False)
             if manifest.get("warnings"):
@@ -536,7 +614,7 @@ class ExperimentControls:
             raise ValueError("请先从已检查数据准备起始模型。")
         fit = self.pending_starter.get('id') == 'fitnets_starter'
         dpg.set_value('native_fitnets_enabled', fit)
-        if fit or self.pending_teacher:
+        if fit or self.pending_teacher or self.experiment_mode == 'segmentation_csv':
             dpg.set_value('native_resume_checkpoint','')
         self.document.replace_graph(self.pending_starter)
         self._reset_canvas_document()

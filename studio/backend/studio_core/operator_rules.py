@@ -46,6 +46,10 @@ def normalize_operator(kind, params):
     if kind == "Linear":
         for name in spec.required:
             _require(_positive(result[name]), name + " must be a positive integer", name)
+    elif kind == "Upsample":
+        size = result["size"]
+        _require(isinstance(size, list) and len(size) in (2, 3) and all(_positive(axis) for axis in size),
+                 "Upsample size must be [H, W] or [D, H, W] with positive integers", "size")
     elif kind == "Concat":
         _require(type(result.get("dim", -1)) is int, "Concat dim must be an integer", "dim")
     elif kind == "LayerNorm":
@@ -122,6 +126,9 @@ def infer_operator(kind, params, input_shapes):
         output = list(input_shapes["x"])
         if kind in CNN_PARAMETERS:
             output = cnn_output_shape(kind, params, output)
+        elif kind == "Upsample":
+            _require(len(output) == 2 + len(params["size"]), "Upsample size must match the spatial input rank", "size")
+            output = output[:2] + params["size"]
         elif kind in ("SVC", "SVR"):
             _require(len(output) == 2, "SVM requires tabular input [batch, feature]")
             output[-1] = 1

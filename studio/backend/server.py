@@ -338,7 +338,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             available = importlib.util.find_spec("torch") is not None
             version = importlib.metadata.version("torch") if available else None
             return self._json(200, {"ok": True, "version": "0.1.0", "torch_available": available,
-                                    "torch_version": version, "capabilities": ["s1-pytorch-v1", "classification-pytorch-v2", "classification-v2", "regression-v1", "local-cpu", "hierarchical-chips", "measured-probes"]})
+                                    "torch_version": version, "capabilities": ["s1-pytorch-v1", "classification-pytorch-v2", "classification-v2", "regression-v1", "segmentation-v1", "local-cpu", "hierarchical-chips", "measured-probes"]})
         if route == "/api/example":
             return self._json(200, {"graph": example_graph()})
         if route.startswith("/api/runs/"):

@@ -89,6 +89,9 @@ def manifest_summary(manifest):
     dataset_label = "CSV 数值回归" if regression else manifest.get('kind')
     target = ("目标 " + manifest['target_column'] if regression else
               f"{len(classes)} 类：" + ", ".join(str(value) for value in classes[:12]) + ("…" if len(classes) > 12 else ""))
+    if manifest.get('kind') == 'segmentation_csv':
+        dataset_label = '三维分割' if len(manifest['input_shape']) == 5 else '二维分割'
+        target = '掩码值 ' + ', '.join(map(str, manifest['mask_values'][:12]))
     text = (f"{dataset_label} · 输入 {shape}\n"
             f"train {counts.get('train', 0)} / val {counts.get('val', 0)} / test {counts.get('test', 0)}\n"
             f"{target}\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
@@ -153,7 +156,8 @@ def progress_points(record, after_seq, real):
 def result_view(result, progress_history=None):
     result = result or {}
     regression = result.get("profile") == "regression-v1"
-    real = regression or result.get("profile") in ("classification-v2", "fitnets-v1")
+    segmentation = result.get('profile') == 'segmentation-v1'
+    real = regression or segmentation or result.get("profile") in ("classification-v2", "fitnets-v1")
     history = result.get("history") or list((progress_history or {}).values())
     if history and not isinstance(history[0], dict):
         history = [{"step": step, "loss": value} for step, value in sorted((progress_history or {}).items())]
@@ -179,7 +183,10 @@ def result_view(result, progress_history=None):
             hint = [row for row in current_history if row.get("stage") == "hint"]
             if hint:
                 summary = "FitNets · 提示训练 " + str(len(hint)) + " 轮 · 最终提示损失 " + _number(hint[-1].get("train_loss")) + "\n" + summary
-        if regression and test:
+        if segmentation and test:
+            summary += (f"\n测试集前景 Dice {_number(test.get('foreground_dice'))} · IoU {_number(test.get('foreground_iou'))}"
+                        f" · n={test.get('count', '—')}\n在模型网格上计算。原始网格掩码见「分割预测」。")
+        elif regression and test:
             r2 = _number(test["r2"]) if test.get("r2") is not None else "未定义"
             summary += (f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}"
                         f"\nR² {r2} · n={test.get('count', '—')}")

@@ -29,7 +29,7 @@ def default_classification_config(data_kind='csv'):
             'resume_checkpoint':None,'expected_dataset_digest':None}
 
 
-SUPERVISED_PROFILES = frozenset({'classification-v2', 'regression-v1', 'fitnets-v1'})
+SUPERVISED_PROFILES = frozenset({'classification-v2', 'regression-v1', 'fitnets-v1', 'segmentation-v1'})
 
 
 FITNETS_DEFAULTS = {'teacher_checkpoint': '', 'hint_epochs': 1, 'temperature': 4.0, 'distill_weight': 0.5}
@@ -50,6 +50,13 @@ def default_regression_config():
     config = default_classification_config()
     config.update(profile='regression-v1')
     config['data'].update(kind='regression_csv', target_column='')
+    return config
+
+
+def default_segmentation_config():
+    from .segmentation_data import defaults
+    config = default_classification_config()
+    config.update(profile='segmentation-v1', data=defaults(), batch_size=2)
     return config
 
 
@@ -83,6 +90,9 @@ def validate_supervised_config(config):
     if config['profile'] == 'regression-v1':
         _require(data.get('kind') == 'regression_csv', 'Regression requires regression_csv data')
         defaults = default_regression_config()
+    elif config['profile'] == 'segmentation-v1':
+        _require(data.get('kind') == 'segmentation_csv', 'Segmentation requires image/mask CSV pairs')
+        defaults = default_segmentation_config()
     else:
         defaults = default_classification_config(data.get('kind'))
         if config['profile'] == 'fitnets-v1':
@@ -100,6 +110,9 @@ def validate_supervised_config(config):
     if config['profile'] == 'fitnets-v1':
         result['fitnets'] = validate_fitnets_options(result['fitnets'])
         _require(result['resume_checkpoint'] is None, 'FitNets uses its own stage checkpoints; general resume is unavailable')
+    if effective_data['kind'] == 'segmentation_csv':
+        from .segmentation_data import validate_segmentation_spec
+        result['data'] = validate_segmentation_spec(effective_data)
     if effective_data['kind'] == 'research_csv':
         from .research_data import validate_research_spec
         result['data'] = validate_research_spec(effective_data)
@@ -308,6 +321,8 @@ def checkpoint_signature(graph,config,dataset_digest):
     identity = {'model':model_digest(graph),'training':settings,'dataset_digest':dataset_digest}
     if config.get('profile') == 'regression-v1':
         identity['adapter'] = {'id': 'regression', 'version': 1}
+    elif config.get('profile') == 'segmentation-v1':
+        identity['adapter'] = {'id': 'segmentation', 'version': 1}
     elif graph.get('schema_version') == 2:
         identity['adapter'] = {'id': 'classification', 'version': 1}
     return _hash(identity)

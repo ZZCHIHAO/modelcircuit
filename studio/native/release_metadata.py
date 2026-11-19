@@ -22,10 +22,10 @@ def require_runtime_variant(runtime, torch_version):
 
 def build_manifest(repository, runtime, stage=PRODUCT_STAGE):
     repository = Path(repository).resolve()
-    if stage not in ('S4', 'S6', 'S7'):
+    if stage not in ('S4', 'S6', 'S7', 'S8'):
         raise ValueError('Unsupported desktop release stage')
-    if (stage in ('S6', 'S7')) != (runtime == 'Unified'):
-        raise ValueError('S6 and S7 use the unified desktop build; S4 uses the historical CPU or CUDA variants')
+    if (stage in ('S6', 'S7', 'S8')) != (runtime == 'Unified'):
+        raise ValueError('S6–S8 use the unified desktop build; S4 uses the historical CPU or CUDA variants')
     version_file = repository / 'VERSION'
     version = version_file.read_text(encoding='utf-8').strip() if version_file.is_file() else None
     torch_version = metadata.version('torch')
@@ -47,9 +47,9 @@ def build_manifest(repository, runtime, stage=PRODUCT_STAGE):
     dirty = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'], cwd=repository)
     packages = ('torch', 'dearpygui', 'numpy', 'Pillow', 'sympy', 'networkx', 'filelock',
                 'fsspec', 'Jinja2', 'MarkupSafe', 'mpmath', 'typing_extensions', 'packaging', 'pyinstaller', 'setuptools')
-    if stage in ('S6', 'S7'):
+    if stage in ('S6', 'S7', 'S8'):
         packages += ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl')
-    if stage == 'S7':
+    if stage in ('S7', 'S8'):
         packages += ('pydicom', 'nibabel', 'opencv-python-headless')
     return {
         'product': PRODUCT_NAME, 'stage': stage, 'runtime': runtime, 'version': version,
@@ -67,7 +67,7 @@ def main():
     parser = argparse.ArgumentParser(description='Create desktop build provenance')
     parser.add_argument('--repository', type=Path, required=True)
     parser.add_argument('--runtime', choices=('CPU', 'CUDA', 'Unified'), required=True)
-    parser.add_argument('--stage', choices=('S4', 'S6', 'S7'), default=PRODUCT_STAGE)
+    parser.add_argument('--stage', choices=('S4', 'S6', 'S7', 'S8'), default=PRODUCT_STAGE)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     result = build_manifest(args.repository, args.runtime, args.stage)

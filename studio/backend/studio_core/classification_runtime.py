@@ -95,14 +95,16 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     from .task_adapters import get_task_adapter
     config = validate_supervised_config(config)
     profile = config["profile"]
-    regression = profile == "regression-v1"
-    task_label = "Regression" if regression else "Classification"
+    task_id = {'regression-v1': 'regression', 'segmentation-v1': 'segmentation'}.get(profile, 'classification')
+    task_label = task_id.capitalize()
+    segmentation = task_id == 'segmentation'
     typed = isinstance(graph, dict) and graph.get('schema_version') == 2
     if not typed and 'attention_probe_requests' in config:
         raise ValueError('Attention probes require tensor-v1')
-    task = get_task_adapter('regression' if regression else 'classification', 1)(config)
-    checkpoint_version = 3 if typed or regression else 2
-    adapter_info = {'adapter': {'id': task.id, 'version': task.version}} if typed or regression else {}
+    task = get_task_adapter(task_id, 1)(config)
+    versioned = typed or task_id != 'classification'
+    checkpoint_version = 3 if versioned else 2
+    adapter_info = {'adapter': {'id': task.id, 'version': task.version}} if versioned else {}
     from .execution_policy import check_config_batch
     check_config_batch(graph, config["batch_size"])
     started = time.monotonic()
@@ -186,6 +188,9 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     from PIL import __version__ as pillow_version
     environment = {"python": platform.python_version(), "torch": str(torch.__version__), "pillow": pillow_version,
                    "platform": platform.platform(), "machine": platform.machine(), "cuda": None, "cudnn": None}
+    if segmentation and manifest['data_spec']['format'] == 'nifti':
+        from importlib.metadata import version
+        environment['nibabel'] = version('nibabel')
     if device.type == "cuda":
         environment["cuda"] = torch.version.cuda
         environment["cudnn"] = torch.backends.cudnn.version()
@@ -255,7 +260,7 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
                 task.validate_outputs(outputs, batch, manifest)
                 return outputs
 
-            def evaluate(split, epoch, prediction_rows=None):
+            def evaluate(split, epoch, write_prediction_batch=None):
                 model.eval()
                 # An independent generator keeps validation/test iteration from
                 # consuming dropout RNG or changing training shuffle order.
@@ -271,8 +276,8 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
                         if not bool(torch.isfinite(loss)):
                             raise ValueError("Non-finite " + split + " loss")
                         totals = task.merge(totals, task.summarize(outputs, batch, loss))
-                        if prediction_rows is not None:
-                            prediction_rows.extend(task.prediction_rows(outputs, batch, manifest))
+                        if write_prediction_batch is not None:
+                            write_prediction_batch(outputs, batch)
                         emit(split, epoch, batch_index, len(loader), global_step, loss=float(loss),
                              **task.progress_metrics(task.finalize(totals)))
                 check()
@@ -339,12 +344,18 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
             best_checkpoint = torch.load(paths["best_checkpoint"], weights_only=True, map_location="cpu")
             model.load_state_dict(best_checkpoint["model_state"], strict=True)
             best = best_checkpoint["best"]
-            predictions = []
-            test_metrics = evaluate("test", best["completed_epochs"], predictions)
+            if segmentation:
+                from .segmentation_predictions import SegmentationPredictions
+                prediction_files = SegmentationPredictions(artifact_directory, manifest, check)
             output = io.StringIO(newline="")
             writer = csv.DictWriter(output, fieldnames=task.prediction_fields)
             writer.writeheader()
-            writer.writerows(predictions)
+
+            def write_predictions(outputs, batch):
+                rows = prediction_files.rows(outputs, batch) if segmentation else task.prediction_rows(outputs, batch, manifest)
+                writer.writerows(rows)
+
+            test_metrics = evaluate("test", best["completed_epochs"], write_predictions)
             _atomic_write(paths["predictions"], lambda stream: stream.write(output.getvalue().encode("utf-8")))
             check()
             probe_loader = DataLoader(datasets["val"], batch_size=min(config["batch_size"], 16), shuffle=False, num_workers=0,

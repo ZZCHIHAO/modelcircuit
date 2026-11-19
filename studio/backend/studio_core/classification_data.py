@@ -159,11 +159,13 @@ def _csv_records(spec, cancelled, extra_columns=()):
                 if not math.isfinite(value) or abs(value) > MAX_FLOAT32:
                     raise ValueError("Non-finite or out-of-range feature in " + source + " column " + name)
                 features.append(value)
-            label = row[spec["target_column"]].strip()
-            if not label:
-                raise ValueError("Missing target label in " + source)
-            if len(label) > 256:
-                raise ValueError("Target label length limit exceeded (256): " + source)
+            label = None
+            if spec["target_column"] is not None:
+                label = row[spec["target_column"]].strip()
+                if not label:
+                    raise ValueError("Missing target label in " + source)
+                if len(label) > 256:
+                    raise ValueError("Target label length limit exceeded (256): " + source)
             group = row[spec["group_column"]].strip() if spec["group_column"] is not None else None
             if spec["group_column"] is not None and not group:
                 raise ValueError("Missing group in " + source)
@@ -476,6 +478,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     _cancel(cancelled)
     if type(seed) is not int or not 0 <= seed < 2 ** 31:
         raise ValueError("seed must be an integer in 0..2^31-1")
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'segmentation_csv':
+        from .segmentation_data import inspect_segmentation_dataset
+        return inspect_segmentation_dataset(data_spec, seed, cancelled)
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'research_csv':
         from .research_data import inspect_research_dataset
         return inspect_research_dataset(data_spec, seed, cancelled)
@@ -517,6 +522,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
 
 def build_datasets(manifest, cancelled=None):
     """Return Torch datasets; enforce the inspected source hashes before use."""
+    if manifest.get('kind') == 'segmentation_csv':
+        from .segmentation_data import build_segmentation_datasets
+        return build_segmentation_datasets(manifest, cancelled)
     if manifest.get('kind') == 'research_csv':
         from .research_data import build_research_datasets
         return build_research_datasets(manifest, cancelled)
