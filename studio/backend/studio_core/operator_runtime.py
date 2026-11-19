@@ -57,6 +57,7 @@ _CONSTRUCTORS = {
     "Linear": nn.Linear, "ReLU": nn.ReLU, "GELU": nn.GELU,
     "Add": _Add, "Concat": _Concat, "LayerNorm": nn.LayerNorm,
     "Dropout": nn.Dropout, "Conv2d": nn.Conv2d, "MaxPool2d": nn.MaxPool2d,
+    "Conv3d": nn.Conv3d, "MaxPool3d": nn.MaxPool3d, "AdaptiveAvgPool3d": nn.AdaptiveAvgPool3d,
     "AdaptiveAvgPool2d": nn.AdaptiveAvgPool2d, "Flatten": nn.Flatten,
     "BatchNorm2d": _BatchNorm2d, "Identity": nn.Identity, "Sigmoid": nn.Sigmoid,
     "Multiply": _Multiply, "Scale": _Scale, "OneMinus": _OneMinus,

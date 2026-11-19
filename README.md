@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前版本 `v0.6.0-alpha.2` · S6 统一桌面版。** 支持从 CSV 检查、可视化建模、CPU 或单张 CUDA GPU 训练，到测试评估和续训。传统机器学习模型库内置 CPU 版支持向量分类和回归。S5 的 Attention、Transformer Encoder、小型 ViT 和注意力热图已纳入该桌面版本。完整产品验收后使用 `v1.0.0`。参见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)、[S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[更新记录](CHANGELOG.md)。
+**当前开发版本 `v0.7.0-alpha.1`。** S7 增加高位深灰度、DICOM、NIfTI 和视频分类输入，以及 FitNets 两阶段蒸馏。使用方法见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。S6 数值回归、SVM 与可视化编辑能力继续保留。
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。S6 统一桌面版 `v0.6.0-alpha.2` 在[第 5 号 PR](https://github.com/ZZCHIHAO/modelcircuit/pull/5)及其依赖分支中接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
@@ -55,11 +55,11 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
-**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** 分割、检测、3D、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
+**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。分割、检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-S6 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s6/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或当前可用的一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S6`。移动时请保留完整应用目录。详见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)。
+S7 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s7/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S7`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 

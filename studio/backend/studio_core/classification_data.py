@@ -476,6 +476,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     _cancel(cancelled)
     if type(seed) is not int or not 0 <= seed < 2 ** 31:
         raise ValueError("seed must be an integer in 0..2^31-1")
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'research_csv':
+        from .research_data import inspect_research_dataset
+        return inspect_research_dataset(data_spec, seed, cancelled)
     if isinstance(data_spec, dict) and data_spec.get("kind") == "paired_csv":
         from .paired_data import inspect_paired_dataset
         return inspect_paired_dataset(data_spec, seed=seed, cancelled=cancelled)
@@ -514,6 +517,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
 
 def build_datasets(manifest, cancelled=None):
     """Return Torch datasets; enforce the inspected source hashes before use."""
+    if manifest.get('kind') == 'research_csv':
+        from .research_data import build_research_datasets
+        return build_research_datasets(manifest, cancelled)
     if manifest.get("kind") == "paired_csv":
         from .paired_data import build_paired_datasets
         return build_paired_datasets(manifest, cancelled=cancelled)

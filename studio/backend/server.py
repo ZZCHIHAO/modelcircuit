@@ -193,7 +193,7 @@ class RunManager:
         elif kind == "progress":
             allowed = {"step", "total", "loss", "phase", "epoch", "epochs", "batch", "batches",
                        "train_loss", "val_loss", "train_accuracy", "val_accuracy",
-                       "train_mae", "val_mae", "train_rmse", "val_rmse", "train_r2", "val_r2"}
+                       "stage", "train_mae", "val_mae", "train_rmse", "val_rmse", "train_r2", "val_r2"}
             progress = {name: value for name, value in event.items() if name in allowed}
             if any(type(value) not in (int, float, str, type(None)) for value in progress.values()):
                 record["_pending_error"] = "Worker progress must contain scalar values"

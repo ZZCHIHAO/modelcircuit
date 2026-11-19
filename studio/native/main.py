@@ -87,9 +87,10 @@ def main(argv=None):
     parser.add_argument('--s4-check', type=Path, help='Run S4 catalog, large-model worker and Python diagnostics')
     parser.add_argument('--s4-render-check', type=Path, help='Run S4 native catalog, chip and workspace callback diagnostics')
     parser.add_argument('--s6-render-check', type=Path, help='Run S6 regression through native controls and real workers')
+    parser.add_argument("--s7-render-check", type=Path, help="Verify grouped 3D data and the native FitNets workflow")
     args = parser.parse_args(argv)
     diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
-                   args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check]
+                   args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check, args.s7_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -131,6 +132,9 @@ def main(argv=None):
         elif args.s6_render_check:
             from .s6_acceptance import check_s6
             report = check_s6(manager, paths['data'], resource_root(), args.s6_render_check.parent, args.check_device)
+        elif args.s7_render_check:
+            from .s7_acceptance import check_s7
+            report = check_s7(manager, paths['data'], resource_root(), args.s7_render_check.parent, args.check_device)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench

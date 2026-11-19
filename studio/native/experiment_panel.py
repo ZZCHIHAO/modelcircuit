@@ -144,7 +144,8 @@ def progress_points(record, after_seq, real):
         return [event for event in record.get("events", [])
                 if event.get("seq", 0) > after_seq and event.get("type") == "progress"
                 and event.get("phase") == "epoch" and type(event.get("epoch")) is int
-                and finite(event.get("train_loss")) and finite(event.get("val_loss"))]
+                and finite(event.get("train_loss"))
+                and (finite(event.get("val_loss")) or event.get("stage") == "hint")]
     progress = record.get("progress") or {}
     return [progress] if finite(progress.get("loss")) else []
 
@@ -152,13 +153,16 @@ def progress_points(record, after_seq, real):
 def result_view(result, progress_history=None):
     result = result or {}
     regression = result.get("profile") == "regression-v1"
-    real = regression or result.get("profile") == "classification-v2"
+    real = regression or result.get("profile") in ("classification-v2", "fitnets-v1")
     history = result.get("history") or list((progress_history or {}).values())
     if history and not isinstance(history[0], dict):
         history = [{"step": step, "loss": value} for step, value in sorted((progress_history or {}).items())]
     def series(key):
         rows = [item for item in history if isinstance(item.get(key), (int, float)) and math.isfinite(item[key])]
         return [[item.get("epoch", item.get("step", 0)) if real else item.get("step", 0) for item in rows], [item[key] for item in rows]]
+    current_history = history
+    if result.get("profile") == "fitnets-v1":
+        history = [row for row in current_history if row.get("stage") != "hint"]
     train, val = series("train_loss" if real else "loss"), series("val_loss") if real else [[], []]
     if result.get('execution') == 'classical':
         test = result.get('metrics', {}).get('test', {})
@@ -171,6 +175,10 @@ def result_view(result, progress_history=None):
     elif real:
         test = result.get("metrics", {}).get("test")
         summary = f"{result.get('device', '—')} · 最佳 epoch {result.get('best_epoch', '—')}"
+        if result.get("profile") == "fitnets-v1":
+            hint = [row for row in current_history if row.get("stage") == "hint"]
+            if hint:
+                summary = "FitNets · 提示训练 " + str(len(hint)) + " 轮 · 最终提示损失 " + _number(hint[-1].get("train_loss")) + "\n" + summary
         if regression and test:
             r2 = _number(test["r2"]) if test.get("r2") is not None else "未定义"
             summary += (f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}"

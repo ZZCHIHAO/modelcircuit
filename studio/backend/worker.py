@@ -27,8 +27,12 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
             if config.get("profile") in SUPERVISED_PROFILES:
                 if artifact_directory is None:
                     raise ValueError("Supervised worker requires a managed artifact directory")
-                from studio_core.classification_runtime import run_supervised
-                result = run_supervised(graph, config, artifact_directory, **options)
+                if config['profile'] == 'fitnets-v1':
+                    from studio_core.fitnets import run_fitnets
+                    result = run_fitnets(graph, config, artifact_directory, **options)
+                else:
+                    from studio_core.classification_runtime import run_supervised
+                    result = run_supervised(graph, config, artifact_directory, **options)
             else:
                 from studio_core.runtime import run_experiment
                 result = run_experiment(graph, config, **options)

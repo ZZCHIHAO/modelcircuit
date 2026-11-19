@@ -18,9 +18,9 @@ class CatalogTests(unittest.TestCase):
     def test_every_registry_operator_and_five_factories_build(self):
         module = catalog()
         specs = module.list_components()
-        self.assertEqual(len(specs), 38)
-        self.assertEqual([item.id for item in specs[:19]], ['primitive.' + kind for kind in operator_kinds()])
-        self.assertEqual([item.id for item in specs[19:24]], ['head.mlp', 'fusion.concat_projection',
+        self.assertEqual(len(specs), 41)
+        self.assertEqual([item.id for item in specs[:22]], ['primitive.' + kind for kind in operator_kinds()])
+        self.assertEqual([item.id for item in specs[22:27]], ['head.mlp', 'fusion.concat_projection',
             'fusion.weighted_sum', 'fusion.gated', 'block.residual_basic'])
         for item in specs:
             with self.subTest(component=item.id):

@@ -40,6 +40,10 @@ def _editable_experiment(experiment):
     allowed = integers | {"lr"}
     if real:
         allowed |= {"profile", "data", "optimizer", "device", "input_port", "input_ports", "resume_checkpoint", "expected_dataset_digest"}
+    if experiment.get('profile') == 'fitnets-v1':
+        from studio_core.experiment_spec import validate_fitnets_options
+        allowed.add('fitnets')
+        validate_fitnets_options(experiment.get('fitnets', {}), editable=True)
     require(experiment.keys() <= allowed, "unsupported setting")
     for key in integers & experiment.keys():
         require(type(experiment[key]) is int, key + " must be an integer")
@@ -64,7 +68,7 @@ def _editable_experiment(experiment):
     data = experiment.get("data")
     require(type(data) is dict, "data must be an object")
     kind = data.get("kind", "csv")
-    allowed_kinds = ("regression_csv",) if experiment["profile"] == "regression-v1" else ("csv", "image_folder", "paired_csv")
+    allowed_kinds = ("regression_csv",) if experiment["profile"] == "regression-v1" else ("csv", "image_folder", "paired_csv", "research_csv")
     require(kind in allowed_kinds, "unsupported data kind")
     mapping=experiment.get('input_ports')
     if kind=='paired_csv':
@@ -73,6 +77,10 @@ def _editable_experiment(experiment):
                     all(type(value) is str and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',value) for value in mapping.values()) and
                     len(set(mapping.values()))==2,'input_ports must name two distinct graph inputs')
     else:require(mapping is None,'input_ports is only supported for paired_csv')
+    if kind == 'research_csv':
+        from studio_core.research_data import validate_research_spec
+        validate_research_spec(data)
+        return
     common = {"kind", "path", "validation_fraction", "test_fraction"}
     fields = {"target_column", "feature_columns", "group_column", "split_column", "standardize"} if kind in ("csv", "paired_csv", "regression_csv") else {"split_mode", "image_size", "channels"}
     if kind=='paired_csv':fields|={'image_root','image_column','id_column','image_size','channels'}
@@ -283,13 +291,14 @@ def starter_graph(manifest, estimator=None):
                   ("activation", "ReLU", {}),
                   ("logits", "Linear", {"in_features": 16, "out_features": len(classes)})]
         name = "CSV MLP 分类器"
-    elif kind == "image_folder" and len(shape) == 4 and all(type(x) is int and x > 0 for x in shape[1:]):
-        stages = [("conv", "Conv2d", {"in_channels": shape[1], "out_channels": 8, "kernel_size": 3, "stride": 2, "padding": 1}),
+    elif kind in ("image_folder", "research_csv") and len(shape) in (4, 5) and all(type(x) is int and x > 0 for x in shape[1:]):
+        dimensions = len(shape) - 2
+        stages = [("conv", f"Conv{dimensions}d", {"in_channels": shape[1], "out_channels": 8, "kernel_size": 3, "stride": 2, "padding": 1}),
                   ("activation", "ReLU", {}),
-                  ("pool", "AdaptiveAvgPool2d", {"output_size": [1, 1]}),
+                  ("pool", f"AdaptiveAvgPool{dimensions}d", {"output_size": [1] * dimensions}),
                   ("flatten", "Flatten", {"start_dim": 1, "end_dim": -1}),
                   ("logits", "Linear", {"in_features": 8, "out_features": len(classes)})]
-        name = "ImageFolder 小型 CNN"
+        name = f"{dimensions}D 小型 CNN"
     else:
         raise ValueError("Unsupported inspected dataset shape for a starter model")
     graph = {"schema_version": 1, "id": "data_regressor" if regression else "data_classifier", "name": name, "revision": 1,

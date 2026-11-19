@@ -81,3 +81,11 @@ The table-based SVC and SVR components use scikit-learn and its dependencies. Th
 | SciPy 1.15.3 | BSD 3-Clause and binary wheel third-party notices |
 | joblib 1.5.2 | BSD 3-Clause |
 | threadpoolctl 3.6.0 | BSD 3-Clause |
+
+
+## S7 科研数据适配依赖
+
+- pydicom `3.0.1` 使用 MIT 许可，见 [pydicom LICENSE](https://github.com/pydicom/pydicom/blob/v3.0.1/LICENSE)。
+- NiBabel `5.3.2` 使用 MIT 许可并包含第三方声明，见 [NiBabel COPYING](https://github.com/nipy/nibabel/blob/5.3.2/COPYING)。
+- `opencv-python-headless` `4.13.0.92` 的 Python 打包和 OpenCV/编解码器分别适用随 wheel 提供的许可证及第三方声明，见 [PyPI 发行说明](https://pypi.org/project/opencv-python-headless/4.13.0.92/)。
+- FitNets 训练流程参考 Romero 等人的 [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)。
