@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use ModelCircuit Studio, cite this repository and include the version or Git commit used."
+title: "ModelCircuit Studio · 模路"
+type: software
+authors:
+  - alias: ZZCHIHAO
+repository-code: "https://github.com/ZZCHIHAO/modelcircuit"
+license: MIT

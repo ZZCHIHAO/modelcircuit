@@ -1,10 +1,10 @@
 {
   "checked_date": "2026-11-14",
   "timezone": "Asia/Shanghai",
-  "root": "D:\\学习\\岳广辉课题组\\科研工具\\ml_forge-main",
+  "root": ".",
   "scope": "Read-only source inspection and in-memory lightweight validation; no GUI, training, dependency installation or model/data download",
   "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
-  "python_executable": "C:\\Users\\chong\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "python_executable": "%USERPROFILE%\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
   "dependencies_before_mocking": {
     "torch": false,
     "torchvision": false,
