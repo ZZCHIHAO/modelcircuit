@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前开发版本 `v0.8.0-alpha.1`。** S8 交付二维图片和三维 NIfTI 分割，覆盖配对检查、可编辑起始图、训练、Dice/IoU 评估和原始网格掩码导出。参见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md)。科研输入与 FitNets 蒸馏见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。
+**当前开发版本 `v0.9.0-alpha.1`。** S9 增加独立分割推理。打开已保存的训练记录和检查点，可对新图片或 NIfTI 体数据做整图或滑窗预测，逐层浏览和导出掩码。参见 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。分割训练见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md)，科研输入与 FitNets 见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。平台后续开发阶段按依赖通过 PR 接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
@@ -55,11 +55,11 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
-**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。S8 增加配对掩码训练及预测。检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
+**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。S8 增加配对掩码训练。S9 提供对未标注影像的预测和原始切片浏览。检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-S8 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s8/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S8`。移动时请保留整个应用目录。
+S9 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s9/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验」或「推理」面板选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S9`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 
@@ -226,7 +226,7 @@ CUDA 微型对照固定初始化种子、关闭 TF32，并启用 cuDNN determini
 | Transformer 模型扩展 | 预训练权重接入、更多模型族和序列任务 | 在保持 S5 固定长度计算图及代码往返兼容的前提下逐步扩展 |
 | 仿真与测量 | 前向、反向、参数更新的交互单步；更完整的探针与性能采集 | 在同一快照定位梯度/更新，采集预算与来源明确，结果可复现 |
 | 完整实验工程 | 数据、配置、训练/评估入口、自定义组件、依赖清单一并导出 | 在独立环境运行，并核对输出、共享关系与必要训练行为 |
-| 任务后端 | 多标签、滑窗分割、检测与更多传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
+| 任务后端 | 多标签、检测与更多传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
 | 医学领域适配 | 患者级划分、空间几何、联合变换、原始空间恢复与泄漏审计 | 数据、标注和预测空间一致；划分与评价协议可追溯 |
 | 文本与多模态 | 报告生成、LLM 推理/微调、检索增强生成 | 任务适配、事实一致性、证据来源和生成评价协议齐备 |
 | 执行与交付 | AMP / 多 GPU / 远程 worker、插件分发、干净机器验收 | 设备语义、失败恢复、资源边界和打包许可均有实际证据 |

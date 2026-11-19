@@ -92,16 +92,21 @@ def _raster(path, *, mask=False, channels=1):
         return converted.transpose(2, 0, 1) if channels == 3 else converted[None]
 
 
-def _nifti(path):
+def _nifti(path, *, source_guard=None):
     import nibabel as nib
 
     if not path.name.lower().endswith(('.nii', '.nii.gz')):
         raise ValueError('Volume pairs require .nii or .nii.gz files')
     _source_budget(path)
-    image = nib.load(path)
+    # Keep inference bytes detached from an uncompressed input that could change
+    # after the worker captures its source digest.
+    image = nib.load(path, mmap=source_guard is None)
     if not isinstance(image, (nib.Nifti1Image, nib.Nifti2Image)) or len(image.shape) != 3:
         raise ValueError('Segmentation expects a single three-dimensional NIfTI volume')
-    _voxel_budget(image.shape)
+    if source_guard is None:
+        _voxel_budget(image.shape)
+    else:
+        source_guard(tuple(image.shape[::-1]), image.get_data_dtype())
     affine = image.affine
     code = int(image.header['sform_code'] or image.header['qform_code'])
     if not code or affine is None or not np.isfinite(affine).all() or np.linalg.matrix_rank(affine[:3, :3]) != 3:
@@ -131,16 +136,46 @@ def _digest(array):
     return digest.hexdigest()
 
 
+def load_native_image(path, spec, *, source_guard=None):
+    if spec['format'] == 'nifti':
+        image, geometry = _nifti(path, source_guard=source_guard)
+        return image[None], geometry
+    image = _raster(path, channels=spec['channels'])
+    return image, {'source_shape_hw': list(image.shape[1:])}
+
+
+def float_image(image):
+    image = np.ascontiguousarray(image, dtype='<f4')
+    if not np.isfinite(image).all():
+        raise ValueError('Image contains non-finite or out-of-range values')
+    return image
+
+
+def normalize_image(image, spec):
+    if spec['format'] == 'image' and float(image.min()) >= 0 and float(image.max()) <= 255:
+        return image / np.float32(255)
+    return _normalise(image, None, None)[0]
+
+
+def resize_image(image, target, cancelled=None):
+    # Resize only spatial axes, using the same voxel-centre convention as labels.
+    if len(target) == 2:
+        resized = np.stack([_resize_volume(channel[None], (1, *target), cancelled)[0] for channel in image])
+    else:
+        resized = _resize_volume(image[0], target, cancelled)[None]
+    return np.ascontiguousarray(resized, dtype=np.float32)
+
+
 def _load_pair(image_path, mask_path, spec, cancelled):
     _cancel(cancelled)
+    image, geometry = load_native_image(image_path, spec)
     if spec['format'] == 'nifti':
-        image, geometry = _nifti(image_path)
         mask, mask_geometry = _nifti(mask_path)
-        if image.shape != mask.shape:
+        if image.shape[1:] != mask.shape:
             raise ValueError('Image/mask grid shape differs')
         affine = np.array(geometry['affine_xyz'])
         mask_affine = np.array(mask_geometry['affine_xyz'])
-        corners = np.array([(*corner, 1) for corner in product(*[(0, max(1, n - 1)) for n in image.shape[::-1]])])
+        corners = np.array([(*corner, 1) for corner in product(*[(0, max(1, n - 1)) for n in mask.shape[::-1]])])
         unit = geometry['spatial_unit']
         tolerance = {'meter': 1e-6, 'micron': 1.}.get(unit, 1e-3)
         difference = (mask_affine - affine)[:3, :]
@@ -150,39 +185,25 @@ def _load_pair(image_path, mask_path, spec, cancelled):
         if (mask_geometry['spatial_unit'] != unit or np.any(np.abs(deltas) > tolerance)
                 or np.any(np.abs(voxel_deltas) > 1e-3)):
             raise ValueError('Image/mask affine or spatial units differ. Align the mask to the original image grid before import.')
-        image = image[None]
         target = (spec['depth'], *spec['image_size'])
-        scaled_raster = False
     else:
-        image, mask = _raster(image_path, channels=spec['channels']), _raster(mask_path, mask=True)
+        mask = _raster(mask_path, mask=True)
         if image.shape[1:] != mask.shape:
             raise ValueError('Image/mask grid shape differs')
-        geometry = {'source_shape_hw': list(mask.shape)}
         target = tuple(spec['image_size'])
-        scaled_raster = float(image.min()) >= 0 and float(image.max()) <= 255
     _cancel(cancelled)
     if not np.isfinite(mask).all() or (mask.dtype.kind == 'f' and not np.equal(mask, np.floor(mask)).all()):
         raise ValueError('Mask must contain finite integer label values')
     values = np.array(spec['mask_values'])
     if not np.isin(np.unique(mask), values).all():
         raise ValueError('Mask contains undeclared labels. Set the mask values to match the source.')
-    image = np.ascontiguousarray(image, dtype='<f4')
-    if not np.isfinite(image).all():
-        raise ValueError('Image contains non-finite or out-of-range values')
+    image = float_image(image)
     image_digest = _digest(image)
     mask = np.ascontiguousarray(mask, dtype='<u2')
     mask_digest = _digest(mask)
     label = np.searchsorted(values, resize_labels(mask, target)).astype(np.int64)
-    if scaled_raster:
-        image /= 255.0
-    else:
-        image, _ = _normalise(image, None, None)
-    # Resize only spatial axes, using the same voxel-centre convention as the labels.
-    if len(target) == 2:
-        image = np.stack([_resize_volume(channel[None], (1, *target), cancelled)[0] for channel in image])
-    else:
-        image = _resize_volume(image[0], target, cancelled)[None]
-    return np.ascontiguousarray(image, dtype=np.float32), label, geometry, image_digest, mask_digest
+    image = resize_image(normalize_image(image, spec), target, cancelled)
+    return image, label, geometry, image_digest, mask_digest
 
 
 def _assign_groups(records, spec, seed):
