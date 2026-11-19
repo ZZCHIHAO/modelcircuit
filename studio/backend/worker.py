@@ -13,7 +13,16 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
         options = {"progress": lambda event: messages.put({"type": "progress", **event}),
                    "cancelled": stop.is_set}
         from studio_core.classical_task import contains_classical
-        if contains_classical(graph):
+        from studio_core.inference_spec import PROFILE as INFERENCE_PROFILE
+        if config.get('profile') == INFERENCE_PROFILE:
+            if artifact_directory is None:
+                raise ValueError('Segmentation inference requires a managed artifact directory')
+            import torch
+            from studio_core.segmentation_inference import run_segmentation_inference
+            torch.set_num_threads(1)
+            messages.put({'type': 'status', 'status': 'running'})
+            result = run_segmentation_inference(config, artifact_directory, defer_report=True, **options)
+        elif contains_classical(graph):
             if artifact_directory is None:
                 raise ValueError("Classical worker requires a managed artifact directory")
             from studio_core.classical_task import run_classical

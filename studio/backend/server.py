@@ -22,6 +22,7 @@ from studio_core.python_io import export_python, import_python, python_profile
 from studio_core.schema import validate_graph
 from studio_core.tensor_specs import require_executable_profile
 from studio_core.experiment_spec import SUPERVISED_PROFILES, validate_supervised_config
+from studio_core.inference_spec import PENDING_REPORT, PROFILE as INFERENCE_PROFILE, REPORT_NAME
 from worker import experiment_worker
 
 TERMINAL = {"succeeded", "failed", "cancelled"}
@@ -120,6 +121,15 @@ class RunManager:
             lr = config.get("lr", 0.05)
             if type(lr) not in (int, float) or not 0.001 <= lr <= 1:
                 raise ValueError("lr must be between 0.001 and 1")
+        return self._start_worker(graph, config, managed=supervised, classical=classical)
+
+    def submit_segmentation_inference(self, config):
+        from studio_core.inference_spec import validate_inference_config
+        config = validate_inference_config(config)
+        _wire_json(config, MAX_BODY, 'Inference settings')
+        return self._start_worker(None, config, managed=True, classical=False)
+
+    def _start_worker(self, graph, config, *, managed, classical):
         with self.lock:
             if self.closed:
                 raise ValueError("Coordinator is shutting down")
@@ -139,17 +149,17 @@ class RunManager:
                     self.runs.pop(old_id)
             run_id = uuid.uuid4().hex
             messages, stop = self.context.Queue(), self.context.Event()
-            record = {"run_id": run_id, "status": "queued", "revision": graph.get("revision", 1),
+            record = {"run_id": run_id, "status": "queued", "revision": graph.get("revision", 1) if graph is not None else None,
                       "created_at": datetime.now(timezone.utc).isoformat(),
-                      "profile": config["profile"] if supervised else "s1-pytorch-v1",
+                      "profile": config["profile"] if managed else "s1-pytorch-v1",
                       **({"execution": "classical"} if classical else {}),
-                      "progress": {"step": 0, "total": 0 if supervised else config.get("steps", 20), "loss": None},
+                      "progress": {"step": 0, "total": 0 if managed else config.get("steps", 20), "loss": None},
                       "result": None, "error": None, "events": [],
                       "graph": copy.deepcopy(graph), "config": copy.deepcopy(config),
                       "_queue": messages, "_stop": stop, "_seq": 0, "_cancel_at": None,
                       "_started": time.monotonic(),
-                      "_time_limit": config["max_runtime_seconds"] if supervised else self.timeout}
-            worker_options = {"artifact_directory": str(self.directory / run_id)} if supervised else {}
+                      "_time_limit": config["max_runtime_seconds"] if managed else self.timeout}
+            worker_options = {"artifact_directory": str(self.directory / run_id)} if managed else {}
             process = self.context.Process(target=self.worker_target,
                                            args=(record["graph"], record["config"], messages, stop),
                                            kwargs=worker_options,
@@ -208,6 +218,16 @@ class RunManager:
         elif kind == "cancelled":
             record["_worker_cancelled"] = True
 
+    def _finish_inference_report(self, record):
+        if record['profile'] != INFERENCE_PROFILE:
+            return
+        directory = self.directory / record['run_id']
+        if record['status'] == 'succeeded':
+            (directory / PENDING_REPORT).replace(directory / REPORT_NAME)
+        else:
+            (directory / PENDING_REPORT).unlink(missing_ok=True)
+            (directory / REPORT_NAME).unlink(missing_ok=True)
+
     def _monitor(self, record):
         process, messages = record["_process"], record["_queue"]
         try:
@@ -244,6 +264,7 @@ class RunManager:
                             record["status"] = "failed"
                             record["error"] = "Worker exited without a result (exit code " + str(process.exitcode) + ")"
                         record["exit_code"] = process.exitcode
+                        self._finish_inference_report(record)
                         self._event(record, "status", status=record["status"], error=record["error"])
                         self._save(record)
                     break
@@ -257,6 +278,7 @@ class RunManager:
                 record.pop("_pending_result", None)
                 self._event(record, "error", message=record["error"])
                 try:
+                    self._finish_inference_report(record)
                     self._save(record)
                 except (OSError, ValueError, TypeError) as persistence_error:
                     record["persistence_error"] = str(persistence_error)
