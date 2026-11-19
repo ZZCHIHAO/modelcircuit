@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前开发版本 `v0.9.0-alpha.1`。** S9 增加独立分割推理。打开已保存的训练记录和检查点，可对新图片或 NIfTI 体数据做整图或滑窗预测，逐层浏览和导出掩码。参见 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。分割训练见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md)，科研输入与 FitNets 见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。
+**当前开发版本 `v0.9.1-alpha.1`。** S10 新增可迁移的科研工程，ImageFolder 分类和配对影像分割可导出为独立 Python 工程。支持数据重绑、模型代码回写、训练与推理复跑和运行记录对比。参见 [S10 工程指南](studio/native/S10_PROJECT_GUIDE.md)。分割训练和独立滑窗推理见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md) 与 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。平台后续开发阶段按依赖通过 PR 接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
@@ -52,14 +52,14 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 训练与结果 | SGD / AdamW、训练/验证/测试、按验证损失选优、checkpoint、续训；checkpoint 可独立加载推理（代码接口） | 当前分类协议；尚无专门推理面板；CPU 续训有具体证据，不承诺所有设备位级复现 |
 | 设备与容量 | CPU 或显式选择单张 `cuda:N`；执行前内存/显存检查 | float32；无多 GPU、AMP、量化或远程执行；预估不能保证避免 OOM |
 | 探针 | 有限预算的张量/输出预览、梯度与参数变化摘要、来源和调用路径定位 | 不是交互式前向/反向/更新单步调试器；未采集数据明确标示 |
-| 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
+| 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | ImageFolder 分类及配对分割可导出完整实验工程。模型代码回写覆盖受支持的语法 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
 **S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。S8 增加配对掩码训练。S9 提供对未标注影像的预测和原始切片浏览。检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-S9 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s9/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验」或「推理」面板选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S9`。移动时请保留整个应用目录。
+S10 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s10/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验」「推理」或「工程」页选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S10`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 

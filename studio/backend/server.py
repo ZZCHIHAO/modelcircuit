@@ -129,6 +129,12 @@ class RunManager:
         _wire_json(config, MAX_BODY, 'Inference settings')
         return self._start_worker(None, config, managed=True, classical=False)
 
+    def submit_project(self, config):
+        from studio_core.project_runner import validate_project_job
+        config = validate_project_job(config)
+        _wire_json(config, MAX_BODY, 'Project job settings')
+        return self._start_worker(None, config, managed=True, classical=False)
+
     def _start_worker(self, graph, config, *, managed, classical):
         with self.lock:
             if self.closed:
@@ -218,7 +224,11 @@ class RunManager:
         elif kind == "cancelled":
             record["_worker_cancelled"] = True
 
-    def _finish_inference_report(self, record):
+    def _finish_managed_report(self, record):
+        from studio_core.project_runner import PROFILE as PROJECT_PROFILE, finalize_project_report
+        if record['profile'] == PROJECT_PROFILE:
+            finalize_project_report(self.directory / record['run_id'], record)
+            return
         if record['profile'] != INFERENCE_PROFILE:
             return
         directory = self.directory / record['run_id']
@@ -264,7 +274,7 @@ class RunManager:
                             record["status"] = "failed"
                             record["error"] = "Worker exited without a result (exit code " + str(process.exitcode) + ")"
                         record["exit_code"] = process.exitcode
-                        self._finish_inference_report(record)
+                        self._finish_managed_report(record)
                         self._event(record, "status", status=record["status"], error=record["error"])
                         self._save(record)
                     break
@@ -278,7 +288,7 @@ class RunManager:
                 record.pop("_pending_result", None)
                 self._event(record, "error", message=record["error"])
                 try:
-                    self._finish_inference_report(record)
+                    self._finish_managed_report(record)
                     self._save(record)
                 except (OSError, ValueError, TypeError) as persistence_error:
                     record["persistence_error"] = str(persistence_error)

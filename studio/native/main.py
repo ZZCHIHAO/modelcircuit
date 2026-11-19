@@ -90,10 +90,11 @@ def main(argv=None):
     parser.add_argument("--s7-render-check", type=Path, help="Verify grouped 3D data and the native FitNets workflow")
     parser.add_argument('--s8-render-check', type=Path, help='Verify native 2D/3D segmentation, prediction preview and export')
     parser.add_argument('--s9-render-check', type=Path, help='Verify standalone segmentation inference through native controls')
+    parser.add_argument('--s10-render-check', type=Path, help='Verify research projects through native controls')
     args = parser.parse_args(argv)
     diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
                    args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check, args.s7_render_check,
-                   args.s8_render_check, args.s9_render_check]
+                   args.s8_render_check, args.s9_render_check, args.s10_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -144,6 +145,9 @@ def main(argv=None):
         elif args.s9_render_check:
             from .s9_acceptance import check_s9
             report = check_s9(manager, paths['data'], resource_root(), args.s9_render_check.parent, args.check_device)
+        elif args.s10_render_check:
+            from .s10_acceptance import check_s10
+            report = check_s10(manager, paths['data'], resource_root(), args.s10_render_check.parent, args.check_device)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench
