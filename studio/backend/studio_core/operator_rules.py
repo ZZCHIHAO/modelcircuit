@@ -76,9 +76,9 @@ def _parameter_count(kind, params):
     """Count an instance even when it has no calls; buffers are excluded."""
     if kind == "Linear":
         return params["in_features"] * params["out_features"] + params["out_features"]
-    if kind == "Conv2d":
+    if kind in ("Conv2d", "Conv3d"):
         kernel = params["kernel_size"]
-        kernel = kernel if isinstance(kernel, list) else [kernel, kernel]
+        kernel = kernel if isinstance(kernel, list) else [kernel] * (3 if kind == "Conv3d" else 2)
         count = params["out_channels"] * (params["in_channels"] // params["groups"]) * math.prod(kernel)
         return count + (params["out_channels"] if params["bias"] else 0)
     if kind == "LayerNorm":

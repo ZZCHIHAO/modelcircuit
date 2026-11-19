@@ -53,7 +53,7 @@ def estimate_memory(resolved, *, batch_size=None, minimum_batch_size=None, train
             if kind == 'Linear':
                 bias = params['out_features'] * 4 if params.get('bias', True) or not typed else 0
                 tensor_sizes = [size - bias] + ([bias] if bias else [])
-            elif kind == 'Conv2d':
+            elif kind in ('Conv2d', 'Conv3d'):
                 bias = params['out_channels'] * 4 if params['bias'] else 0
                 tensor_sizes = [size - bias] + ([bias] if bias else [])
             elif kind in ('LayerNorm', 'BatchNorm2d') and count: tensor_sizes = [size // 2, size // 2]

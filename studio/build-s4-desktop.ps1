@@ -1,17 +1,17 @@
-param([ValidateSet('CPU','CUDA','Unified')][string]$Runtime='CPU', [ValidateSet('S4','S6')][string]$Stage='S4')
+param([ValidateSet('CPU','CUDA','Unified')][string]$Runtime='CPU', [ValidateSet('S4','S6','S7')][string]$Stage='S4')
 $ErrorActionPreference = 'Stop'
-if ($Stage -eq 'S6' -and -not $PSBoundParameters.ContainsKey('Runtime')) {
+if ($Stage -in ('S6','S7') -and -not $PSBoundParameters.ContainsKey('Runtime')) {
     $Runtime = 'Unified'
 }
-if (($Stage -eq 'S6') -ne ($Runtime -eq 'Unified')) {
-    throw 'Use -Stage S6 for the unified desktop package. CPU and CUDA build variants are only available for the historical S4 stage.'
+if (($Stage -in ('S6','S7')) -ne ($Runtime -eq 'Unified')) {
+    throw 'Use -Stage S7 for the unified desktop package. CPU and CUDA build variants are only available for the historical S4 stage.'
 }
 $studioPath = $PSScriptRoot
 $repositoryPath = Split-Path -Parent $studioPath
 $environmentName = if ($Runtime -in ('CUDA','Unified')) { '.venv-cuda' } else { '.venv' }
 $desktopPython = Join-Path $studioPath ($environmentName + '\Scripts\python.exe')
 if (-not (Test-Path -LiteralPath $desktopPython)) { throw 'Prepare the selected environment before building. This script does not install dependencies.' }
-$targetName = if ($Runtime -eq 'Unified') { 's6' } else { 's4-' + $Runtime.ToLowerInvariant() }
+$targetName = if ($Runtime -eq 'Unified') { $Stage.ToLowerInvariant() } else { 's4-' + $Runtime.ToLowerInvariant() }
 $distributionPath = Join-Path $studioPath ('dist\' + $targetName)
 $buildPath = Join-Path $studioPath ('build\' + $targetName)
 $buildManifestPath = Join-Path $buildPath 'release-build.json'

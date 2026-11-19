@@ -4,9 +4,13 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前版本 `v0.6.0-alpha.2` · S6 统一桌面版。** 支持从 CSV 检查、可视化建模、CPU 或单张 CUDA GPU 训练，到测试评估和续训。传统机器学习模型库内置 CPU 版支持向量分类和回归。S5 的 Attention、Transformer Encoder、小型 ViT 和注意力热图已纳入该桌面版本。完整产品验收后使用 `v1.0.0`。参见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)、[S5 使用指南](studio/native/S5_TRANSFORMER_GUIDE.md)、[更新记录](CHANGELOG.md)。
+**当前开发版本 `v0.7.0-alpha.1`。** S7 增加高位深灰度、DICOM、NIfTI 和视频分类输入，以及 FitNets 两阶段蒸馏。使用方法见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。S6 数值回归、SVM 与可视化编辑能力继续保留。
 
-本仓库目前为个人私有仓库，仅所有者访问，未添加协作者。新产品名为 ModelCircuit Studio；源码中的 `MLForgeStudio`、`studio/`、启动脚本及历史验收名称暂时保留，以便核对已有工程和测试。根目录的上游包版本 `1.0.4` **不代表本产品的发行版本**。
+本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。S6 统一桌面版 `v0.6.0-alpha.2` 在[第 5 号 PR](https://github.com/ZZCHIHAO/modelcircuit/pull/5)及其依赖分支中接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
+
+> **非商业用途声明**
+>
+> 本项目面向非商业科研、教学与个人学习。维护者倡议将本项目用于上述场景，避免用于商业产品、收费服务、付费部署或营利性生产。源码及第三方材料的使用权以各自许可证为准。[MIT License](LICENSE) 允许依其条款进行商业使用。详见[用途与许可说明](THIRD_PARTY_NOTICES.md#科研引用与使用范围)。
 
 ![S4 原生桌面工作台：组件库、具名端口、层级画布与实验面板](docs/images/native-s4-models-workspace.png)
 
@@ -51,11 +55,11 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
-**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** 分割、检测、3D、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
+**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。分割、检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-S6 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s6/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或当前可用的一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S6`。移动时请保留完整应用目录。详见 [S6 使用指南](studio/native/S6_REGRESSION_GUIDE.md)。
+S7 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s7/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S7`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 
@@ -90,7 +94,7 @@ S6 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开
 - CUDA 为可选项，需要兼容的 NVIDIA 显卡、驱动及 CUDA 版 PyTorch；CPU 版 PyTorch 无法使用 GPU。
 - 原生桌面主入口不需要 Node.js、浏览器或本地 HTTP 服务。中文显示使用本机 Windows 字体，不随仓库分发系统字体。
 
-以下命令供使用者在自己的环境中执行；克隆私库前需已获得访问权限。先在准备存放项目的父目录克隆并进入 `modelcircuit`，之后的环境与启动命令均在仓库根目录的 PowerShell 中运行：
+在 PowerShell 中克隆公开仓库并进入 `modelcircuit`，再在项目根目录配置环境和运行源码。
 
 ```powershell
 git clone https://github.com/ZZCHIHAO/modelcircuit.git
@@ -211,7 +215,7 @@ CUDA 微型对照固定初始化种子、关闭 TF32，并启用 cuDNN determini
 
 本地回归命令及提交验证要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。对功能改动应核对相应的结构、输出、梯度、共享和恢复行为，不能以截图或通过数量代替正确性判断。
 
-本轮文档、许可证保留、源码哈希及上传候选检查见 [2026-11-18 私库上传整理记录](docs/评审附件/2026-11-18-私库上传整理记录.json)。该记录描述上传前检查，不将其当作新的训练验收或远端上传成功证明。
+2026-11-18 的[源码整理记录](docs/评审附件/2026-11-18-私库上传整理记录.json)保存了当时的许可证核对和源码哈希。
 
 ## 开发路线
 
@@ -233,10 +237,10 @@ CUDA 微型对照固定初始化种子、关闭 TF32，并启用 cuDNN determini
 
 本项目直接基于 **[zaina-ml/ml_forge](https://github.com/zaina-ml/ml_forge)** 开发，感谢原作者提供可视化 PyTorch 编辑器、桌面实现、模板及配套资源。上游本地版本线索来自保留的 `pyproject.toml` 与 README，为 `1.0.4`。Studio 新增独立图核心、层级芯片、静态 Python 桥、真实数据实验协调与当前原生工作区；项目更名不改变来源和版权归属。
 
-根目录 [LICENSE](LICENSE) 保留上游 MIT License 及原版权声明 **`Copyright (c) 2026 zaina-ml`**。项目新增及修改的源码和文档同样按 MIT 提供，另有明确许可的第三方内容适用其各自许可。MIT 许可与私库访问控制是不同层面的安排。
+根目录 [LICENSE](LICENSE) 保留上游 MIT License 及原版权声明 **`Copyright (c) 2026 zaina-ml`**。项目新增及修改的源码和文档同样按 MIT 提供，另有明确许可的第三方内容适用其各自许可。复制或分发项目的全部或实质部分时，请保留原版权声明和 MIT 授权文本。
 
 模型拓扑参考 PyTorch / Torchvision 官方实现。交互理念受到 **NI Multisim、Altium Designer、AMD Vivado** 的元件目录、层级设计和测量方式启发；这些商业产品不属于本仓库，不表示厂商授权或背书，其素材也不会因概念借鉴自动适用 MIT。完整来源、版本和依赖许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-当前不邀请协作者。未来若需要“可阅读、可提交 PR、不能直接改主仓库”的权限组合，将另行评估组织仓库角色及私有 fork 策略；个人私库的协作者具有写权限，不能把邀请等同于只读分享。贡献流程及内容要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+贡献者通过 fork 提交 Pull Request，由仓库维护者审查和合并。科研成果请注明实际使用的版本或提交号。参见[贡献指南](CONTRIBUTING.md)和[软件引用](CITATION.cff)。
 
 本仓库不附带研究数据、模型权重、运行 checkpoint、访问令牌或本地虚拟环境。医学影像是长期重点应用场景，当前软件不应作为临床诊断系统使用。

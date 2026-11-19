@@ -8,7 +8,7 @@ import json
 
 import dearpygui.dearpygui as dpg
 
-from studio_core.experiment_spec import SUPERVISED_PROFILES
+from studio_core.experiment_spec import FITNETS_DEFAULTS, SUPERVISED_PROFILES
 
 from .experiment_panel import (BackgroundQueries, csv_columns, device_choices,
                                device_summary, manifest_summary)
@@ -19,7 +19,7 @@ MUTED = (145, 154, 164)
 BLUE = (100, 200, 255)
 AMBER = (235, 190, 110)
 RED = (240, 143, 134)
-MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv"}
+MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv"}
 
 
 class ExperimentControls:
@@ -32,6 +32,7 @@ class ExperimentControls:
         self.capabilities = None
         self.available_devices = ["cpu"]
         self.pending_starter = None
+        self.pending_teacher = False
         self.csv_header = []
         self._s1_experiment = synthetic_config()
         self._real_experiments = {}
@@ -78,6 +79,11 @@ class ExperimentControls:
             dpg.add_button(label="从数据创建起始模型…", tag="native_starter", width=-1, callback=self.guarded(self._request_starter))
             dpg.add_button(label="创建支持向量机起始图…", tag="native_svm_starter", show=False, width=-1,
                            callback=self.guarded(self._request_svm_starter))
+            with dpg.group(tag="native_fitnet_templates", show=False):
+                dpg.add_button(label="创建教师起始图…", tag="native_teacher_starter", width=-1,
+                               callback=self.guarded(lambda **_: self._request_starter(teacher=True)))
+                dpg.add_button(label="创建 FitNets 双分支图…", tag="native_fitnets_starter", width=-1,
+                               callback=self.guarded(lambda **_: self._request_starter(fitnets=True)))
             dpg.add_text("", tag="native_data_compatibility", color=AMBER, wrap=265)
             with dpg.group(horizontal=True):
                 dpg.add_combo(label="设备", tag="native_device", items=["cpu"], default_value="cpu", width=140, callback=self.guarded(self._experiment_changed))
@@ -113,6 +119,17 @@ class ExperimentControls:
                     dpg.add_combo(label="图片路径列", tag="native_paired_image_column", items=[], default_value="image_path", width=215, callback=self.guarded(self._csv_selection_changed))
                     dpg.add_combo(label="样本 ID 列", tag="native_paired_id_column", items=[], default_value="sample_id", width=215, callback=self.guarded(self._csv_selection_changed))
                 dpg.add_text("配对数据必须选择分组列；同一行的图片与数值特征始终共同划分和加载。", color=MUTED, wrap=745)
+            with dpg.group(tag="native_research_settings", show=False):
+                dpg.add_input_text(label="样本根目录（默认 CSV 所在目录）", tag="native_research_root", width=440)
+                with dpg.group(horizontal=True):
+                    dpg.add_combo(items=["image", "gray16", "dicom", "nifti", "video"], label="格式", tag="native_research_format", width=135, callback=self.guarded(self._research_format_changed))
+                    dpg.add_combo(items=["auto", "OCT", "CT", "MR"], label="模态", tag="native_research_modality", width=120)
+                    dpg.add_input_int(label="深度 / 帧数", tag="native_research_depth", default_value=1, min_value=1, max_value=128, min_clamped=True, max_clamped=True, width=115)
+                with dpg.group(horizontal=True):
+                    dpg.add_input_text(label="强度下限", tag="native_research_min", width=95)
+                    dpg.add_input_text(label="强度上限", tag="native_research_max", width=95)
+                dpg.add_input_text(label="样本 ID / 分组 / 路径 / 标签 / 划分列", tag="native_research_columns", width=350)
+                dpg.add_text("CSV 列名按顺序填写。路径相对样本根目录，分组必填。末尾划分列可省略。", color=MUTED)
             with dpg.group(tag="native_image_settings", show=False):
                 with dpg.group(tag="native_image_directory_settings"):
                     dpg.add_combo(label="目录拆分", tag="native_image_split", items=["stratified", "directories"], default_value="stratified", width=230, callback=self.guarded(self._experiment_changed))
@@ -131,6 +148,13 @@ class ExperimentControls:
                 dpg.add_input_text(label="表格输入端口", tag="native_tabular_port", default_value="clinical", width=170, on_enter=True, callback=self.guarded(self._experiment_changed))
             dpg.add_input_int(label="最长运行秒数", tag="native_max_runtime", default_value=3600, min_value=10, max_value=604800, min_clamped=True, max_clamped=True, width=180, callback=self.guarded(self._experiment_changed))
             dpg.add_input_text(label="继续训练 checkpoint（可选 .pt）", tag="native_resume_checkpoint", width=470, on_enter=True, callback=self.guarded(self._experiment_changed))
+            with dpg.group(tag="native_fitnet_options", show=False):
+                dpg.add_checkbox(label="启用 FitNets 两阶段训练", tag="native_fitnets_enabled", callback=self.guarded(self._experiment_changed))
+                dpg.add_input_text(label="教师 checkpoint", tag="native_teacher_checkpoint", width=460)
+                with dpg.group(horizontal=True):
+                    dpg.add_input_int(label="提示轮数", tag="native_hint_epochs", default_value=1, min_value=1, max_value=1000, min_clamped=True, max_clamped=True, width=80)
+                    dpg.add_input_float(label="温度", tag="native_distill_temperature", default_value=4.0, width=115)
+                    dpg.add_input_float(label="蒸馏权重", tag="native_distill_weight", default_value=.5, width=115)
             dpg.add_text("", tag="native_data_details", color=MUTED, wrap=745)
             dpg.add_text("", tag="native_data_error", color=RED, wrap=745)
             with dpg.group(horizontal=True):
@@ -164,7 +188,16 @@ class ExperimentControls:
                       "native_input_port": config.get("input_port", "x"), "native_max_runtime": config.get("max_runtime_seconds", 3600), "native_resume_checkpoint": config.get("resume_checkpoint") or ""}
             if self.experiment_mode in ("csv", "paired_csv", "regression_csv"):
                 values.update({"native_csv_target": data.get("target_column") or "", "native_csv_group": data.get("group_column") or "无", "native_csv_split": data.get("split_column") or "无", "native_csv_features": json.dumps(data.get("feature_columns") or [], ensure_ascii=False), "native_standardize": data.get("standardize", True)})
-            if self.experiment_mode in ("image_folder", "paired_csv"):
+            if self.experiment_mode == 'research_csv':
+                values.update(native_research_root=data['source_root'], native_research_format=data['format'],
+                              native_research_modality=data['modality'], native_research_depth=data['depth'],
+                              native_research_min='' if data['intensity_min'] is None else str(data['intensity_min']),
+                              native_research_max='' if data['intensity_max'] is None else str(data['intensity_max']),
+                              native_research_columns=','.join(data[k] or '' for k in ('id_column','group_column','path_column','target_column','split_column')))
+            fit = {**FITNETS_DEFAULTS, **config.get('fitnets', {})}
+            values.update(native_fitnets_enabled=config['profile']=='fitnets-v1', native_teacher_checkpoint=fit['teacher_checkpoint'],
+                          native_hint_epochs=fit['hint_epochs'], native_distill_temperature=fit['temperature'], native_distill_weight=fit['distill_weight'])
+            if self.experiment_mode in ("image_folder", "paired_csv", "research_csv"):
                 values.update({"native_image_split": data.get("split_mode", "stratified"), "native_image_height": data.get("image_size", [32, 32])[0], "native_image_width": data.get("image_size", [32, 32])[1], "native_image_channels": str(data.get("channels", 3))})
             if self.experiment_mode == "paired_csv":
                 ports = config.get("input_ports") or {"image": "image", "tabular": "clinical"}
@@ -174,12 +207,28 @@ class ExperimentControls:
         dpg.configure_item("native_csv_settings", show=self.experiment_mode in ("csv", "paired_csv", "regression_csv"))
         dpg.configure_item("native_csv_target", label="连续目标列" if self.experiment_mode == "regression_csv" else "标签列")
         dpg.configure_item("native_csv_group", label="分组列（必选）" if self.experiment_mode == "paired_csv" else "分组列（可选）")
-        dpg.configure_item("native_image_settings", show=self.experiment_mode in ("image_folder", "paired_csv"))
+        dpg.configure_item("native_image_settings", show=self.experiment_mode in ("image_folder", "paired_csv", "research_csv"))
+        dpg.configure_item('native_research_settings', show=self.experiment_mode == 'research_csv')
+        dpg.configure_item('native_fitnet_options', show=self.experiment_mode in ('csv','image_folder','research_csv'))
         dpg.configure_item("native_image_directory_settings", show=self.experiment_mode == "image_folder")
         dpg.configure_item("native_paired_settings", show=self.experiment_mode == "paired_csv")
         dpg.configure_item("native_paired_ports", show=self.experiment_mode == "paired_csv")
         dpg.configure_item("native_input_port", show=self.experiment_mode != "paired_csv")
         self._render_experiment_summary()
+
+    def _research_format_changed(self, app_data=None, **_):
+        if app_data in ('image','gray16'):
+            dpg.set_value('native_research_depth',1)
+        elif dpg.get_value('native_research_depth') == 1:
+            dpg.set_value('native_research_depth',16)
+        if app_data != 'video':
+            dpg.set_value('native_image_channels','1')
+        if app_data in ('image','video'):
+            dpg.set_value('native_research_min','')
+            dpg.set_value('native_research_max','')
+        if app_data != 'dicom':
+            dpg.set_value('native_research_modality','auto')
+        self._experiment_changed()
 
     def _configuration(self):
         if not self._widgets_available():
@@ -191,6 +240,16 @@ class ExperimentControls:
             return {**common, "steps": dpg.get_value("native_steps")}
         config = deepcopy(self.experiment)
         config.update(common)
+        use_fitnets = self.experiment_mode in ('csv','image_folder','research_csv') and dpg.get_value('native_fitnets_enabled')
+        if use_fitnets:
+            config.update(profile='fitnets-v1', fitnets={
+                'teacher_checkpoint':dpg.get_value('native_teacher_checkpoint').strip(),
+                'hint_epochs':dpg.get_value('native_hint_epochs'),
+                'temperature':float(format(dpg.get_value('native_distill_temperature'),'.7g')),
+                'distill_weight':float(format(dpg.get_value('native_distill_weight'),'.7g'))})
+        elif config.get('profile') == 'fitnets-v1':
+            config['profile'] = 'classification-v2'
+            config.pop('fitnets',None)
         config.update({"epochs": dpg.get_value("native_epochs"), "optimizer": dpg.get_value("native_optimizer"), "device": dpg.get_value("native_device"), "input_port": "x" if self.experiment_mode == "paired_csv" else dpg.get_value("native_input_port"), "max_runtime_seconds": dpg.get_value("native_max_runtime"), "resume_checkpoint": dpg.get_value("native_resume_checkpoint").strip() or None})
         if self.experiment_mode == "paired_csv":
             config["input_ports"] = {"image": dpg.get_value("native_image_port"), "tabular": dpg.get_value("native_tabular_port")}
@@ -205,6 +264,20 @@ class ExperimentControls:
                          "split_column": None if dpg.get_value("native_csv_split") == "无" else dpg.get_value("native_csv_split"), "standardize": dpg.get_value("native_standardize")})
         if self.experiment_mode == "image_folder":
             data.update({"split_mode": dpg.get_value("native_image_split"), "image_size": [dpg.get_value("native_image_height"), dpg.get_value("native_image_width")], "channels": int(dpg.get_value("native_image_channels"))})
+        elif self.experiment_mode == 'research_csv':
+            data.update(format=dpg.get_value('native_research_format'), source_root=dpg.get_value('native_research_root').strip(),
+                        modality=dpg.get_value('native_research_modality'), depth=dpg.get_value('native_research_depth'),
+                        image_size=[dpg.get_value('native_image_height'),dpg.get_value('native_image_width')],
+                        channels=int(dpg.get_value('native_image_channels')))
+            names=[name.strip() for name in dpg.get_value('native_research_columns').split(',')]
+            for index, key in enumerate(('id_column','group_column','path_column','target_column','split_column')):
+                data[key] = (names[index] if index < len(names) else '') or (None if key=='split_column' else '')
+            for tag,key in (('native_research_min','intensity_min'),('native_research_max','intensity_max')):
+                raw=dpg.get_value(tag).strip()
+                try:
+                    data[key] = float(raw) if raw else None
+                except ValueError:
+                    data[key] = raw  # preserve an invalid draft for the validation error
         elif self.experiment_mode == "paired_csv":
             data.update({"image_root": dpg.get_value("native_paired_image_root").strip(), "image_column": dpg.get_value("native_paired_image_column"), "id_column": dpg.get_value("native_paired_id_column"), "image_size": [dpg.get_value("native_image_height"), dpg.get_value("native_image_width")], "channels": int(dpg.get_value("native_image_channels"))})
         config["data"] = data
@@ -290,8 +363,13 @@ class ExperimentControls:
         if self.experiment_mode == "synthetic_s1":
             raise ValueError("请选择 CSV 回归、CSV 分类或影像分类任务。")
         from studio_core.experiment_spec import validate_supervised_config
-        config = validate_supervised_config(self._configuration())
-        self.experiment = config
+        editable = self._configuration()
+        inspect_config = editable
+        if editable.get('profile') == 'fitnets-v1':
+            inspect_config = {key:value for key,value in editable.items() if key != 'fitnets'}
+            inspect_config['profile'] = 'classification-v2'
+        config = validate_supervised_config(inspect_config)
+        self.experiment = editable
         self.manifest = None; self.inspection_key = None; self.inspecting = True
         self.inspect_request_key = data_identity(config)
         data, seed = deepcopy(config["data"]), config["seed"]
@@ -373,6 +451,10 @@ class ExperimentControls:
         dpg.configure_item("native_inspect", enabled=not self.inspecting)
         dpg.configure_item("native_data_inspect", enabled=not self.inspecting)
         dpg.configure_item("native_starter", enabled=bool(manifest))
+        fit_templates = self.experiment_mode in ('csv','image_folder','research_csv')
+        dpg.configure_item('native_fitnet_templates', show=fit_templates)
+        for tag in ('native_teacher_starter','native_fitnets_starter'):
+            dpg.configure_item(tag, enabled=bool(manifest) and fit_templates)
         svm_available = self.experiment_mode in ('csv', 'regression_csv')
         svm = 'SVR' if self.experiment_mode == 'regression_csv' else 'SVC'
         dpg.configure_item('native_svm_starter', show=svm_available, enabled=bool(manifest), label=f'创建 {svm} 起始图…')
@@ -432,12 +514,17 @@ class ExperimentControls:
         estimator = 'SVR' if self.experiment_mode == 'regression_csv' else 'SVC'
         self._request_starter(estimator=estimator)
 
-    def _request_starter(self, estimator=None, **_):
+    def _request_starter(self, estimator=None, teacher=False, fitnets=False, **_):
         self._bind_modal('native_starter_replace')
         config = self._configuration()
         if not self.manifest or self.inspection_key != data_identity(config):
             raise ValueError("请先检查当前数据，再创建匹配的起始模型。")
-        self.pending_starter = starter_graph(self.manifest, estimator=estimator)
+        self.pending_teacher = teacher
+        if teacher or fitnets:
+            from .fitnets_templates import starter
+            self.pending_starter = starter(self.manifest, teacher=teacher)
+        else:
+            self.pending_starter = starter_graph(self.manifest, estimator=estimator)
         candidate = Document(self.pending_starter)
         report = candidate.validation()
         if not report.get("valid"):
@@ -447,6 +534,10 @@ class ExperimentControls:
     def _replace_starter(self, **_):
         if self.pending_starter is None:
             raise ValueError("请先从已检查数据准备起始模型。")
+        fit = self.pending_starter.get('id') == 'fitnets_starter'
+        dpg.set_value('native_fitnets_enabled', fit)
+        if fit or self.pending_teacher:
+            dpg.set_value('native_resume_checkpoint','')
         self.document.replace_graph(self.pending_starter)
         self._reset_canvas_document()
         self.pending_starter = None

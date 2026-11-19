@@ -1058,7 +1058,8 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         dpg.set_value("native_progress", step / max(1, total))
         phase = progress.get("phase")
         if phase and progress.get('epochs'):
-            phase_text = f"{phase} · epoch {progress.get('epoch', 0)}/{progress['epochs']}"
+            stage = {"hint":"提示训练", "distill":"蒸馏训练"}.get(progress.get("stage"), phase)
+            phase_text = f"{stage} · epoch {progress.get('epoch', 0)}/{progress['epochs']}"
         else:
             phase_text = str(phase) if phase else f"{step}/{total}"
         dpg.configure_item("native_progress", overlay=f"{RUN_LABELS.get(record['status'], record['status'])} · {phase_text} · r{record['revision']}")

@@ -118,6 +118,8 @@ def _infer_legacy(kind, params, inputs):
     if kind in ('Conv2d', 'BatchNorm2d', 'MaxPool2d', 'AdaptiveAvgPool2d'):
         _require(template['batch_axis'] == 0 and rank == 4,
                  f'{kind} requires an explicit batch axis in a rank-four tensor', 'inputs')
+    if kind in ('Conv3d', 'MaxPool3d', 'AdaptiveAvgPool3d'):
+        _require(template['batch_axis'] == 0 and rank == 5, f'{kind} requires a rank-five batch tensor', 'inputs')
     if template['batch_axis'] == 0:
         if kind == 'Linear':
             _require(rank > 1, 'Linear cannot consume the batch axis as features', 'inputs')
@@ -304,7 +306,7 @@ def make_tensor_operator(kind, params):
     """Construct one registered module after graph and resource validation."""
     params = normalize_tensor_operator(kind, params)
     if kind not in TENSOR_KINDS:
-        if kind in ('Linear', 'LayerNorm', 'Conv2d', 'BatchNorm2d'):
+        if kind in ('Linear', 'LayerNorm', 'Conv2d', 'Conv3d', 'BatchNorm2d'):
             from torch import float32
             params['dtype'] = float32
         return _legacy_tensor_constructor(kind)(**params)

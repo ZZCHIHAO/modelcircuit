@@ -14,6 +14,9 @@ def default_classification_config(data_kind='csv'):
     elif data_kind == 'image_folder':
         data = {'kind':'image_folder','path':'','split_mode':'stratified','image_size':[32,32],
                 'channels':3,'validation_fraction':0.2,'test_fraction':0.2}
+    elif data_kind == 'research_csv':
+        from .research_data import defaults
+        data = defaults()
     elif data_kind == 'paired_csv':
         data = {'kind':'paired_csv','path':'','image_root':'','image_column':'image_path','id_column':'sample_id',
                 'target_column':'label','feature_columns':[],'group_column':'patient_id','split_column':None,
@@ -26,7 +29,21 @@ def default_classification_config(data_kind='csv'):
             'resume_checkpoint':None,'expected_dataset_digest':None}
 
 
-SUPERVISED_PROFILES = frozenset({'classification-v2', 'regression-v1'})
+SUPERVISED_PROFILES = frozenset({'classification-v2', 'regression-v1', 'fitnets-v1'})
+
+
+FITNETS_DEFAULTS = {'teacher_checkpoint': '', 'hint_epochs': 1, 'temperature': 4.0, 'distill_weight': 0.5}
+
+
+def validate_fitnets_options(value, *, editable=False):
+    _require(isinstance(value, dict) and value.keys() <= FITNETS_DEFAULTS.keys(), 'Invalid FitNets options')
+    value = {**FITNETS_DEFAULTS, **value}
+    path = value['teacher_checkpoint']
+    _require(isinstance(path,str) and len(path)<=4096 and (editable or bool(path.strip())), 'Select a FitNets teacher checkpoint')
+    _require(type(value['hint_epochs']) is int and 1 <= value['hint_epochs'] <= 1000, 'Hint epochs must be 1..1000')
+    _require(_number(value['temperature']) and 0.01 <= value['temperature'] <= 100, 'FitNets temperature must be 0.01..100')
+    _require(_number(value['distill_weight']) and 0 < value['distill_weight'] <= 1, 'Distillation weight must be in (0, 1]')
+    return value
 
 
 def default_regression_config():
@@ -68,6 +85,9 @@ def validate_supervised_config(config):
         defaults = default_regression_config()
     else:
         defaults = default_classification_config(data.get('kind'))
+        if config['profile'] == 'fitnets-v1':
+            _require(data.get('kind') in ('image_folder','research_csv','csv'), 'FitNets requires a single input dataset')
+            defaults['fitnets'] = FITNETS_DEFAULTS.copy()
     _require(config.keys() <= defaults.keys() | {'attention_probe_requests'}, 'Unsupported experiment option')
     result=copy.deepcopy(defaults)
     result.update(copy.deepcopy(config))
@@ -77,6 +97,12 @@ def validate_supervised_config(config):
     _require(data.keys()<=defaults['data'].keys(),'Unsupported data option')
     effective_data=copy.deepcopy(defaults['data']);effective_data.update(copy.deepcopy(data));result['data']=effective_data
     _hash(result)
+    if config['profile'] == 'fitnets-v1':
+        result['fitnets'] = validate_fitnets_options(result['fitnets'])
+        _require(result['resume_checkpoint'] is None, 'FitNets uses its own stage checkpoints; general resume is unavailable')
+    if effective_data['kind'] == 'research_csv':
+        from .research_data import validate_research_spec
+        result['data'] = validate_research_spec(effective_data)
     for field,low,high in [('epochs',1,1000),('batch_size',1,64),('seed',0,2**31-1),('max_runtime_seconds',10,604800)]:
         _require(type(result[field]) is int and low<=result[field]<=high,field+' is outside the supported integer range')
     _require(_number(result['lr']) and 1e-6<=result['lr']<=1,'lr must be between 0.000001 and 1')

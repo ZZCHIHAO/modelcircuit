@@ -1,6 +1,6 @@
 # ModelCircuit Studio · 模路：第三方来源、许可证与致谢
 
-更新日期：2026-11-18。ModelCircuit Studio · 模路是本工作台的新产品名；`MLForgeStudio` 等源码标识及历史验收名称暂时保留。更名不改变上游、依赖与素材的归属。本文件记录当前源码的上游、技术依赖和设计参考，区分项目贡献与第三方内容。完整项目授权见 [LICENSE](LICENSE)；具体依赖仍适用各自随包提供的许可证及第三方声明。
+更新日期：2026-11-19。ModelCircuit Studio · 模路是本工作台的新产品名；`MLForgeStudio` 等源码标识及历史验收名称暂时保留。更名不改变上游、依赖与素材的归属。本文件记录当前源码的上游、技术依赖和设计参考，区分项目贡献与第三方内容。完整项目授权见 [LICENSE](LICENSE)；具体依赖仍适用各自随包提供的许可证及第三方声明。
 
 ## 原项目与当前工作的关系
 
@@ -58,6 +58,14 @@ S4 的 ResNet18/34/50、VGG11/13/16/19 和 SqueezeNet1.0/1.1 结构核查，以�
 
 以上产品名称及其商标属于相应权利人。概念参考不授予商业软件源码、图标、界面截图、字体或其他素材的复制权。第三方商业参考截图不能仅因放入本仓库而适用 MIT；发布文档应使用本项目自己的界面图，或另有明确授权的素材。新增素材必须注明来源及可再分发依据。
 
+## 科研引用与使用范围
+
+使用本软件开展研究或教学时，请记录实际使用的提交号或版本。如果引用 ModelCircuit Studio，可使用 [CITATION.cff](CITATION.cff)。引用上游 ML Forge 的实现、模型架构或第三方素材时，请同时注明其原始来源。
+
+本项目面向非商业科研、教学与个人学习。维护者倡议将本项目用于上述场景，避免用于商业产品、收费服务、付费部署或营利性生产。源码及第三方材料的使用权以各自许可证为准。[MIT License](LICENSE) 允许依其条款进行商业使用。
+
+医学影像功能面向研究和工程验证。使用者应独立验证实验方法和结论，遵守所用数据、权重和素材的相关许可。本项目未获临床诊断用途的验证。
+
 ## 后续维护
 
 引入新的依赖、代码片段、模型、权重或素材时，应同步补充来源、确切版本、许可证和修改说明。无法确认再分发依据的内容，先保留在个人参考资料中，待权利明确后再纳入仓库及分发物。发现本文件遗漏或归属错误时，由仓库所有者核对并修订。
@@ -73,3 +81,11 @@ The table-based SVC and SVR components use scikit-learn and its dependencies. Th
 | SciPy 1.15.3 | BSD 3-Clause and binary wheel third-party notices |
 | joblib 1.5.2 | BSD 3-Clause |
 | threadpoolctl 3.6.0 | BSD 3-Clause |
+
+
+## S7 科研数据适配依赖
+
+- pydicom `3.0.1` 使用 MIT 许可，见 [pydicom LICENSE](https://github.com/pydicom/pydicom/blob/v3.0.1/LICENSE)。
+- NiBabel `5.3.2` 使用 MIT 许可并包含第三方声明，见 [NiBabel COPYING](https://github.com/nipy/nibabel/blob/5.3.2/COPYING)。
+- `opencv-python-headless` `4.13.0.92` 的 Python 打包和 OpenCV/编解码器分别适用随 wheel 提供的许可证及第三方声明，见 [PyPI 发行说明](https://pypi.org/project/opencv-python-headless/4.13.0.92/)。
+- FitNets 训练流程参考 Romero 等人的 [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)。

@@ -22,11 +22,13 @@ data = [
     (str(repository / 'licenses' / 'torchvision-BSD-3-Clause.txt'), 'licenses'),
     (str(python_license), 'licenses/Python'),
 ]
-s6 = json.loads(build_manifest.read_text(encoding='utf-8')).get('stage') == 'S6'
-classical_packages = ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl') if s6 else ()
+stage = json.loads(build_manifest.read_text(encoding='utf-8')).get('stage')
+modern = stage in ('S6','S7')
+research_packages = ('pydicom','nibabel','opencv-python-headless') if stage == 'S7' else ()
+classical_packages = ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl') if modern else ()
 for package in ('torch', 'dearpygui', 'numpy', 'Pillow', 'sympy', 'networkx', 'filelock',
                 'fsspec', 'Jinja2', 'MarkupSafe', 'mpmath', 'typing_extensions', 'packaging',
-                'setuptools', 'pyinstaller') + classical_packages:
+                'setuptools', 'pyinstaller') + classical_packages + research_packages:
     # Full dist-info includes nested licenses, torch NOTICE and bootloader COPYING.
     data += copy_metadata(package)
 for package in ('torch', 'dearpygui', 'numpy', 'PIL', 'sympy', 'networkx', 'filelock',
@@ -39,9 +41,10 @@ analysis = Analysis(
     binaries=[], datas=data,
     hiddenimports=['native.ui', 'native.s4_acceptance', 'native.s4_render_acceptance',
                    'studio_core.runtime', 'worker', 'torch', 'dearpygui.dearpygui'] +
-                  (['sklearn.svm', 'sklearn.utils._cyutility', 'scipy.special._cdflib'] if s6 else []),
+                  (['sklearn.svm', 'sklearn.utils._cyutility', 'scipy.special._cdflib'] if modern else []) +
+                  (['pydicom.pixels.decoders.native', 'cv2', 'nibabel'] if stage == 'S7' else []),
     hookspath=[], hooksconfig={}, runtime_hooks=[],
-    excludes=([] if s6 else ['scipy', 'sklearn']) + ['pandas', 'matplotlib', 'IPython', 'pytest', 'tensorboard', 'tensorflow',
+    excludes=([] if modern else ['scipy', 'sklearn']) + ['pandas', 'matplotlib', 'IPython', 'pytest', 'tensorboard', 'tensorflow',
               'jax', 'torchvision', 'torchaudio', 'artifact_tool_v2', 'notebook', 'lxml',
               'torch.utils.tensorboard'],
     noarchive=False,

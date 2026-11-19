@@ -27,6 +27,8 @@ _EDITOR_DEFAULTS = {
     "LayerNorm": {"normalized_shape": 8}, "Dropout": {"p": 0.1},
     "Conv2d": {"in_channels": 3, "out_channels": 8, "kernel_size": 3, "stride": 1, "padding": 1},
     "MaxPool2d": {"kernel_size": 2}, "AdaptiveAvgPool2d": {"output_size": [1, 1]},
+    "Conv3d": {"in_channels": 1, "out_channels": 8, "kernel_size": 3, "stride": 1, "padding": 1},
+    "MaxPool3d": {"kernel_size": 2}, "AdaptiveAvgPool3d": {"output_size": [1, 1, 1]},
     "Flatten": {"start_dim": 1, "end_dim": -1},
     "BatchNorm2d": {"num_features": 8}, "Identity": {}, "Sigmoid": {},
     "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {}, "SVC": {"C": 1.0, "kernel": "rbf"}, "SVR": {"C": 1.0, "kernel": "rbf"},
@@ -49,7 +51,7 @@ _SPECS = {
 }
 for _kind, (_required, _optional) in CNN_PARAMETERS.items():
     _SPECS[_kind] = _spec(_kind, _required, deepcopy(CNN_DEFAULTS[_kind]),
-                         state="parameters" if _kind == "Conv2d" else "none", constructor="nn." + _kind)
+                         state="parameters" if _kind in ("Conv2d", "Conv3d") else "none", constructor="nn." + _kind)
 _SPECS.update({
     "BatchNorm2d": _spec("BatchNorm2d", ("num_features",),
                          {"eps": 1e-5, "momentum": 0.1, "affine": True, "track_running_stats": True},
