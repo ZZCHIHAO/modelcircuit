@@ -68,7 +68,8 @@ def _editable_experiment(experiment):
     data = experiment.get("data")
     require(type(data) is dict, "data must be an object")
     kind = data.get("kind", "csv")
-    allowed_kinds = ("regression_csv",) if experiment["profile"] == "regression-v1" else ("csv", "image_folder", "paired_csv", "research_csv")
+    allowed_kinds = {'regression-v1': ('regression_csv',), 'segmentation-v1': ('segmentation_csv',)}.get(
+        experiment['profile'], ('csv', 'image_folder', 'paired_csv', 'research_csv'))
     require(kind in allowed_kinds, "unsupported data kind")
     mapping=experiment.get('input_ports')
     if kind=='paired_csv':
@@ -77,6 +78,10 @@ def _editable_experiment(experiment):
                     all(type(value) is str and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',value) for value in mapping.values()) and
                     len(set(mapping.values()))==2,'input_ports must name two distinct graph inputs')
     else:require(mapping is None,'input_ports is only supported for paired_csv')
+    if kind == 'segmentation_csv':
+        from studio_core.segmentation_data import validate_segmentation_spec
+        validate_segmentation_spec(data)
+        return
     if kind == 'research_csv':
         from studio_core.research_data import validate_research_spec
         validate_research_spec(data)
@@ -219,6 +224,15 @@ def composite_key(document, experiment, manifest=None):
 def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     if not manifest:
         return "请先检查数据。"
+    if manifest.get('kind') == 'segmentation_csv':
+        from studio_core.schema import prepare_graph
+        from studio_core.segmentation_task import SegmentationTask
+        try:
+            resolved, shapes, _ = prepare_graph(document.graph)
+            SegmentationTask({'input_port': input_port}).validate_contract(resolved, shapes, manifest)
+        except ValueError as exc:
+            return '请创建匹配数据的分割起始图，或检查模型接口。' + str(exc)
+        return ''
     inputs = document.graph.get("inputs", [])
     from studio_core.classical_task import classical_contract, contains_classical
     if contains_classical(document.graph):
@@ -263,6 +277,9 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
 
 
 def starter_graph(manifest, estimator=None):
+    if manifest.get('kind') == 'segmentation_csv':
+        from studio_core.segmentation_templates import segmentation_graph
+        return segmentation_graph(manifest)
     """Return an explicit supervised starter graph; never mutate the current graph."""
     if estimator is not None:
         kind = manifest.get('kind')

@@ -4,9 +4,9 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前开发版本 `v0.7.0-alpha.1`。** S7 增加高位深灰度、DICOM、NIfTI 和视频分类输入，以及 FitNets 两阶段蒸馏。使用方法见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。S6 数值回归、SVM 与可视化编辑能力继续保留。
+**当前开发版本 `v0.8.0-alpha.1`。** S8 交付二维图片和三维 NIfTI 分割，覆盖配对检查、可编辑起始图、训练、Dice/IoU 评估和原始网格掩码导出。参见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md)。科研输入与 FitNets 蒸馏见 [S7 指南](studio/native/S7_RESEARCH_GUIDE.md)。
 
-本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。S6 统一桌面版 `v0.6.0-alpha.2` 在[第 5 号 PR](https://github.com/ZZCHIHAO/modelcircuit/pull/5)及其依赖分支中接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
+本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。平台后续开发阶段按依赖通过 PR 接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
 > **非商业用途声明**
 >
@@ -48,18 +48,18 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 | 桌面设计 | 原生窗口、可搜索组件库、拖放、配置、具名端口、直角连线 | 当前主验证平台为 Windows；密集图布线与交互仍需持续优化 |
 | 层级工作区 | 主图/芯片页签、单栏/左右/上下布局、层级定位、撤销/重做、v3 工作区恢复 | 不承诺精确恢复跨会话 pan/zoom；关闭页签不删除芯片 |
 | 模型表达 | 多输入输出、分支/融合、嵌套芯片、独立实例、显式共享调用、参数冻结 | 只能使用已实现的算子、静态形状规则和执行语义；尚无任意动态图 |
-| 真实数据实验 | 2D ImageFolder 单标签分类、CSV 数值 MLP 分类、2D 图片＋数值表格配对融合分类 | 不是分割、检测、回归、3D 或文本生成后端 |
+| 真实数据实验 | 图像、体数据及视频分类，表格分类与回归，2D 影像加表格分类，2D/3D 语义分割 | 任务支持的输入格式及产物见各阶段指南 |
 | 训练与结果 | SGD / AdamW、训练/验证/测试、按验证损失选优、checkpoint、续训；checkpoint 可独立加载推理（代码接口） | 当前分类协议；尚无专门推理面板；CPU 续训有具体证据，不承诺所有设备位级复现 |
 | 设备与容量 | CPU 或显式选择单张 `cuda:N`；执行前内存/显存检查 | float32；无多 GPU、AMP、量化或远程执行；预估不能保证避免 OOM |
 | 探针 | 有限预算的张量/输出预览、梯度与参数变化摘要、来源和调用路径定位 | 不是交互式前向/反向/更新单步调试器；未采集数据明确标示 |
 | 图与 Python | 支持限定语法的静态导入、独立模型代码导出、结构与共享关系往返 | 导出尚非完整实验工程；任意第三方 Python 不保证可导入或无损恢复 |
 | 扩展 | 本地 JSON 芯片版本库、受信任的图工厂与可注入 ModelRegistry | 不自动执行任意 Python 插件；不附带预训练权重 |
 
-**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。分割、检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
+**S5 已覆盖固定序列长度的 Encoder 和随机初始化的小型 ViT。** S7 支持三维体和视频分类。S8 增加配对掩码训练及预测。检测、报告生成、LLM、RAG 和更多传统机器学习算法仍是后续工作。
 
 ### 源码与 EXE 的区别
 
-S7 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s7/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S7`。移动时请保留整个应用目录。
+S8 Windows 版使用同一个 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s8/ModelCircuitStudio/ModelCircuitStudio.exe`。在「实验 → 设备」选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S8`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 
@@ -226,7 +226,7 @@ CUDA 微型对照固定初始化种子、关闭 TF32，并启用 cuDNN determini
 | Transformer 模型扩展 | 预训练权重接入、更多模型族和序列任务 | 在保持 S5 固定长度计算图及代码往返兼容的前提下逐步扩展 |
 | 仿真与测量 | 前向、反向、参数更新的交互单步；更完整的探针与性能采集 | 在同一快照定位梯度/更新，采集预算与来源明确，结果可复现 |
 | 完整实验工程 | 数据、配置、训练/评估入口、自定义组件、依赖清单一并导出 | 在独立环境运行，并核对输出、共享关系与必要训练行为 |
-| 任务后端 | 多标签、分割、检测、2D/3D 与更多传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
+| 任务后端 | 多标签、滑窗分割、检测与更多传统 ML | 每种算法采用合适执行规则和指标，不强制套同一个 epoch 循环 |
 | 医学领域适配 | 患者级划分、空间几何、联合变换、原始空间恢复与泄漏审计 | 数据、标注和预测空间一致；划分与评价协议可追溯 |
 | 文本与多模态 | 报告生成、LLM 推理/微调、检索增强生成 | 任务适配、事实一致性、证据来源和生成评价协议齐备 |
 | 执行与交付 | AMP / 多 GPU / 远程 worker、插件分发、干净机器验收 | 设备语义、失败恢复、资源边界和打包许可均有实际证据 |

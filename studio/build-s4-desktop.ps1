@@ -1,10 +1,10 @@
-param([ValidateSet('CPU','CUDA','Unified')][string]$Runtime='CPU', [ValidateSet('S4','S6','S7')][string]$Stage='S4')
+param([ValidateSet('CPU','CUDA','Unified')][string]$Runtime='CPU', [ValidateSet('S4','S6','S7','S8')][string]$Stage='S4')
 $ErrorActionPreference = 'Stop'
-if ($Stage -in ('S6','S7') -and -not $PSBoundParameters.ContainsKey('Runtime')) {
+if ($Stage -in ('S6','S7','S8') -and -not $PSBoundParameters.ContainsKey('Runtime')) {
     $Runtime = 'Unified'
 }
-if (($Stage -in ('S6','S7')) -ne ($Runtime -eq 'Unified')) {
-    throw 'Use -Stage S7 for the unified desktop package. CPU and CUDA build variants are only available for the historical S4 stage.'
+if (($Stage -in ('S6','S7','S8')) -ne ($Runtime -eq 'Unified')) {
+    throw 'Use -Stage S8 for the current unified desktop package. CPU and CUDA build variants are only available for the historical S4 stage.'
 }
 $studioPath = $PSScriptRoot
 $repositoryPath = Split-Path -Parent $studioPath

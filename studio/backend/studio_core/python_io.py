@@ -28,6 +28,7 @@ _PARAMS = {
 _DEFAULTS = {"Concat": {"dim": -1}, "Dropout": {"p": 0.5}}
 _PARAMS.update({kind: required + optional for kind, (required, optional) in CNN_PARAMETERS.items()})
 _DEFAULTS.update(CNN_DEFAULTS)
+_PARAMS['Upsample'] = operator_spec('Upsample').required
 for _kind in VISION_KINDS:
     _spec = operator_spec(_kind)
     _PARAMS[_kind] = _spec.required + tuple(_spec.defaults)

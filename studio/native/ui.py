@@ -19,6 +19,7 @@ from PIL import Image
 from .data_panel import ExperimentControls
 from .chip_panel import ChipControls
 from .experiment_panel import progress_points, result_view
+from .segmentation_panel import SegmentationPanel
 from .workspace_state import read_workspace_full, save_workspace, workspace_payload
 from .workbench_state import WorkbenchState
 from .canvas_view import CanvasHost, CanvasToken
@@ -112,6 +113,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.catalog_panel = CatalogPanel(self, model_registry=model_registry)
         self.tensor_panel = TensorPanel(self)
         self.attention_probe_panel = AttentionProbePanel(self)
+        self.segmentation_panel = SegmentationPanel(self)
         self.canvas_host.catalog_panel = self.catalog_panel
         self._init_experiment(experiment)
         self._init_chip_controls()
@@ -295,6 +297,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                         with dpg.child_window(height=-1, width=-1, horizontal_scrollbar=True):
                             dpg.add_text("尚未采集", tag="native_final_metrics", color=MUTED, wrap=1250)
                             dpg.add_text("", tag="native_artifacts", color=MUTED, wrap=1250)
+                    self.segmentation_panel.build()
                     with dpg.tab(label="参数与梯度", tag="native_parameter_tab"):
                         dpg.add_text("梯度：末次更新前；更新范数：初始到最终", tag="native_gradient_context", color=MUTED, wrap=1250)
                         with dpg.child_window(height=-1, width=-1, horizontal_scrollbar=True):
@@ -307,6 +310,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             dpg.add_text("就绪", tag="native_status", pos=(12, 795), color=MUTED)
         self._dialogs()
         self._build_data_dialogs()
+        self.segmentation_panel.build_resources()
         self._build_chip_dialogs()
         self.catalog_panel.build_dialogs()
         with dpg.handler_registry():
@@ -354,12 +358,15 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         width = max(1000, dpg.get_viewport_client_width() or 1380)
         height = max(720, dpg.get_viewport_client_height() or 820)
         attention_result = self.document.graph['schema_version'] == 2 and bool((self.result or {}).get('probes'))
-        size_key = (width, height, True) if attention_result else (width, height)
+        segmentation_result = (self.result or {}).get('profile') == 'segmentation-v1'
+        size_key = (width, height, attention_result, segmentation_result)
         if size_key == self.last_size:
             return
         self.last_size = size_key
         left, right, bottom = 205, 305, max(160, min(180, int(height * 0.19)))
-        if attention_result:
+        if segmentation_result:
+            bottom = 250
+        elif attention_result:
             bottom = 225
         middle = max(355, height - 77 - bottom - 35)
         canvas = width - left - right - 40
@@ -707,6 +714,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         dpg.set_value("native_loss_summary", text)
         dpg.set_value("native_final_metrics", view["summary"])
         dpg.set_value("native_artifacts", view["artifacts"])
+        self.segmentation_panel.sync(self.result, self.experiment_mode == 'segmentation_csv', stale)
         if view["train"][0] or view["val"][0]:
             dpg.fit_axis_data("native_loss_x"); dpg.fit_axis_data("native_loss_y")
 
@@ -1073,6 +1081,8 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                 dpg.set_value('native_bottom_tabs', dpg.get_alias_id('native_artifact_tab'))
             self._render_probe(); self._render_parameters()
         self._render_loss()
+        if self.result and self.result.get('profile') == 'segmentation-v1':
+            dpg.set_value('native_bottom_tabs', dpg.get_alias_id('native_segmentation_tab'))
         if record["status"] in TERMINAL:
             dpg.configure_item("native_run", enabled=True); dpg.configure_item("native_cancel", enabled=False)
             if record.get("error"):

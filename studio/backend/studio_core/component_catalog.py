@@ -28,6 +28,7 @@ class ComponentSpec:
 # Display metadata only. Supported primitives, parameters and ports come from
 # the operator registry; this table cannot register an unsupported constructor.
 _DISPLAY = {
+    'Upsample': ('shape_pool', '最近邻空间上采样'),
     'Conv3d': ('layers', '三维卷积'), 'MaxPool3d': ('shape_pool', '三维最大池化'),
     'AdaptiveAvgPool3d': ('shape_pool', '三维自适应平均池化'),
     'SVC': ('classical', '支持向量分类'), 'SVR': ('classical', '支持向量回归'),

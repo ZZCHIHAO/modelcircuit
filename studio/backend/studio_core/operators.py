@@ -29,6 +29,7 @@ _EDITOR_DEFAULTS = {
     "MaxPool2d": {"kernel_size": 2}, "AdaptiveAvgPool2d": {"output_size": [1, 1]},
     "Conv3d": {"in_channels": 1, "out_channels": 8, "kernel_size": 3, "stride": 1, "padding": 1},
     "MaxPool3d": {"kernel_size": 2}, "AdaptiveAvgPool3d": {"output_size": [1, 1, 1]},
+    "Upsample": {"size": [32, 32]},
     "Flatten": {"start_dim": 1, "end_dim": -1},
     "BatchNorm2d": {"num_features": 8}, "Identity": {}, "Sigmoid": {},
     "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {}, "SVC": {"C": 1.0, "kernel": "rbf"}, "SVR": {"C": 1.0, "kernel": "rbf"},
@@ -41,6 +42,7 @@ def _spec(kind, required=(), defaults=None, *, ports=("x",), state="none", const
 
 
 _SPECS = {
+    "Upsample": _spec("Upsample", ("size",), constructor="nn.Upsample"),
     "Linear": _spec("Linear", ("in_features", "out_features"), state="parameters", constructor="nn.Linear"),
     "ReLU": _spec("ReLU", constructor="nn.ReLU"),
     "GELU": _spec("GELU", constructor="nn.GELU"),
