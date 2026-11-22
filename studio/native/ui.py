@@ -22,6 +22,8 @@ from .experiment_panel import progress_points, result_view
 from .segmentation_panel import SegmentationPanel
 from .inference_panel import InferencePanel
 from .project_panel import ProjectPanel
+from .debug_panel import DebugPanel
+from .wire_feedback import PortContracts, assess_link, assay_text
 from .workspace_state import read_workspace_full, save_workspace, workspace_payload
 from .workbench_state import WorkbenchState
 from .canvas_view import CanvasHost, CanvasToken
@@ -118,6 +120,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.segmentation_panel = SegmentationPanel(self)
         self.inference_panel = InferencePanel(self)
         self.project_panel = ProjectPanel(self)
+        self.debug_panel = DebugPanel(self)
         self.canvas_host.catalog_panel = self.catalog_panel
         self._init_experiment(experiment)
         self._init_chip_controls()
@@ -281,6 +284,9 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                     with dpg.tab(label="属性", tag="native_inspector_tab"):
                         with dpg.group(tag="native_inspector"):
                             pass
+                    with dpg.tab(label='调试', tag='native_debug_controls_tab'):
+                        with dpg.child_window(width=-1, height=-1, border=False):
+                            self.debug_panel.build_controls()
                     with dpg.tab(label="实验", tag="native_experiment_tab"):
                         self._build_experiment_controls()
                     with dpg.tab(label='推理', tag='native_inference_tab'):
@@ -292,6 +298,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             with dpg.child_window(tag="native_bottom", pos=(8, 575), width=1355, height=210):
                 dpg.add_text("尚未运行 · 设计快照与实验快照分开记录", tag="native_result_version", color=MUTED)
                 with dpg.tab_bar(tag="native_bottom_tabs"):
+                    self.debug_panel.build_results()
                     with dpg.tab(label="张量探针", tag="native_probe_tab"):
                         with dpg.group(tag="native_probe"):
                             pass
@@ -373,12 +380,16 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         height = max(720, dpg.get_viewport_client_height() or 820)
         attention_result = self.document.graph['schema_version'] == 2 and bool((self.result or {}).get('probes'))
         segmentation_result = (self.result or {}).get('profile') == 'segmentation-v1' or self.inference_panel.report is not None
-        size_key = (width, height, attention_result, segmentation_result)
+        debug_result = bool(self.debug_panel.result and
+                            dpg.get_value('native_bottom_tabs') == dpg.get_alias_id('native_debug_results_tab'))
+        size_key = (width, height, attention_result, segmentation_result, debug_result)
         if size_key == self.last_size:
             return
         self.last_size = size_key
         left, right, bottom = 205, 305, max(160, min(180, int(height * 0.19)))
-        if segmentation_result:
+        if debug_result:
+            bottom = max(bottom, min(225, height - 77 - 355 - 35))
+        elif segmentation_result:
             bottom = 250
         elif attention_result:
             bottom = 225
@@ -533,13 +544,40 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             desired.append((ref, "输出 · " + output["id"], output.get("position", {"x": right, "y": 140 + 140 * index}), "tensor", ["value"], None, [_shape(shape_map.get(output.get("source")))]))
         sources = {}
         targets = {}
+        contracts = PortContracts(self.document)
+
+        def port_help(reference):
+            if not reference:
+                return '未连接 · 待验证'
+            try:
+                return assay_text(contracts.source(reference))
+            except (ValueError, KeyError, TypeError, StopIteration):
+                return '待验证 · 当前上游连接尚不完整'
+
         for ref, label, position, category, ports, source, details in desired:
             tag = f"{view.editor_tag}_g{view.generation}_node_{len(self.node_refs)}"
             pos = self._view_position(position)
             with dpg.node(label=label, tag=tag, parent=editor, pos=pos) as node:
                 for port in ports:
                     with dpg.node_attribute(attribute_type=dpg.mvNode_Attr_Input) as attribute:
-                        dpg.add_text(port, color=(195, 206, 214))
+                        caption = dpg.add_text(port, color=(195, 206, 214))
+                        if ref.startswith('call:'):
+                            incoming = contracts.calls[ref[5:]]['inputs'].get(port)
+                        else:
+                            incoming = next(item.get('source') for item in scope['outputs'] if item['id'] == ref[7:])
+                        with dpg.tooltip(caption):
+                            dpg.add_text('输入 · ' + port + '\n' + port_help(incoming), wrap=330)
+                            if ref.startswith('call:'):
+                                target_call = contracts.calls[ref[5:]]
+                                target = contracts.instances[target_call['instance_id']]
+                                if target['kind'] == 'Linear' and 'in_features' in target.get('params', {}):
+                                    dpg.add_text('要求末维 ' + str(target['params']['in_features']))
+                                if target['kind'] == 'chip':
+                                    try:
+                                        expected = contracts.expected(target_call, port, None, {})
+                                        dpg.add_text('要求 ' + assay_text(expected), wrap=330)
+                                    except (ValueError, KeyError, TypeError, StopIteration):
+                                        pass
                     self.target_attributes[attribute] = ("output" if ref.startswith("output:") else "call", ref.split(":", 1)[1], port)
                     targets[(ref, port)] = attribute
                 with dpg.node_attribute(attribute_type=dpg.mvNode_Attr_Static):
@@ -551,10 +589,11 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                     for output_port in output_ports:
                         qualified = source + ":" + output_port if output_port is not None else source
                         with dpg.node_attribute(attribute_type=dpg.mvNode_Attr_Output) as attribute:
-                            if len(output_ports) > 1:
-                                dpg.add_button(label=output_port, small=True, callback=self.guarded(self._socket_probe, ref.split(":", 1)[1], output_port))
-                            else:
-                                dpg.add_text(output_port or source.split(':', 1)[1], color=MINT)
+                            caption = output_port or source.split(':', 1)[1]
+                            pin = dpg.add_button(label=caption, small=True,
+                                                 callback=self.guarded(self._pin_canvas_probe, qualified))
+                            with dpg.tooltip(pin):
+                                dpg.add_text('输出 · ' + caption + '\n' + port_help(qualified) + '\n点击挂探针', wrap=330)
                         self.source_attributes[attribute] = qualified
                         sources[qualified] = attribute
                         if len(output_ports) == 1:
@@ -740,10 +779,35 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             raise ValueError("连接端口已改变，请重新拖线。")
         kind, identifier, port = target
         if kind == "call":
-            self.document.set_input(identifier, port, source)
+            target_attribute = second if second in self.target_attributes else first
+            self._connect_input(identifier, port, source, target_attribute)
         else:
             self.document.set_output(identifier, source)
+            self._refresh()
+
+    def _pin_canvas_probe(self, ref, **_):
+        if ref.startswith('call:'):
+            _, call, port = ref.split(':')
+            self._select_probe_output(call, app_data=port)
+        self.debug_panel.add_probe(ref)
+
+    def _connect_input(self, call_id, port, source, target_attribute=None):
+        feedback = assess_link(self.document, call_id, port, source)
+        if feedback['status'] == 'incompatible':
+            if target_attribute is not None:
+                children = dpg.get_item_children(target_attribute, 1)
+                if children:
+                    dpg.configure_item(children[0], color=RED)
+            location = {'definition_id': self.document.scope_id,
+                        'call_path': [item['call_id'] for item in self.document.trail],
+                        'node_ref': 'call:' + call_id, 'field': 'inputs'}
+            self.log(feedback['message'], '错误', location=location)
+            dpg.set_value('native_status', feedback['message'])
+            return False
+        self.document.set_input(call_id, port, source)
         self._refresh()
+        dpg.set_value('native_status', feedback['message'])
+        return True
 
     def _disconnect(self, sender=None, app_data=None, user_data=None):
         target = self.link_targets.get(app_data)
@@ -780,7 +844,11 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.document.set_frozen(instance_id, bool(app_data)); self._refresh()
 
     def _set_input(self, call_id, port, app_data=None, **_):
-        self.document.set_input(call_id, port, None if app_data == "未连接" else app_data); self._refresh()
+        if app_data == '未连接':
+            self.document.set_input(call_id, port, None)
+            self._refresh()
+        else:
+            self._connect_input(call_id, port, app_data)
 
     def _set_output(self, identifier, app_data=None, **_):
         self.document.set_output(identifier, None if app_data == "未连接" else app_data); self._refresh()
@@ -1277,6 +1345,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             self._poll_run()
             self.inference_panel.poll()
             self.project_panel.poll()
+            self.debug_panel.poll()
         if now - self.last_draft >= 2:
             self.last_draft = now; self._save_draft()
 

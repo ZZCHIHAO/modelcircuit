@@ -15,7 +15,14 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
         from studio_core.classical_task import contains_classical
         from studio_core.inference_spec import PROFILE as INFERENCE_PROFILE
         from studio_core.project_runner import PROFILE as PROJECT_PROFILE
-        if config.get('profile') == PROJECT_PROFILE:
+        from studio_core.debug_spec import PROFILE as DEBUG_PROFILE
+        if config.get('profile') == DEBUG_PROFILE:
+            import torch
+            from studio_core.debug_runtime import run_debug
+            torch.set_num_threads(1)
+            messages.put({'type': 'status', 'status': 'running'})
+            result = run_debug(graph, config, **options)
+        elif config.get('profile') == PROJECT_PROFILE:
             if artifact_directory is None:
                 raise ValueError('Project training requires a managed artifact directory')
             import torch

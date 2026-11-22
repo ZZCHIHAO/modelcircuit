@@ -123,6 +123,20 @@ class RunManager:
                 raise ValueError("lr must be between 0.001 and 1")
         return self._start_worker(graph, config, managed=supervised, classical=classical)
 
+    def submit_debug(self, graph, config):
+        from studio_core.debug_spec import validate_debug_config
+        config = validate_debug_config(config)
+        _wire_json({'graph': graph, 'config': config}, MAX_BODY, 'Debug snapshot')
+        report = validate_graph(graph)
+        if not report['valid']:
+            raise ValueError(report['errors'][0]['message'])
+        if contains_classical(graph):
+            raise ValueError('SVM 请在实验页使用拟合和评估。调试单步用于 PyTorch 模型。')
+        require_executable_profile(graph)
+        from studio_core.execution_policy import check_config_batch
+        check_config_batch(graph, config['batch_size'])
+        return self._start_worker(graph, config, managed=False, classical=False)
+
     def submit_segmentation_inference(self, config):
         from studio_core.inference_spec import validate_inference_config
         config = validate_inference_config(config)
@@ -157,7 +171,7 @@ class RunManager:
             messages, stop = self.context.Queue(), self.context.Event()
             record = {"run_id": run_id, "status": "queued", "revision": graph.get("revision", 1) if graph is not None else None,
                       "created_at": datetime.now(timezone.utc).isoformat(),
-                      "profile": config["profile"] if managed else "s1-pytorch-v1",
+                      "profile": config.get("profile", "s1-pytorch-v1"),
                       **({"execution": "classical"} if classical else {}),
                       "progress": {"step": 0, "total": 0 if managed else config.get("steps", 20), "loss": None},
                       "result": None, "error": None, "events": [],

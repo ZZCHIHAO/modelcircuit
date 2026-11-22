@@ -223,6 +223,13 @@ class CatalogPanel:
         with dpg.tooltip(button):
             dpg.add_text(spec.id + ' · ' + spec.description, wrap=350)
             dpg.add_text('输入 ' + ', '.join(spec.input_ports) + ' → 输出 ' + ', '.join(spec.output_ports))
+            modes = ('CPU 拟合、预测' if spec.category == 'classical' else
+                     '前向、训练（按任务接口配置）' if spec.capabilities.get('train') else '前向')
+            if spec.capabilities.get('python_roundtrip'):
+                modes += '、Python 往返'
+            dpg.add_text('运行 ' + modes, wrap=350)
+            if spec.capabilities.get('weights') == 'none':
+                dpg.add_text('权重 随实验初始化', wrap=350)
             dpg.add_text('默认 ' + json.dumps(spec.config_defaults, ensure_ascii=False), wrap=350)
 
     def _render_user_components(self, parent, query):
@@ -238,6 +245,7 @@ class CatalogPanel:
                 with dpg.tooltip(button):
                     dpg.add_text(spec.label + '\n' + spec.description, wrap=350)
                     dpg.add_text('输入 ' + ', '.join(spec.input_ports) + ' → 输出 ' + ', '.join(spec.output_ports))
+                    dpg.add_text('运行 可展开、按任务前向或训练 · 权重随实验初始化', wrap=350)
                     dpg.add_text('文件 ' + ', '.join(spec.source_names), wrap=350)
             for message in self.local_index.diagnostics[:5]:
                 dpg.add_text(message, color=RED, wrap=150, parent=parent)
@@ -255,7 +263,11 @@ class CatalogPanel:
                                         callback=self.owned_callback(self.open_config, identifier))
                 self._drag(button, self.payload(identifier))
                 with dpg.tooltip(button):
-                    dpg.add_text('当前工程定义；新建独立实例。内部编辑影响全部定义引用。', wrap=350)
+                    inner = definition['graph']
+                    inputs = ', '.join(item['id'] for item in inner['inputs']) or '无'
+                    outputs = ', '.join(item['id'] for item in inner['outputs']) or '无'
+                    dpg.add_text('输入 ' + inputs + ' → 输出 ' + outputs, wrap=350)
+                    dpg.add_text('可展开 · 拖入后新建独立实例 · 权重随实验初始化', wrap=350)
         if not self.visible_ids:
             dpg.add_text('没有匹配的可用组件', color=MUTED, parent=parent)
 
