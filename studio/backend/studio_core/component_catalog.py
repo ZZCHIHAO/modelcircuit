@@ -78,6 +78,13 @@ def _capabilities(expandable):
             'python_roundtrip': True, 'weights': 'none'}
 
 
+_OPERATOR_ALIASES = {
+    'Add': ('相加融合', '残差相加', '求和'),
+    'Concat': ('拼接融合', '张量拼接', 'Concatenate'),
+    'Linear': ('线性层', 'Dense', 'Fully Connected'),
+}
+
+
 def list_components(query='', category=None, *, registry=None, include_tensor=False) -> list[ComponentSpec]:
     """Return fresh descriptors in registry then template order."""
     if type(query) is not str or category is not None and type(category) is not str:
@@ -87,10 +94,10 @@ def list_components(query='', category=None, *, registry=None, include_tensor=Fa
         operator = operator_spec(kind)
         group, label = _DISPLAY.get(kind, ('layers', kind))
         classical = group == 'classical'
-        aliases = (kind, 'SVM', '支持向量机', 'Support Vector Machine') if classical else (kind,)
+        aliases = (kind, 'SVM', '支持向量机', 'Support Vector Machine') if classical else (kind, *_OPERATOR_ALIASES.get(kind, ()))
         description = label + (' · ' + kind + ' · CPU 拟合 · 单模型 CSV 实验' if classical else ' · ' + kind)
         result.append(ComponentSpec('primitive.' + kind, group, label, aliases, description,
-            tuple(operator.required), _capabilities(False), {**operator.defaults, **operator_defaults(kind)}, tuple(operator.input_ports), ('out',)))
+            tuple(operator.required), {**_capabilities(False), 'forward': not classical}, {**operator.defaults, **operator_defaults(kind)}, tuple(operator.input_ports), ('out',)))
     for identifier, label, aliases, required, defaults, inputs, outputs in _MODULES:
         result.append(ComponentSpec(identifier, 'functional', label, aliases,
             label + ' · 可展开功能芯片；结构参数通过新建配置修改', required,

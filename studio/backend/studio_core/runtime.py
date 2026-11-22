@@ -109,7 +109,13 @@ class _GraphModule(nn.Module):
             self.last_probes = collector.results
         return result
 
-    def _execute(self, inputs, budget, *, prefix='', collector=None):
+    def forward_observed(self, inputs, observer):
+        """Run the same graph with selected probes instead of legacy tensor copies."""
+        if not self.tensor_contracts:
+            check_input_batches(inputs, self.limits)
+        return self._execute(inputs, _ExecutionBudget(self.limits), observer=observer)
+
+    def _execute(self, inputs, budget, *, prefix='', collector=None, observer=None):
         self.last_values = {}
         legacy_capture = self.capture and not self.tensor_contracts
         specs = self.graph.get('_tensor_specs', {})
@@ -139,6 +145,9 @@ class _GraphModule(nn.Module):
         if collector is not None:
             for source, tensor in values.items():
                 collector.observe(prefix + source, tensor, specs[source])
+        if observer is not None:
+            for source, tensor in values.items():
+                observer.observe(prefix + source, tensor, specs.get(source))
         observed = {key: value.detach().clone() for key, value in values.items()} if legacy_capture else {}
         instances = {instance["id"]: instance for instance in self.graph["instances"]}
         for call in self.graph["_ordered_calls"]:
@@ -150,9 +159,8 @@ class _GraphModule(nn.Module):
             if estimated_elements is not None:
                 budget.check(estimated_elements)
             if isinstance(component, _GraphModule):
-                child_prefix = prefix + source + '/' if self.tensor_contracts else ''
-                value = (component._execute(arguments, budget, prefix=child_prefix, collector=collector)
-                         if self.tensor_contracts else component._execute(arguments, budget))
+                child_prefix = prefix + source + '/' if self.tensor_contracts or observer is not None else ''
+                value = component._execute(arguments, budget, prefix=child_prefix, collector=collector, observer=observer)
             elif self.tensor_contracts:
                 try:
                     value = component(**arguments)
@@ -200,6 +208,8 @@ class _GraphModule(nn.Module):
                     if legacy_capture: observed[ref] = snapshots[id(tensor)]
                     if collector is not None and instance['kind'] != 'MaskApply':
                         collector.observe(prefix + ref, tensor, specs[ref])
+                    if observer is not None:
+                        observer.observe(prefix + ref, tensor, specs.get(ref))
         self.last_values = observed
         return {output["id"]: values[output["source"]] for output in self.graph["outputs"]}
 

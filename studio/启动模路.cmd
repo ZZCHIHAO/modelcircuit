@@ -1,7 +1,8 @@
 @echo off
-set "MODELCIRCUIT_EXE=%~dp0dist\s10\ModelCircuitStudio\ModelCircuitStudio.exe"
+set "MODELCIRCUIT_EXE=%~dp0dist\s11\ModelCircuitStudio\ModelCircuitStudio.exe"
+if not exist "%MODELCIRCUIT_EXE%" set "MODELCIRCUIT_EXE=%~dp0dist\s10\ModelCircuitStudio\ModelCircuitStudio.exe"
 if not exist "%MODELCIRCUIT_EXE%" (
-  echo The S10 ModelCircuit Studio package is unavailable. See studio/native/S10_PROJECT_GUIDE.md.
+  echo The ModelCircuit Studio package is unavailable. See studio/native/S11_DEBUG_GUIDE.md.
   pause
   exit /b 1
 )
