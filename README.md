@@ -4,7 +4,7 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前开发版本 `v0.9.2-alpha.1`。** S11 增加端口接线反馈、样例前向、训练单步、探针采样和参数扫描。参见 [S11 调试指南](studio/native/S11_DEBUG_GUIDE.md)。S10 新增可迁移的科研工程，ImageFolder 分类和配对影像分割可导出为独立 Python 工程。支持数据重绑、模型代码回写、训练与推理复跑和运行记录对比。参见 [S10 工程指南](studio/native/S10_PROJECT_GUIDE.md)。分割训练和独立滑窗推理见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md) 与 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。
+**当前开发版本 `v0.9.3-alpha.1`。** S12 支持 Linux 服务器 CUDA DDP、按任务 ID 重新连接、停止续训和校验后下载实验结果。参见 [S12 多卡和远程执行指南](studio/native/S12_REMOTE_GUIDE.md)。S11 增加端口接线反馈、样例前向、训练单步、探针采样和参数扫描。参见 [S11 调试指南](studio/native/S11_DEBUG_GUIDE.md)。S10 新增可迁移的科研工程，ImageFolder 分类和配对影像分割可导出为独立 Python 工程。支持数据重绑、模型代码回写、训练与推理复跑和运行记录对比。参见 [S10 工程指南](studio/native/S10_PROJECT_GUIDE.md)。分割训练和独立滑窗推理见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md) 与 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。平台后续开发阶段按依赖通过 PR 接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
@@ -59,7 +59,7 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 
 ### 源码与 EXE 的区别
 
-S11 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s11/ModelCircuitStudio/ModelCircuitStudio.exe`。在「调试」「实验」「推理」或「工程」页选择 `cpu` 或一张 `cuda:N`。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S10`。移动时请保留整个应用目录。
+S12 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s12/ModelCircuitStudio/ModelCircuitStudio.exe`。在「调试」「实验」「推理」或「工程」页选择 `cpu` 或一张 `cuda:N`。服务器 DDP 从「实验」中的「服务器多卡…」进入。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S10`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 

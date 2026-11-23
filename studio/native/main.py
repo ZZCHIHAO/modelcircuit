@@ -92,10 +92,14 @@ def main(argv=None):
     parser.add_argument('--s9-render-check', type=Path, help='Verify standalone segmentation inference through native controls')
     parser.add_argument('--s10-render-check', type=Path, help='Verify research projects through native controls')
     parser.add_argument('--s11-render-check', type=Path, help='Verify port diagnostics, one optimizer step and parameter sweeps')
+    parser.add_argument('--s12-render-check', type=Path, help='Verify native remote DDP through OpenSSH')
+    parser.add_argument('--remote-check-settings', type=Path, help='Local settings for the authorized S12 diagnostic')
     args = parser.parse_args(argv)
+    if bool(args.s12_render_check) != bool(args.remote_check_settings):
+        parser.error('S12 remote check requires both diagnostic options')
     diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
                    args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check, args.s7_render_check,
-                   args.s8_render_check, args.s9_render_check, args.s10_render_check, args.s11_render_check]
+                   args.s8_render_check, args.s9_render_check, args.s10_render_check, args.s11_render_check, args.s12_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -152,6 +156,9 @@ def main(argv=None):
         elif args.s11_render_check:
             from .s11_acceptance import check_s11
             report = check_s11(manager, paths['data'], resource_root(), args.s11_render_check.parent, args.check_device)
+        elif args.s12_render_check:
+            from .s12_acceptance import check_s12
+            report = check_s12(manager, paths['data'], resource_root(), args.s12_render_check.parent, args.remote_check_settings)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench

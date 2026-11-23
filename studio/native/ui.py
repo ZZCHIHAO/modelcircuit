@@ -23,6 +23,7 @@ from .segmentation_panel import SegmentationPanel
 from .inference_panel import InferencePanel
 from .project_panel import ProjectPanel
 from .debug_panel import DebugPanel
+from .remote_panel import RemotePanel
 from .wire_feedback import PortContracts, assess_link, assay_text
 from .workspace_state import read_workspace_full, save_workspace, workspace_payload
 from .workbench_state import WorkbenchState
@@ -121,6 +122,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.inference_panel = InferencePanel(self)
         self.project_panel = ProjectPanel(self)
         self.debug_panel = DebugPanel(self)
+        self.remote_panel = RemotePanel(self)
         self.canvas_host.catalog_panel = self.catalog_panel
         self._init_experiment(experiment)
         self._init_chip_controls()
@@ -288,7 +290,12 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                         with dpg.child_window(width=-1, height=-1, border=False):
                             self.debug_panel.build_controls()
                     with dpg.tab(label="实验", tag="native_experiment_tab"):
+                        dpg.add_button(label='服务器多卡…', tag='native_open_remote',
+                                       callback=self.guarded(self.remote_panel.show))
                         self._build_experiment_controls()
+                    with dpg.tab(label='远程', tag='native_remote_tab'):
+                        with dpg.child_window(width=-1, height=-1, border=False):
+                            self.remote_panel.build_controls()
                     with dpg.tab(label='推理', tag='native_inference_tab'):
                         with dpg.child_window(width=-1, height=-1, border=False):
                             self.inference_panel.build_controls()
@@ -299,6 +306,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                 dpg.add_text("尚未运行 · 设计快照与实验快照分开记录", tag="native_result_version", color=MUTED)
                 with dpg.tab_bar(tag="native_bottom_tabs"):
                     self.debug_panel.build_results()
+                    self.remote_panel.build_results()
                     with dpg.tab(label="张量探针", tag="native_probe_tab"):
                         with dpg.group(tag="native_probe"):
                             pass
@@ -332,6 +340,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         self.segmentation_panel.build_resources()
         self.inference_panel.build_resources()
         self.project_panel.build_resources()
+        self.remote_panel.build_resources()
         self._build_chip_dialogs()
         self.catalog_panel.build_dialogs()
         with dpg.handler_registry():
@@ -382,12 +391,14 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         segmentation_result = (self.result or {}).get('profile') == 'segmentation-v1' or self.inference_panel.report is not None
         debug_result = bool(self.debug_panel.result and
                             dpg.get_value('native_bottom_tabs') == dpg.get_alias_id('native_debug_results_tab'))
-        size_key = (width, height, attention_result, segmentation_result, debug_result)
+        remote_log = (self.remote_panel.record is not None and
+                      dpg.get_value('native_bottom_tabs') == dpg.get_alias_id('native_remote_results_tab'))
+        size_key = (width, height, attention_result, segmentation_result, debug_result, remote_log)
         if size_key == self.last_size:
             return
         self.last_size = size_key
         left, right, bottom = 205, 305, max(160, min(180, int(height * 0.19)))
-        if debug_result:
+        if debug_result or remote_log:
             bottom = max(bottom, min(225, height - 77 - 355 - 35))
         elif segmentation_result:
             bottom = 250
@@ -1346,6 +1357,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             self.inference_panel.poll()
             self.project_panel.poll()
             self.debug_panel.poll()
+            self.remote_panel.poll()
         if now - self.last_draft >= 2:
             self.last_draft = now; self._save_draft()
 
@@ -1398,6 +1410,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                 try:
                     self.queries.close()
                     self.project_panel.close()
+                    self.remote_panel.close()
                 finally:
                     self.closed = True; self._context_created = False; self._built = False
                     dpg.destroy_context()

@@ -625,7 +625,19 @@ class ProjectPanel:
             history = report.get('history') or []
             operation = {'train': '训练', 'predict': '推理'}.get(report['operation'], report['operation'])
             status = _RUN_LABELS.get(report.get('status'), '')
-            dpg.add_text(f"记录 {label} · {operation} · {status} · {report.get('device') or '—'}", parent=parent)
+            execution = report.get('execution')
+            is_ddp = isinstance(execution, dict) and execution.get('strategy') == 'ddp'
+            if is_ddp:
+                count = _number(execution.get('world_size'))
+                hardware = 'GPU' if execution.get('device_type') == 'cuda' else 'CPU'
+                device = f'DDP · {count} {hardware}'
+            else:
+                device = report.get('device') or '—'
+            dpg.add_text(f'记录 {label} · {operation} · {status} · {device}', parent=parent)
+            if is_ddp:
+                effective = _number(execution.get('effective_global_batch'))
+                dropped = _number(execution.get('train_samples_dropped_per_epoch'))
+                dpg.add_text(f'有效全局批次 {effective} · 每轮尾部未分配样本 {dropped}', color=_MUTED, parent=parent)
             model_id = (report.get('model_digest') or '—')[:12]
             dataset_id = (report.get('dataset_digest') or '—')[:12]
             dpg.add_text(f"模型 {model_id} · 数据 {dataset_id} · 随机种子 {_number(report.get('seed'))} · {len(history)} 个周期",
