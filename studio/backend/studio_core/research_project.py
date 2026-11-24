@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 from .classification_data import _manifest_digest, inspect_dataset
 from .execution_policy import check_config_batch
+from .medical_volume_data import MEDICAL_FORMATS
 from .experiment_spec import checkpoint_signature, model_digest, validate_supervised_config
 from .python_io import export_python, import_python
 from .schema import prepare_graph
@@ -211,12 +212,15 @@ def portable_dataset(manifest):
         root = Path(manifest['data_spec']['source_root'])
         keys = ('id', 'group', 'split', 'source_digest', 'mask_digest', 'content_digest',
                 'mask_content_digest', 'geometry', 'class_pixels')
+        if settings.get('format') in MEDICAL_FORMATS:
+            keys += ('model_grid', 'sequence_relative_paths', 'sequence_source_digests', 'sequence_content_digests')
         for local in manifest['records']:
             records.append({**{key: local[key] for key in keys},
                             'relative_path': Path(local['source_path']).relative_to(root).as_posix(),
                             'mask_relative_path': Path(local['mask_path']).relative_to(root).as_posix()})
     if any(not _portable_relative(record['relative_path']) or
            (kind == 'segmentation_csv' and not _portable_relative(record['mask_relative_path']))
+           or any(not _portable_relative(path) for path in record.get('sequence_relative_paths', ()))
            for record in records):
         raise ValueError('Dataset contains a file name that cannot travel as a relative path')
     payload['records'] = records
@@ -229,8 +233,10 @@ def _write_pairs(path, lock):
     active = [(lock['settings'][setting], field) for setting, field in columns.items() if lock['settings'][setting] is not None]
     with path.open('w', encoding='utf-8', newline='') as stream:
         writer = csv.writer(stream)
-        writer.writerow([column for column, _ in active])
-        writer.writerows([record[field] for _, field in active] for record in lock['records'])
+        sequences = lock['settings'].get('sequence_columns', [])
+        writer.writerow([column for column, _ in active] + sequences)
+        writer.writerows([record[field] for _, field in active] + record.get('sequence_relative_paths', [])
+                         for record in lock['records'])
 
 
 def _verify_dataset_lock(lock, config, expected):
@@ -246,6 +252,21 @@ def _verify_dataset_lock(lock, config, expected):
     if any(not isinstance(record, dict) or any(not _portable_relative(record.get(key)) for key in paths)
            for record in lock['records']):
         raise ValueError('Invalid relative path in the dataset lock')
+    if config['data'].get('format') in MEDICAL_FORMATS:
+        from .medical_geometry import affine_mm
+        from .medical_volume_data import medical_recipe
+
+        if lock.get('preprocessing') != medical_recipe(config['data']):
+            raise ValueError('Medical preprocessing differs from the project config')
+        count = len(config['data']['sequence_columns'])
+        for record in lock['records']:
+            for field, validate in [('sequence_relative_paths', _portable_relative),
+                                    ('sequence_source_digests', _is_digest), ('sequence_content_digests', _is_digest)]:
+                values = record.get(field)
+                if not isinstance(values, list) or len(values) != count or not all(map(validate, values)):
+                    raise ValueError(f'Invalid {field} in the medical dataset lock')
+            for field in ('geometry', 'model_grid'):
+                affine_mm(record.get(field))
 
 
 def _file_digest(path):
@@ -450,8 +471,13 @@ def export_project(destination, graph, config, *, workbench=None, checkpoint=Non
         (stage / 'run.py').write_text(_RUN_ENTRY, encoding='utf-8', newline='\n')
         (stage / 'README.md').write_text(_README, encoding='utf-8', newline='\n')
         requirements = 'numpy==2.3.5\nPillow==12.3.0\n'
-        if config['data'].get('format') == 'nifti':
+        fmt = config['data'].get('format')
+        if fmt == 'nifti' or fmt in MEDICAL_FORMATS:
             requirements += 'nibabel==5.3.2\n'
+        if fmt in MEDICAL_FORMATS:
+            requirements += 'scipy==1.15.3\n'
+        if fmt == 'dicom_ct':
+            requirements += 'pydicom==3.0.1\n'
         (stage / 'requirements.txt').write_text(requirements, encoding='utf-8', newline='\n')
         (stage / 'requirements-torch.txt').write_text('torch==2.6.0\n', encoding='utf-8', newline='\n')
         _write_json(stage / 'project.json', payload, _MAX_PROJECT)

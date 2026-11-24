@@ -79,8 +79,10 @@ def _editable_experiment(experiment):
                     len(set(mapping.values()))==2,'input_ports must name two distinct graph inputs')
     else:require(mapping is None,'input_ports is only supported for paired_csv')
     if kind == 'segmentation_csv':
+        from studio_core.medical_volume_data import MEDICAL_FORMATS, validate_medical_spec
         from studio_core.segmentation_data import validate_segmentation_spec
-        validate_segmentation_spec(data)
+        validator = validate_medical_spec if data.get('format') in MEDICAL_FORMATS else validate_segmentation_spec
+        validator(data)
         return
     if kind == 'research_csv':
         from studio_core.research_data import validate_research_spec

@@ -98,6 +98,10 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     task_id = {'regression-v1': 'regression', 'segmentation-v1': 'segmentation'}.get(profile, 'classification')
     task_label = task_id.capitalize()
     segmentation = task_id == 'segmentation'
+    from .medical_volume_data import MEDICAL_FORMATS
+    medical = segmentation and config['data']['format'] in MEDICAL_FORMATS
+    if medical:
+        from .medical_volume_eval import evaluate_medical_split
     typed = isinstance(graph, dict) and graph.get('schema_version') == 2
     if not typed and 'attention_probe_requests' in config:
         raise ValueError('Attention probes require tensor-v1')
@@ -163,6 +167,11 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
             # retain possible training/epoch-val batches in the projection.
             minimum_batch_size = max(min(config['batch_size'], manifest['counts']['test']),
                                      min(config['batch_size'], 16, manifest['counts']['val']))
+        if medical:
+            probe_batch = min(config['batch_size'], 16, manifest['counts']['val'])
+            train_patches = manifest['counts']['train'] * manifest['data_spec']['patches_per_case']
+            execution_batch_size = max(min(config['batch_size'], train_patches), probe_batch)
+            minimum_batch_size = probe_batch if config['resume_checkpoint'] else execution_batch_size
         memory_report = admit_memory(resolved, device, batch_size=execution_batch_size,
                                      minimum_batch_size=minimum_batch_size, training=True,
                                      optimizer=config['optimizer'], capture=False, workflow='classification',
@@ -188,9 +197,13 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     from PIL import __version__ as pillow_version
     environment = {"python": platform.python_version(), "torch": str(torch.__version__), "pillow": pillow_version,
                    "platform": platform.platform(), "machine": platform.machine(), "cuda": None, "cudnn": None}
-    if segmentation and manifest['data_spec']['format'] == 'nifti':
+    if segmentation and manifest['data_spec']['format'] != 'image':
         from importlib.metadata import version
         environment['nibabel'] = version('nibabel')
+        if medical:
+            environment['scipy'] = version('scipy')
+            if manifest['data_spec']['format'] == 'dicom_ct':
+                environment['pydicom'] = version('pydicom')
     if device.type == "cuda":
         environment["cuda"] = torch.version.cuda
         environment["cudnn"] = torch.backends.cudnn.version()
@@ -283,8 +296,16 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
                 check()
                 return task.finalize(totals)
 
+            def evaluate_volumes(split, epoch, directory=None):
+                return evaluate_medical_split(
+                    model, task, manifest, split, device, check, output_directory=directory,
+                    progress=lambda done, count: emit(split, epoch, done, count, global_step),
+                )
+
             for epoch in range(completed_epochs + 1, config["epochs"] + 1):
                 check()
+                if medical:
+                    datasets['train'].set_epoch(epoch)
                 model.train()
                 model.set_capture(False)
                 totals = {}
@@ -311,7 +332,7 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
                     emit('train', epoch, batch_index, train_batches, global_step, loss=float(loss.detach()),
                          **task.progress_metrics(task.finalize(totals)))
                 train_metrics = task.finalize(totals)
-                val_metrics = evaluate("val", epoch)
+                val_metrics = evaluate_volumes("val", epoch)[0] if medical else evaluate("val", epoch)
                 measurements = [{"name": name, "shape": list(parameter.shape), "trainable": parameter.requires_grad,
                                  "grad_norm": float(parameter.grad.detach().double().norm()) if parameter.grad is not None else None,
                                  "update_norm": float((parameter.detach().cpu().double() - initial_state[name].double()).norm())}
@@ -344,7 +365,7 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
             best_checkpoint = torch.load(paths["best_checkpoint"], weights_only=True, map_location="cpu")
             model.load_state_dict(best_checkpoint["model_state"], strict=True)
             best = best_checkpoint["best"]
-            if segmentation:
+            if segmentation and not medical:
                 from .segmentation_predictions import SegmentationPredictions
                 prediction_files = SegmentationPredictions(artifact_directory, manifest, check)
             output = io.StringIO(newline="")
@@ -355,7 +376,12 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
                 rows = prediction_files.rows(outputs, batch) if segmentation else task.prediction_rows(outputs, batch, manifest)
                 writer.writerows(rows)
 
-            test_metrics = evaluate("test", best["completed_epochs"], write_predictions)
+            if medical:
+                test_metrics, rows = evaluate_volumes('test', best['completed_epochs'], artifact_directory)
+                writer.writerows(rows)
+                paths['case_metrics'] = artifact_directory / 'medical_case_metrics.csv'
+            else:
+                test_metrics = evaluate("test", best["completed_epochs"], write_predictions)
             _atomic_write(paths["predictions"], lambda stream: stream.write(output.getvalue().encode("utf-8")))
             check()
             probe_loader = DataLoader(datasets["val"], batch_size=min(config["batch_size"], 16), shuffle=False, num_workers=0,

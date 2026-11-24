@@ -92,6 +92,13 @@ def manifest_summary(manifest):
     if manifest.get('kind') == 'segmentation_csv':
         dataset_label = '三维分割' if len(manifest['input_shape']) == 5 else '二维分割'
         target = '掩码值 ' + ', '.join(map(str, manifest['mask_values'][:12]))
+        fmt = manifest.get('data_spec', {}).get('format')
+        if fmt in ('dicom_ct', 'mri_nifti'):
+            dataset_label = {'dicom_ct': 'CT 补丁分割', 'mri_nifti': 'MRI 补丁分割'}[fmt]
+            patients = {split: set() for split in ('train', 'val', 'test')}
+            for row in manifest['records']:
+                patients[row['split']].add(row['group'])
+            target += '\n患者数 ' + ' / '.join(str(len(groups)) for groups in patients.values())
     text = (f"{dataset_label} · 输入 {shape}\n"
             f"train {counts.get('train', 0)} / val {counts.get('val', 0)} / test {counts.get('test', 0)}\n"
             f"{target}\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
@@ -185,7 +192,12 @@ def result_view(result, progress_history=None):
                 summary = "FitNets · 提示训练 " + str(len(hint)) + " 轮 · 最终提示损失 " + _number(hint[-1].get("train_loss")) + "\n" + summary
         if segmentation and test:
             summary += (f"\n测试集前景 Dice {_number(test.get('foreground_dice'))} · IoU {_number(test.get('foreground_iou'))}"
-                        f" · n={test.get('count', '—')}\n在模型网格上计算。原始网格掩码见「分割预测」。")
+                        f" · n={test.get('count', '—')}")
+            if test.get('space') == 'original':
+                summary += (f" · HD95 {_number(test.get('foreground_hd95_mm'))} mm\n"
+                            "重叠和距离在原始空间计算。整卷损失在模型网格计算。")
+            else:
+                summary += '\n在模型网格上计算。原始网格掩码见「分割预测」。'
         elif regression and test:
             r2 = _number(test["r2"]) if test.get("r2") is not None else "未定义"
             summary += (f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}"

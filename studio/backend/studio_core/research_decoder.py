@@ -198,7 +198,55 @@ def _functional_value(dataset, frame, sequence, field):
     return dataset.get(field)
 
 
-def _dicom_pixels(dataset, cancelled):
+def _ct_rescale(dataset, frame):
+    """Return one documented linear HU transform for a classic or enhanced CT frame."""
+    from pydicom.uid import CTImageStorage, EnhancedCTImageStorage, LegacyConvertedEnhancedCTImageStorage
+
+    sop_class = dataset.get('SOPClassUID')
+    if sop_class != dataset.file_meta.get('MediaStorageSOPClassUID'):
+        raise ValueError('HU calibration requires consistent DICOM CT storage metadata')
+    classic = sop_class == CTImageStorage
+    if not classic and sop_class not in (EnhancedCTImageStorage, LegacyConvertedEnhancedCTImageStorage):
+        raise ValueError('HU calibration requires a recognized DICOM CT storage class')
+    if dataset.get('ModalityLUTSequence'):
+        raise ValueError('CT HU calibration requires linear rescale without a modality LUT')
+    transform = dataset
+    image_type = dataset.get('ImageType')
+    if not classic:
+        per_frame = dataset.get('PerFrameFunctionalGroupsSequence') or ()
+        shared = dataset.get('SharedFunctionalGroupsSequence') or ()
+        if len(shared) > 1:
+            raise ValueError('Enhanced CT has ambiguous shared HU calibration')
+        groups = [per_frame[frame]] if frame < len(per_frame) else []
+        groups.extend(shared)
+        transforms = [group.get('PixelValueTransformationSequence') for group in groups
+                      if 'PixelValueTransformationSequence' in group]
+        if len(transforms) != 1 or not transforms[0] or len(transforms[0]) != 1:
+            raise ValueError('Enhanced CT requires one HU rescale per frame')
+        transform = transforms[0][0]
+        image_type = _functional_value(dataset, frame, 'CTImageFrameTypeSequence', 'FrameType') or image_type
+
+    image_type = tuple(image_type) if image_type and not isinstance(image_type, str) else ()
+    if len(image_type) >= 3 and image_type[2] == 'LOCALIZER':
+        raise ValueError('CT LOCALIZER images cannot form an HU volume')
+    # PS3.3 C.8.2.1 permits an implicit HU unit for classic original,
+    # non-localizer, non-multi-energy CT. C.8.15.3.10 requires RescaleType
+    # in the enhanced Pixel Value Transformation Macro.
+    unit = transform.get('RescaleType')
+    implicit_hu = (classic and unit is None and len(image_type) >= 3 and image_type[0] == 'ORIGINAL'
+                   and bool(image_type[2]) and dataset.get('MultienergyCTAcquisition') in (None, 'NO'))
+    if unit != 'HU' and not implicit_hu:
+        raise ValueError('CT rescale units must be documented as HU')
+    try:
+        slope, intercept = float(transform.get('RescaleSlope')), float(transform.get('RescaleIntercept'))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError('CT HU calibration requires both a rescale slope and intercept') from exc
+    if not math.isfinite(slope) or not math.isfinite(intercept) or slope == 0:
+        raise ValueError('CT HU rescale must be finite with a nonzero slope')
+    return slope, intercept
+
+
+def _dicom_pixels(dataset, cancelled, *, strict_ct=False):
     from pydicom.pixels import apply_modality_lut
 
     try:
@@ -213,6 +261,11 @@ def _dicom_pixels(dataset, cancelled):
     result = np.empty(data.shape, dtype=np.float32)
     for i, frame in enumerate(data):
         _cancel(cancelled)
+        if strict_ct:
+            slope, intercept = _ct_rescale(dataset, i)
+            with np.errstate(over='ignore', invalid='ignore'):
+                result[i] = frame.astype(np.float64) * slope + intercept
+            continue
         slope = _functional_value(dataset, i, 'PixelValueTransformationSequence', 'RescaleSlope')
         intercept = _functional_value(dataset, i, 'PixelValueTransformationSequence', 'RescaleIntercept')
         if dataset.get('ModalityLUTSequence'):
@@ -226,7 +279,7 @@ def _dicom_pixels(dataset, cancelled):
     return result
 
 
-def _dicom_geometry(datasets, counts, modality):
+def _dicom_geometry(datasets, counts, modality, *, strict_ct=False):
     orientations, positions, spacings = [], [], []
     for dataset, count in zip(datasets, counts):
         per_frame = dataset.get('PerFrameFunctionalGroupsSequence') or ()
@@ -256,9 +309,15 @@ def _dicom_geometry(datasets, counts, modality):
         if (not np.allclose(_numbers(orient, 6, 'orientation'), direction.ravel(), atol=1e-4, rtol=0)
                 or not np.allclose(_numbers(spacing, 2, 'pixel spacing'), plane_spacing, rtol=1e-4, atol=1e-4)):
             raise ValueError('DICOM slices disagree on orientation or pixel spacing')
+    if strict_ct:
+        # Remove small DICOM decimal rounding of the orthonormal axes before
+        # projecting positions or deriving the depth column of the affine.
+        direction[0] /= np.linalg.norm(direction[0])
+        direction[1] -= (direction[0] @ direction[1]) * direction[0]
+        direction[1] /= np.linalg.norm(direction[1])
     normal = np.cross(*direction)
     origins = np.asarray([_numbers(item, 3, 'position') for item in positions])
-    projections = origins @ normal
+    projections = (origins - origins[0] if strict_ct else origins) @ normal
     order = np.argsort(projections, kind='stable')
     axial_spacing = None
     if count > 1:
@@ -273,12 +332,18 @@ def _dicom_geometry(datasets, counts, modality):
         depth_displacements = (projections[order] - projections[order[0]])[:, None] * normal
         if not np.allclose(displacements, depth_displacements, atol=0.1, rtol=0):
             raise ValueError('DICOM slice origins have in-plane displacement; tilted volumes need prior resampling')
+        if strict_ct:
+            axial_spacing = float((projections[order[-1]] - projections[order[0]]) / (count - 1))
+            fitted = np.arange(count)[:, None] * axial_spacing * normal
+            tolerance = min(1e-3, 1e-3 * min(axial_spacing, *plane_spacing))
+            if np.any(intervals <= 0) or np.any(np.linalg.norm(fitted - displacements, axis=1) > tolerance):
+                raise ValueError('CT slice displacement cannot be represented on one regular spatial affine')
     return order.tolist(), {'geometry': 'dicom_patient_lps', 'orientation_cosines': direction.ravel().tolist(),
                             'origin_lps_xyz': origins[order[0]].tolist(), 'spatial_unit': 'mm',
                             'source_spacing_dhw': [axial_spacing, *plane_spacing.tolist()]}
 
 
-def _dicom(path, expected, cancelled):
+def _dicom(path, expected, cancelled, *, strict_ct=False):
     try:
         import pydicom
     except ImportError as exc:
@@ -343,8 +408,10 @@ def _dicom(path, expected, cancelled):
         series, modality, size, polarity, frame_of_reference = candidate_uid, typ, dims, photometric, geometry_uid
         datasets.append(dataset)
         counts.append(frames)
-    order, metadata = _dicom_geometry(datasets, counts, modality)
-    data = np.concatenate([_dicom_pixels(dataset, cancelled) for dataset in datasets])
+    if strict_ct and sum(counts) < 2:
+        raise ValueError('CT volume requires at least two slices')
+    order, metadata = _dicom_geometry(datasets, counts, modality, strict_ct=strict_ct)
+    data = np.concatenate([_dicom_pixels(dataset, cancelled, strict_ct=strict_ct) for dataset in datasets])
     if order != list(range(len(data))):
         data = data[order]
     units = 'HU' if modality == 'CT' else 'modality_intensity'
