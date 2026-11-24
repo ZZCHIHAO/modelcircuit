@@ -12,6 +12,8 @@ class SegmentationPanel:
     def __init__(self, app):
         self.app = app
         self.index_path = None
+        self.metrics_path = None
+        self.case_metrics = {}
         self.rows = []
         self.index = 0
 
@@ -30,6 +32,7 @@ class SegmentationPanel:
                     dpg.add_button(label='导出原始网格掩码…', tag='native_segmentation_export',
                                    callback=self.app.guarded(self._show_export))
                 dpg.add_text('左  输入影像     中  标注叠加     右  预测叠加')
+                dpg.add_text('', tag='native_segmentation_case_metrics', wrap=790)
                 dpg.add_group(tag='native_segmentation_image_host')
 
     def build_resources(self):
@@ -42,12 +45,14 @@ class SegmentationPanel:
     def sync(self, result, active, stale):
         is_result = (result or {}).get('profile') == 'segmentation-v1'
         dpg.configure_item('native_segmentation_tab', show=active or is_result)
-        path = (result or {}).get('artifacts', {}).get('predictions') if is_result else None
-        if path == self.index_path:
+        artifacts = result.get('artifacts', {}) if is_result else {}
+        path, metrics_path = artifacts.get('predictions'), artifacts.get('case_metrics')
+        if path == self.index_path and metrics_path == self.metrics_path:
             if self.rows:
                 self._summary(stale)
             return
-        self.index_path = path
+        self.index_path, self.metrics_path = path, metrics_path
+        self.case_metrics = {}
         self.rows = []
         self.index = 0
         self._clear_image()
@@ -60,11 +65,25 @@ class SegmentationPanel:
                 self.rows = list(csv.DictReader(stream))
             if not self.rows:
                 raise ValueError('预测清单为空。')
+            if metrics_path:
+                self._load_case_metrics(metrics_path)
             self.select(0, stale=stale)
             dpg.show_item('native_segmentation_browser')
         except (OSError, ValueError, KeyError) as error:
             self.rows = []
             dpg.set_value('native_segmentation_result', '无法打开预测产物。' + str(error))
+
+    def _load_case_metrics(self, metrics_path):
+        path = Path(metrics_path).resolve()
+        if path.parent != Path(self.index_path).resolve().parent or not path.is_file() or path.stat().st_size > 8 * 1024 ** 2:
+            return
+        try:
+            with path.open(encoding='utf-8', newline='') as stream:
+                for row in csv.DictReader(stream):
+                    if row['class_index'] != '0':
+                        self.case_metrics.setdefault(row['sample_id'], []).append(row)
+        except (OSError, KeyError, csv.Error, UnicodeError):
+            self.case_metrics = {}
 
     def _clear_image(self):
         for tag in ('native_segmentation_image', 'native_segmentation_texture'):
@@ -80,7 +99,21 @@ class SegmentationPanel:
 
     def _summary(self, stale):
         row = self.rows[self.index]
-        scope = f" · 切片 {row['slice_index']}/{row['slice_count']}（模型网格）" if row['slice_count'] != '1' else ''
+        space = '原始网格' if self.metrics_path else '模型网格'
+        scope = f" · 切片 {row['slice_index']}/{row['slice_count']}（{space}）" if row['slice_count'] != '1' else ''
+        metrics = self.case_metrics.get(row['sample_id'], [])
+
+        def number(value):
+            try:
+                return f'{float(value):.4g}'
+            except (TypeError, ValueError):
+                return '—'
+
+        text = '  |  '.join(f"标签 {item.get('class_value')}  Dice {number(item.get('dice'))}  "
+                           f"IoU {number(item.get('iou'))}  HD95 {number(item.get('hd95_mm'))} mm" for item in metrics[:4])
+        if self.metrics_path:
+            text += ('\n' if text else '') + '完整逐病例指标见实验目录 medical_case_metrics.csv'
+        dpg.set_value('native_segmentation_case_metrics', text)
         dpg.set_value('native_segmentation_result', f"样本 {row['sample_id']} · {self.index + 1}/{len(self.rows)}" + scope +
                       (' · 来自旧实验快照' if stale else ''))
 

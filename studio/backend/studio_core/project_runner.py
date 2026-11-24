@@ -173,7 +173,7 @@ def compare_project_runs(left, right):
     if not isinstance(a, dict) or not isinstance(b, dict) or a.get('count') != b.get('count'):
         return rejected('测试集样本数不一致。')
     result = {}
-    for name in ('accuracy', 'foreground_dice', 'foreground_iou', 'loss'):
+    for name in ('accuracy', 'foreground_dice', 'foreground_iou', 'foreground_hd95_mm', 'loss'):
         x, y = a.get(name), b.get(name)
         if (type(x) in (int, float) and type(y) in (int, float) and math.isfinite(x) and math.isfinite(y)):
             result[name] = {'left': x, 'right': y, 'delta': y - x}
@@ -315,8 +315,11 @@ def train_project(project_path, data_path, artifact_directory, *, source_root=No
         emit({'phase': 'bind'})
         config, manifest = bind_project(project, data_path, source_root=source_root, cancelled=cancelled)
         config['device'] = device
+        from .medical_volume_data import MEDICAL_FORMATS
+        evaluation = ('segmentation-native-test-v1' if config['data'].get('format') in MEDICAL_FORMATS
+                      else config['profile'] + '-test-v1')
         report.update(seed=config['seed'], local_dataset_digest=manifest['dataset_digest'],
-                      evaluation=config['profile'] + '-test-v1', evaluation_dataset_digest=evaluation_dataset_digest(project['dataset']),
+                      evaluation=evaluation, evaluation_dataset_digest=evaluation_dataset_digest(project['dataset']),
                       epochs=config['epochs'], batch_size=config['batch_size'])
         result = run_supervised(project['graph'], config, directory, emit, cancelled)
         report.update(history=result['history'], metrics=result['metrics'], best_epoch=result['best_epoch'],
@@ -407,7 +410,7 @@ def _classify_images(graph, run_spec, checkpoint, source, directory, device, can
     return {'cases': len(files), 'artifacts': {'predictions': prediction_file}}
 
 
-def predict_project(project_path, source, artifact_directory, *, weights=None, device='cpu', mode='fixed', overlap=.25,
+def predict_project(project_path, source, artifact_directory, *, weights=None, device='cpu', mode='auto', overlap=None, sequence_paths=(),
                     progress=None, cancelled=None):
     from .research_project import read_project
     from .segmentation_inference import run_segmentation_inference
@@ -427,10 +430,10 @@ def predict_project(project_path, source, artifact_directory, *, weights=None, d
         if profile == 'segmentation-v1':
             result = run_segmentation_inference({'run_spec': str(run_spec), 'checkpoint': str(checkpoint),
                                                  'source': str(source), 'device': device, 'mode': mode,
-                                                 'overlap': overlap}, directory, emit, cancelled)
+                                                 'overlap': overlap, 'sequence_paths': list(map(str, sequence_paths))}, directory, emit, cancelled)
         else:
-            if mode != 'fixed':
-                raise ValueError('Image classification uses fixed-size inference')
+            if mode not in ('fixed', 'auto') or sequence_paths:
+                raise ValueError('Image classification uses fixed-size inference without MRI sequences')
             result = _classify_images(project['graph'], run_spec, checkpoint, source, directory, device, cancelled, emit)
         report['cases'] = result['cases']
         target = _write_result(directory, report, 'succeeded', log, result['artifacts'], cancelled=cancelled)
@@ -456,8 +459,9 @@ def main(project_dir=None, argv=None):
         command.add_argument('--device', default='cpu')
     predict.add_argument('--source', type=Path, required=True)
     predict.add_argument('--weights', type=Path, help='Training project-run.json or its directory')
-    predict.add_argument('--mode', choices=('fixed', 'sliding'), default='fixed')
-    predict.add_argument('--overlap', type=float, default=.25)
+    predict.add_argument('--mode', choices=('auto', 'fixed', 'sliding'), default='auto')
+    predict.add_argument('--overlap', type=float)
+    predict.add_argument('--sequence', type=Path, action='append', default=[], help='Additional MRI NIfTI in training channel order')
     args = parser.parse_args(argv)
     try:
         if args.operation == 'check':
@@ -473,7 +477,7 @@ def main(project_dir=None, argv=None):
             result = train_project(args.project, args.data, args.out, source_root=args.source_root, device=args.device)
         else:
             result = predict_project(args.project, args.source, args.out, weights=args.weights, device=args.device,
-                                     mode=args.mode, overlap=args.overlap)
+                                     mode=args.mode, overlap=args.overlap, sequence_paths=args.sequence)
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except KeyboardInterrupt:

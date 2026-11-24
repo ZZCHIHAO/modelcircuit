@@ -14,6 +14,7 @@ from .classification_runtime import _write_json
 from .devices import memory_snapshot, resolve_device
 from .experiment_spec import checkpoint_signature, model_digest, validate_supervised_config
 from .inference_spec import PENDING_REPORT, PROFILE, REPORT_NAME, validate_inference_config
+from .medical_volume_data import MEDICAL_FORMATS, medical_recipe
 from .memory_admission import admit_memory
 from .schema import prepare_graph
 from .segmentation_data import float_image, load_native_image, normalize_image, resize_image, resize_labels
@@ -122,14 +123,16 @@ def _load_model(config, check):
         dataset = saved['dataset_digest']
         if not isinstance(dataset, str) or len(dataset) != 64 or any(c not in '0123456789abcdef' for c in dataset):
             raise ValueError('Run specification has an invalid dataset digest')
-        shape = (spec['channels'], *([spec['depth']] if spec['format'] == 'nifti' else []), *spec['image_size'])
+        medical = spec['format'] in MEDICAL_FORMATS
+        shape = (spec['channels'], *([spec['depth']] if spec['format'] != 'image' else []), *spec['image_size'])
         model_id = model_digest(graph)
         identity = checkpoint_signature(graph, training, dataset)
         # The data manifest resolves paths. Only the preprocessing fields travel with a model.
         preprocessing_keys = ('format', 'mask_values', 'channels', 'depth', 'image_size')
         effective = saved['data_spec']
         if (model_id != saved['model_digest'] or identity != saved['checkpoint_signature']
-                or any(spec[key] != effective[key] for key in preprocessing_keys)):
+                or any(spec[key] != effective[key] for key in preprocessing_keys)
+                or (medical and medical_recipe(spec) != medical_recipe(effective))):
             raise ValueError('Saved graph, dataset or preprocessing identity mismatch')
         resolved, shapes, parameters = prepare_graph(graph)
         SegmentationTask(training).validate_contract(resolved, shapes, {'input_shape': [None, *shape], 'mask_values': spec['mask_values']})
@@ -159,7 +162,8 @@ def _load_model(config, check):
             or state.get('adapter') != {'id': 'segmentation', 'version': 1}
             or state.get('checkpoint_signature') != identity or state.get('model_digest') != model_id
             or state.get('dataset_digest') != dataset or state.get('mask_values') != spec['mask_values']
-            or state.get('input_shape') != [None, *shape] or not isinstance(state.get('model_state'), dict)):
+            or state.get('input_shape') != [None, *shape] or not isinstance(state.get('model_state'), dict)
+            or (medical and state.get('preprocessing') != medical_recipe(spec))):
         raise ValueError('Checkpoint identity does not match the saved segmentation run')
     model = build_model(graph, device=device, capture=False, memory_report=memory)
     model.load_state_dict(state['model_state'], strict=True)
@@ -254,7 +258,22 @@ def run_segmentation_inference(config, artifact_directory, progress=None, cancel
     model, device, training, window, provenance, warnings = _load_model(settings, check)
     spec = training['data']
     classes = len(spec['mask_values'])
-    files = _source_paths(settings['source'], spec['format'])
+    medical = spec['format'] in MEDICAL_FORMATS
+    if medical:
+        from .medical_geometry import resample_volume, write_native_labels
+        from .medical_volume_data import read_medical_input
+        if settings['mode'] == 'fixed':
+            raise ValueError('Medical CT and MRI require sliding window inference on the physical model grid')
+        files = [Path(settings['source']).expanduser().resolve()]
+        mode = 'sliding'
+    else:
+        if settings['sequence_paths']:
+            raise ValueError('Extra MRI sequences require a medical MRI checkpoint')
+        files = _source_paths(settings['source'], spec['format'])
+        mode = 'fixed' if settings['mode'] == 'auto' else settings['mode']
+    overlap = settings['overlap']
+    if overlap is None:
+        overlap = spec['overlap'] if medical else .25
     directory = Path(artifact_directory).resolve()
     masks = directory / 'masks'
     views = directory / 'views'
@@ -281,24 +300,32 @@ def run_segmentation_inference(config, artifact_directory, progress=None, cancel
     for index, path in enumerate(files, 1):
         check()
         report('decode', index - 1, len(files))
-        before = path.stat()
-        image, geometry = load_native_image(path, spec, source_guard=guard_decode)
-        with path.open('rb') as stream:
-            source_sha256 = _digest_stream(stream, check)
-        after = path.stat()
-        if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
-            raise ValueError('Input changed during decoding: ' + path.name)
-        image = normalize_image(float_image(image), spec)
-        native = image.shape[1:]
+        if medical:
+            case = read_medical_input(path, settings['sequence_paths'], spec, lambda: check() or False)
+            image, geometry = case['image'], case['reference_grid']
+            native_image = case['native_image'][:1]
+            source_sha256, *sequence_digests = case['source_digests']
+            model_grid = case['model_grid']
+        else:
+            before = path.stat()
+            image, geometry = load_native_image(path, spec, source_guard=guard_decode)
+            with path.open('rb') as stream:
+                source_sha256 = _digest_stream(stream, check)
+            after = path.stat()
+            if (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size):
+                raise ValueError('Input changed during decoding: ' + path.name)
+            image = normalize_image(float_image(image), spec)
+            native_image = image
+        native = native_image.shape[1:]
         h, w = _view_shape(native)
         depth = native[0] if len(native) == 3 else 1
         if shutil.disk_usage(directory).free < depth * h * w * 4 + math.prod(native) * 2 + (4 << 20):
             raise ValueError('Insufficient disk space for segmentation predictions and slice previews')
-        if settings['mode'] == 'sliding':
-            overlap = settings['overlap']
-            tile_count = math.prod(map(len, _windows(native, window, overlap)))
-            slab_bytes = 4 * classes * min(native[0], window[0]) * math.prod(native[1:])
-            _host_admission(2 * slab_bytes + math.prod(native) + 4 * (classes + 2) * math.prod(window), 'sliding window score accumulation')
+        if mode == 'sliding':
+            model_shape = image.shape[1:]
+            tile_count = math.prod(map(len, _windows(model_shape, window, overlap)))
+            slab_bytes = 4 * classes * min(model_shape[0], window[0]) * math.prod(model_shape[1:])
+            _host_admission(2 * slab_bytes + math.prod(model_shape) + 4 * (classes + 2) * math.prod(window), 'sliding window score accumulation')
 
             def tile_progress(done, total):
                 if done == total or done % max(1, total // 64) == 0:
@@ -310,21 +337,29 @@ def run_segmentation_inference(config, artifact_directory, progress=None, cancel
             report('fixed', index - 1, len(files), 0, 1)
             prediction = resize_labels(predict(resize_image(image, window)).argmax(axis=0).astype(np.uint8), native)
         check()
-        suffix = '.nii.gz' if spec['format'] == 'nifti' else '.png'
+        suffix = '.nii.gz' if spec['format'] != 'image' else '.png'
         mask_file = f'masks/{index:06d}{suffix}'
         view_file = f'views/{index:06d}.npy'
-        _write_native_mask(directory / mask_file, prediction, geometry, spec['mask_values'])
-        _write_views(directory / view_file, image, prediction, check)
+        if medical:
+            prediction = resample_volume(prediction, model_grid, geometry, order=0)
+            lookup = np.asarray(spec['mask_values'], dtype=np.uint8 if max(spec['mask_values']) <= 255 else np.uint16)
+            write_native_labels(directory / mask_file, lookup[prediction], geometry)
+        else:
+            _write_native_mask(directory / mask_file, prediction, geometry, spec['mask_values'])
+        _write_views(directory / view_file, native_image, prediction, check)
         cases.append({'source_name': path.name, 'source_sha256': source_sha256, 'geometry': geometry, 'source_shape': list(native), 'tile_count': tile_count,
                       'mask_file': mask_file, 'view_file': view_file, 'view_shape': [depth, h, w, 4]})
+        if medical:
+            cases[-1].update(space='original', model_grid=model_grid, sequence_sha256=sequence_digests)
+            del case
         report('saved', index, len(files), tile_count, tile_count)
-        del image, prediction
+        del image, native_image, prediction
     check()
     manifest = directory / REPORT_NAME
     staging = directory / PENDING_REPORT
-    _write_json(staging, {'version': 1, 'profile': PROFILE, 'device': str(device), 'mode': settings['mode'],
-                           'window': list(window), 'overlap': settings['overlap'] if settings['mode'] == 'sliding' else None,
-                           'blend': 'tapered_logits' if settings['mode'] == 'sliding' else None,
+    _write_json(staging, {'version': 1, 'profile': PROFILE, 'device': str(device), 'mode': mode,
+                           'window': list(window), 'overlap': overlap if mode == 'sliding' else None,
+                           'blend': 'tapered_logits' if mode == 'sliding' else None,
                            'source': settings['source'], 'mask_values': spec['mask_values'], 'identity': provenance,
                            'format': spec['format'], 'cases': cases})
     try:
@@ -334,5 +369,5 @@ def run_segmentation_inference(config, artifact_directory, progress=None, cancel
     except Exception:
         staging.unlink(missing_ok=True)
         raise
-    return {'status': 'succeeded', 'profile': PROFILE, 'device': str(device), 'cases': len(cases), 'mode': settings['mode'],
+    return {'status': 'succeeded', 'profile': PROFILE, 'device': str(device), 'cases': len(cases), 'mode': mode,
             'artifacts': {'inference': str(manifest)}, 'warnings': warnings}

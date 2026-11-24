@@ -9,6 +9,9 @@ import json
 import dearpygui.dearpygui as dpg
 
 from studio_core.experiment_spec import FITNETS_DEFAULTS, SUPERVISED_PROFILES
+from studio_core.medical_volume_data import MEDICAL_FORMATS
+
+from .medical_panel import MedicalPatchPanel
 
 from .experiment_panel import (BackgroundQueries, csv_columns, device_choices,
                                device_summary, manifest_summary)
@@ -20,7 +23,10 @@ BLUE = (100, 200, 255)
 AMBER = (235, 190, 110)
 RED = (240, 143, 134)
 MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv", "2D / 3D 医学影像分割": "segmentation_csv"}
-SEGMENTATION_FORMATS = {"二维图片 + PNG/TIFF 掩码": "image", "三维 NIfTI 图像 + 掩码": "nifti"}
+SEGMENTATION_FORMATS = {"二维图片 + PNG/TIFF 掩码": "image", "三维 NIfTI（固定网格）": "nifti",
+                        "DICOM CT + NIfTI 掩码": "dicom_ct", "MRI NIfTI + NIfTI 掩码": "mri_nifti"}
+_SEQUENCE_NONE = '（不使用）'
+_SEQUENCE_TAGS = tuple(f'native_medical_sequence_{channel}' for channel in (2, 3, 4))
 SEGMENTATION_COLUMNS = (("id_column", "样本 ID 列", "sample_id"), ("group_column", "患者 ID 列", "patient_id"),
                         ("image_column", "影像路径列", "image_path"), ("mask_column", "掩码路径列", "mask_path"),
                         ("split_column", "划分列（可选）", "自动划分"))
@@ -30,6 +36,7 @@ IMAGE_MODES = ('image_folder', 'paired_csv', 'research_csv', 'segmentation_csv')
 class ExperimentControls:
     def _init_experiment(self, experiment=None):
         self.queries = BackgroundQueries()
+        self.medical_patch_panel = MedicalPatchPanel(self)
         self.manifest = None
         self.inspection_key = None
         self.inspect_request_key = None
@@ -69,6 +76,7 @@ class ExperimentControls:
         self.inspecting = False
         self.queries.invalidate("inspect")
         self.queries.invalidate("columns")
+        self.medical_patch_panel.invalidate()
 
     def _widgets_available(self):
         return self._context_created and dpg.does_item_exist("native_task")
@@ -83,6 +91,8 @@ class ExperimentControls:
                 dpg.add_button(label="数据设置", tag="native_data_settings", callback=self.guarded(self._open_data_settings))
                 dpg.add_button(label="检查数据", tag="native_inspect", callback=self.guarded(self._inspect_data))
             dpg.add_text("尚未检查数据；运行前需检查。", tag="native_dataset_summary", color=MUTED, wrap=265)
+            dpg.add_button(label='预览训练补丁…', tag='native_medical_patch_open', width=-1, show=False,
+                           callback=self.guarded(self.medical_patch_panel.open))
             dpg.add_button(label="从数据创建起始模型…", tag="native_starter", width=-1, callback=self.guarded(self._request_starter))
             dpg.add_button(label="创建支持向量机起始图…", tag="native_svm_starter", show=False, width=-1,
                            callback=self.guarded(self._request_svm_starter))
@@ -142,7 +152,7 @@ class ExperimentControls:
                     dpg.add_combo(list(SEGMENTATION_FORMATS), label="影像与掩码格式", tag="native_segmentation_format",
                                   default_value=next(iter(SEGMENTATION_FORMATS)), width=245,
                                   callback=self.guarded(self._segmentation_format_changed))
-                    dpg.add_input_int(label="模型深度 D", tag="native_segmentation_depth", default_value=16, width=115,
+                    dpg.add_input_int(label="深度 D", tag="native_segmentation_depth", default_value=16, width=115,
                                       min_value=2, max_value=128, min_clamped=True, max_clamped=True)
                 dpg.add_input_text(label="路径根目录（默认 CSV 所在目录）", tag="native_segmentation_root", width=410)
                 dpg.add_button(label="读取 CSV 列", tag="native_segmentation_read_columns", callback=self.guarded(self._read_columns))
@@ -153,6 +163,29 @@ class ExperimentControls:
                                           callback=self.guarded(self._experiment_changed))
                 dpg.add_input_text(label="掩码标签值（背景为 0）", tag="native_segmentation_values", width=280, default_value="0, 1")
                 dpg.add_text("按从小到大填写整数标签。例 0, 255。划分列使用 train / val / test。", color=MUTED, wrap=730)
+                with dpg.group(tag='native_medical_settings', show=False):
+                    with dpg.group(tag='native_medical_ct', show=False, horizontal=True):
+                        dpg.add_input_float(tag='native_ct_lower_hu', label='CT 下限 HU', default_value=-1000, width=120, step=0)
+                        dpg.add_input_float(tag='native_ct_upper_hu', label='CT 上限 HU', default_value=400, width=120, step=0)
+                    with dpg.group(tag='native_medical_mri', show=False):
+                        dpg.add_text('影像路径列是参考序列。读取 CSV 列后，按模型通道顺序选择附加序列。', color=MUTED, wrap=730)
+                        with dpg.group(horizontal=True):
+                            for channel, tag in enumerate(_SEQUENCE_TAGS, 2):
+                                dpg.add_combo([_SEQUENCE_NONE], tag=tag, label=f'通道 {channel}',
+                                              default_value=_SEQUENCE_NONE, width=145)
+                        dpg.add_checkbox(tag='native_medical_registered', label='附加序列已配准到参考影像')
+                    with dpg.group(horizontal=True):
+                        for axis in ('D', 'H', 'W'):
+                            dpg.add_input_float(tag='native_medical_spacing_' + axis, label=f'{axis} 间距 mm',
+                                                default_value=1, width=102, format='%.5g', step=0)
+                    with dpg.group(horizontal=True):
+                        dpg.add_input_int(tag='native_medical_patches', label='每病例补丁数', default_value=4, width=112,
+                                          min_value=1, max_value=128, min_clamped=True, max_clamped=True)
+                        dpg.add_input_float(tag='native_medical_foreground', label='前景采样比例', default_value=.5,
+                                            width=95, step=0, format='%.3f')
+                        dpg.add_input_float(tag='native_medical_overlap', label='滑窗重叠比例', default_value=.25,
+                                            width=95, step=0, format='%.3f')
+                    dpg.add_text('D × H × W 是补丁大小。分割评估会把整卷滑窗预测恢复到参考网格。', color=MUTED, wrap=730)
             with dpg.group(tag="native_image_settings", show=False):
                 with dpg.group(tag="native_image_directory_settings"):
                     dpg.add_combo(label="目录拆分", tag="native_image_split", items=["stratified", "directories"], default_value="stratified", width=230, callback=self.guarded(self._experiment_changed))
@@ -183,6 +216,7 @@ class ExperimentControls:
             with dpg.group(horizontal=True):
                 dpg.add_button(label="检查并冻结数据摘要", tag="native_data_inspect", callback=self.guarded(self._inspect_data))
                 dpg.add_button(label="应用并关闭", tag="native_data_apply", callback=self.guarded(self._close_data_settings))
+        self.medical_patch_panel.build()
         with dpg.file_dialog(tag="native_data_open", show=False, width=760, height=470, modal=True, callback=self.guarded(self._data_path_chosen)):
             dpg.add_file_extension(".csv", color=BLUE)
             dpg.add_file_extension(".*")
@@ -227,9 +261,22 @@ class ExperimentControls:
                     choice = data[key] or default
                     dpg.configure_item(tag, items=list(dict.fromkeys(dpg.get_item_configuration(tag)['items'] + [choice])))
                     values[tag] = choice
-                self._show_segmentation_dimension(data['format'] == 'nifti')
+                self._show_segmentation_dimension(data['format'])
+                window = data.get('ct_window') or [-1000., 400.]
+                values.update(native_ct_lower_hu=window[0], native_ct_upper_hu=window[1],
+                              native_medical_registered=data.get('registered', False),
+                              native_medical_patches=data.get('patches_per_case', 4),
+                              native_medical_foreground=data.get('foreground_fraction', .5),
+                              native_medical_overlap=data.get('overlap', .25))
+                for axis, spacing in zip('DHW', data.get('spacing_mm', [1., 1., 1.])):
+                    values['native_medical_spacing_' + axis] = spacing
+                for index, tag in enumerate(_SEQUENCE_TAGS):
+                    choices = data.get('sequence_columns', [])
+                    choice = choices[index] if index < len(choices) else _SEQUENCE_NONE
+                    dpg.configure_item(tag, items=list(dict.fromkeys([_SEQUENCE_NONE, *self.csv_header, choice])))
+                    values[tag] = choice
             else:
-                dpg.configure_item('native_image_channels', enabled=True)
+                dpg.configure_item('native_image_channels', enabled=True, show=True)
             fit = {**FITNETS_DEFAULTS, **config.get('fitnets', {})}
             values.update(native_fitnets_enabled=config['profile']=='fitnets-v1', native_teacher_checkpoint=fit['teacher_checkpoint'],
                           native_hint_epochs=fit['hint_epochs'], native_distill_temperature=fit['temperature'], native_distill_weight=fit['distill_weight'])
@@ -253,14 +300,16 @@ class ExperimentControls:
         dpg.configure_item("native_input_port", show=self.experiment_mode != "paired_csv")
         self._render_experiment_summary()
 
-    def _show_segmentation_dimension(self, volume):
-        dpg.configure_item('native_segmentation_depth', show=volume)
-        dpg.configure_item('native_image_channels', enabled=not volume)
-        if volume:
-            dpg.set_value('native_image_channels', '1')
+    def _show_segmentation_dimension(self, fmt):
+        volume = fmt != 'image'
+        dpg.configure_item('native_segmentation_depth', show=volume, label='补丁深度 D' if fmt in MEDICAL_FORMATS else '模型深度 D')
+        dpg.configure_item('native_image_channels', show=not volume, enabled=not volume)
+        dpg.configure_item('native_medical_settings', show=fmt in MEDICAL_FORMATS)
+        dpg.configure_item('native_medical_ct', show=fmt == 'dicom_ct')
+        dpg.configure_item('native_medical_mri', show=fmt == 'mri_nifti')
 
     def _segmentation_format_changed(self, app_data=None, **_):
-        self._show_segmentation_dimension(SEGMENTATION_FORMATS[app_data] == 'nifti')
+        self._show_segmentation_dimension(SEGMENTATION_FORMATS[app_data])
         self._experiment_changed()
 
     def _research_format_changed(self, app_data=None, **_):
@@ -319,9 +368,21 @@ class ExperimentControls:
             except ValueError:
                 pass  # Preserve the draft value for the validation error.
             data.update(format=fmt, source_root=dpg.get_value('native_segmentation_root').strip(), mask_values=values,
-                        depth=dpg.get_value('native_segmentation_depth') if fmt == 'nifti' else 1,
+                        depth=dpg.get_value('native_segmentation_depth') if fmt != 'image' else 1,
                         image_size=[dpg.get_value('native_image_height'), dpg.get_value('native_image_width')],
-                        channels=int(dpg.get_value('native_image_channels')))
+                        channels=int(dpg.get_value('native_image_channels')) if fmt == 'image' else 1)
+            if fmt in MEDICAL_FORMATS:
+                def number(tag):
+                    return float(format(dpg.get_value(tag), '.7g'))
+
+                sequences = [dpg.get_value(tag) for tag in _SEQUENCE_TAGS] if fmt == 'mri_nifti' else []
+                sequences = [column for column in sequences if column != _SEQUENCE_NONE]
+                data.update(sequence_columns=sequences, channels=1 + len(sequences),
+                            registered=fmt == 'mri_nifti' and dpg.get_value('native_medical_registered'),
+                            ct_window=[number('native_ct_lower_hu'), number('native_ct_upper_hu')] if fmt == 'dicom_ct' else None,
+                            spacing_mm=[number('native_medical_spacing_' + axis) for axis in 'DHW'],
+                            patches_per_case=dpg.get_value('native_medical_patches'),
+                            foreground_fraction=number('native_medical_foreground'), overlap=number('native_medical_overlap'))
             for key, _, default in SEGMENTATION_COLUMNS:
                 choice = dpg.get_value('native_seg_' + key)
                 data[key] = None if key == 'split_column' and choice == default else choice
@@ -358,6 +419,7 @@ class ExperimentControls:
             if candidate.get("profile") in SUPERVISED_PROFILES:
                 candidate["expected_dataset_digest"] = None
             self.queries.invalidate("inspect")
+            self.medical_patch_panel.invalidate()
         self.experiment = candidate
         self._render_experiment_summary()
         self._render_loss(); self._render_probe()
@@ -432,6 +494,7 @@ class ExperimentControls:
         config = validate_supervised_config(inspect_config)
         self.experiment = editable
         self.manifest = None; self.inspection_key = None; self.inspecting = True
+        self.medical_patch_panel.invalidate()
         self.inspect_request_key = data_identity(config)
         data, seed = deepcopy(config["data"]), config["seed"]
         def inspect(cancelled):
@@ -451,6 +514,9 @@ class ExperimentControls:
     def _poll_background(self):
         for message in self.queries.poll():
             name, error, value = message["name"], message["error"], message["value"]
+            if name == 'medical-patch':
+                self.medical_patch_panel.receive(value, error)
+                continue
             if error:
                 if name == "devices":
                     dpg.set_value("native_device_summary", "设备查询失败：" + error)
@@ -475,6 +541,11 @@ class ExperimentControls:
                             dpg.set_value(tag, default if default in items else '')
                             if key != 'split_column' and default not in items:
                                 missing.append(label)
+                    for tag in _SEQUENCE_TAGS:
+                        items = [_SEQUENCE_NONE, *value]
+                        dpg.configure_item(tag, items=items)
+                        if dpg.get_value(tag) not in items:
+                            dpg.set_value(tag, _SEQUENCE_NONE)
                     message = ('请选择' + '、'.join(missing)) if missing else '请核对样本、患者、影像及掩码列。'
                     dpg.set_value('native_data_error', f'已读取 {len(value)} 列。' + message)
                     continue
@@ -554,6 +625,8 @@ class ExperimentControls:
             dpg.set_value("native_data_details", details[:1800] + ("…（完整列表见 manifest 文件）" if len(details) > 1800 else ""))
         else:
             dpg.set_value("native_data_details", "")
+        medical_ready = bool(manifest and manifest['data_spec'].get('format') in MEDICAL_FORMATS)
+        dpg.configure_item('native_medical_patch_open', show=medical_ready)
         if dpg.does_item_exist("native_mode_summary"):
             if classical:
                 mode_text = '传统机器学习 · CPU 拟合与预测'

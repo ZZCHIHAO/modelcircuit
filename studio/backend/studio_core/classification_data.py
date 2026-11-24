@@ -479,6 +479,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     if type(seed) is not int or not 0 <= seed < 2 ** 31:
         raise ValueError("seed must be an integer in 0..2^31-1")
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'segmentation_csv':
+        from .medical_volume_data import MEDICAL_FORMATS, inspect_medical_dataset
+        if data_spec.get('format') in MEDICAL_FORMATS:
+            return inspect_medical_dataset(data_spec, seed, cancelled)
         from .segmentation_data import inspect_segmentation_dataset
         return inspect_segmentation_dataset(data_spec, seed, cancelled)
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'research_csv':
@@ -523,6 +526,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
 def build_datasets(manifest, cancelled=None):
     """Return Torch datasets; enforce the inspected source hashes before use."""
     if manifest.get('kind') == 'segmentation_csv':
+        from .medical_volume_data import MEDICAL_FORMATS, build_medical_datasets
+        if manifest['data_spec'].get('format') in MEDICAL_FORMATS:
+            return build_medical_datasets(manifest, cancelled)
         from .segmentation_data import build_segmentation_datasets
         return build_segmentation_datasets(manifest, cancelled)
     if manifest.get('kind') == 'research_csv':

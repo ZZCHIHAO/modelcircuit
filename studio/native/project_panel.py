@@ -580,10 +580,13 @@ class ProjectPanel:
     def _show_inference(self, path, **_):
         self.app.inference_panel.show_report(path)
 
-    def _show_predictions(self, path, **_):
+    def _show_predictions(self, path, case_metrics=None, **_):
         if path.stat().st_size > 8 * 1024 ** 2:
             raise ValueError('预测清单超过预览大小范围。')
-        result = {'profile': 'segmentation-v1', 'artifacts': {'predictions': path}}
+        artifacts = {'predictions': path}
+        if case_metrics:
+            artifacts['case_metrics'] = case_metrics
+        result = {'profile': 'segmentation-v1', 'artifacts': artifacts}
         self.app.segmentation_panel.sync(result, True, True)
         dpg.set_value('native_bottom_tabs', dpg.get_alias_id('native_segmentation_tab'))
 
@@ -596,7 +599,8 @@ class ProjectPanel:
             if report['operation'] == 'predict' and artifacts.get('inference'):
                 self._button('在推理页查看', 'view_output_' + side, self._show_inference, artifacts['inference'])
             if report['operation'] == 'train' and report.get('profile') == 'segmentation-v1' and artifacts.get('predictions'):
-                self._button('查看测试集分割预测', 'view_output_' + side, self._show_predictions, artifacts['predictions'])
+                self._button('查看测试集分割预测', 'view_output_' + side, self._show_predictions, artifacts['predictions'],
+                             artifacts.get('case_metrics'))
 
     def _render_reports(self):
         parent = _tag('results')

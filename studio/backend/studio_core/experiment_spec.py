@@ -53,10 +53,12 @@ def default_regression_config():
     return config
 
 
-def default_segmentation_config():
+def default_segmentation_config(fmt='image'):
+    from .medical_volume_data import MEDICAL_FORMATS, medical_defaults
     from .segmentation_data import defaults
+    data = medical_defaults(fmt) if fmt in MEDICAL_FORMATS else {**defaults(), 'format': fmt}
     config = default_classification_config()
-    config.update(profile='segmentation-v1', data=defaults(), batch_size=2)
+    config.update(profile='segmentation-v1', data=data, batch_size=2)
     return config
 
 
@@ -92,7 +94,7 @@ def validate_supervised_config(config):
         defaults = default_regression_config()
     elif config['profile'] == 'segmentation-v1':
         _require(data.get('kind') == 'segmentation_csv', 'Segmentation requires image/mask CSV pairs')
-        defaults = default_segmentation_config()
+        defaults = default_segmentation_config(data.get('format', 'image'))
     else:
         defaults = default_classification_config(data.get('kind'))
         if config['profile'] == 'fitnets-v1':
@@ -112,7 +114,11 @@ def validate_supervised_config(config):
         _require(result['resume_checkpoint'] is None, 'FitNets uses its own stage checkpoints; general resume is unavailable')
     if effective_data['kind'] == 'segmentation_csv':
         from .segmentation_data import validate_segmentation_spec
-        result['data'] = validate_segmentation_spec(effective_data)
+        from .medical_volume_data import MEDICAL_FORMATS, validate_medical_spec
+        if effective_data['format'] in MEDICAL_FORMATS:
+            result['data'] = validate_medical_spec(data)
+        else:
+            result['data'] = validate_segmentation_spec(effective_data)
     if effective_data['kind'] == 'research_csv':
         from .research_data import validate_research_spec
         result['data'] = validate_research_spec(effective_data)
@@ -323,6 +329,9 @@ def checkpoint_signature(graph,config,dataset_digest):
         identity['adapter'] = {'id': 'regression', 'version': 1}
     elif config.get('profile') == 'segmentation-v1':
         identity['adapter'] = {'id': 'segmentation', 'version': 1}
+        from .medical_volume_data import MEDICAL_FORMATS, medical_recipe
+        if config['data'].get('format') in MEDICAL_FORMATS:
+            identity['medical_preprocessing'] = medical_recipe(config['data'])
     elif graph.get('schema_version') == 2:
         identity['adapter'] = {'id': 'classification', 'version': 1}
     return _hash(identity)
