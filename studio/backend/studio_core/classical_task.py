@@ -10,12 +10,31 @@ from .classification_data import inspect_dataset
 from .classification_runtime import _atomic_write, _write_json
 from .experiment_spec import model_digest, validate_supervised_config
 from .operator_rules import normalize_operator
+from .operators import FOREST_KINDS
 from .ports import parse_source
 
 ESTIMATOR_TASKS = {
-    'SVC': ('classification-v2', 'csv'),
-    'SVR': ('regression-v1', 'regression_csv'),
+    'SVC': ('classification', 'classification-v2', ('csv', 'table_csv')),
+    'SVR': ('regression', 'regression-v1', ('regression_csv', 'table_csv')),
+    'RandomForestClassifier': ('classification', 'classification-v2', ('table_csv',)),
+    'RandomForestRegressor': ('regression', 'regression-v1', ('table_csv',)),
 }
+
+
+def estimator_graph(manifest, estimator=None):
+    """Create a canvas graph for a checked table or legacy numeric CSV."""
+    kind = manifest['kind']
+    task = manifest['task'] if kind == 'table_csv' else 'regression' if kind == 'regression_csv' else 'classification'
+    estimator = estimator or ('RandomForestRegressor' if task == 'regression' else 'RandomForestClassifier')
+    supported = ESTIMATOR_TASKS.get(estimator)
+    if supported is None or supported[0] != task or kind not in supported[2]:
+        raise ValueError('请选择与数据和任务匹配的估计器。')
+    name = '随机森林' if estimator.startswith('RandomForest') else '支持向量机'
+    return {'schema_version': 1, 'id': estimator.lower(), 'name': f'{estimator} · {name}', 'revision': 1,
+            'inputs': [{'id': 'x', 'shape': list(manifest['input_shape']), 'dtype': 'float32', 'position': {'x': 20, 'y': 140}}],
+            'instances': [{'id': 'estimator', 'kind': estimator, 'params': normalize_operator(estimator, {})}],
+            'calls': [{'id': 'fit_model', 'instance_id': 'estimator', 'inputs': {'x': 'input:x'}, 'position': {'x': 260, 'y': 140}}],
+            'outputs': [{'id': 'prediction', 'source': 'call:fit_model', 'position': {'x': 540, 'y': 140}}], 'definitions': []}
 
 
 def contains_classical(graph):
@@ -71,10 +90,12 @@ def classical_contract(graph, config, manifest=None):
     """Check the fit contract against experiment settings and optional inspected data."""
     contract = classical_graph_contract(graph)
     kind = contract['kind']
-    profile, data_kind = ESTIMATOR_TASKS[kind]
+    task, profile, accepted_data = ESTIMATOR_TASKS[kind]
     data = config.get('data')
-    if config.get('profile') != profile or not isinstance(data, dict) or data.get('kind') != data_kind:
-        raise ValueError(f'{kind} requires {data_kind} data and the {profile} experiment profile')
+    data_kind = data.get('kind') if isinstance(data, dict) else None
+    if (config.get('profile') != profile or data_kind not in accepted_data
+            or (data_kind == 'table_csv' and data.get('task', task) != task)):
+        raise ValueError(f'{kind} requires {" or ".join(accepted_data)} data and the {profile} experiment profile')
     if config.get('device', 'cpu') != 'cpu':
         raise ValueError(f'{kind} requires CPU execution')
     if config.get('resume_checkpoint') is not None:
@@ -100,39 +121,9 @@ def _scores(classification, expected, predicted):
             'r2': 1 - squared / total if count > 1 and total > 0 and any(t != expected[0] for t in expected) else None}
 
 
-def run_classical(graph, config, artifact_directory, progress=None, cancelled=None):
-    """Fit on the frozen train partition, then evaluate train, val and test."""
-    config = validate_supervised_config(config)
-    contract = classical_contract(graph, config)
-    kind = contract['kind']
-    classification = kind == 'SVC'
-    deadline = time.monotonic() + config['max_runtime_seconds']
+def _evaluate_csv(manifest, estimator, score, predict, check, emit):
+    import numpy as np
 
-    def check():
-        if cancelled is not None and cancelled():
-            raise InterruptedError(f'{kind} experiment cancelled')
-        if time.monotonic() >= deadline:
-            raise TimeoutError(f'{kind} experiment exceeded max_runtime_seconds')
-        return False
-
-    def emit(phase, step):
-        if progress is not None:
-            progress({'phase': phase, 'step': step, 'total': 5})
-        check()
-
-    check()
-    emit('inspect', 0)
-    manifest = inspect_dataset(config['data'], seed=config['seed'], cancelled=check)
-    expected_digest = config['expected_dataset_digest']
-    if expected_digest is not None and expected_digest != manifest['dataset_digest']:
-        raise ValueError('Dataset digest changed since inspection')
-    classical_contract(graph, config, manifest)
-    try:
-        import numpy as np
-        import sklearn
-        from sklearn.svm import SVC, SVR
-    except ImportError as exc:
-        raise ValueError('The scikit-learn runtime is unavailable for SVC/SVR. Install the desktop dependencies.') from exc
     splits = {split: [] for split in ('train', 'val', 'test')}
     for record in manifest['records']:
         check()
@@ -146,30 +137,92 @@ def run_classical(graph, config, artifact_directory, progress=None, cancelled=No
         return features, [record['label'] for record in records]
 
     emit('fit', 1)
-    estimator = (SVC if classification else SVR)(**contract['params'])
     train_x, train_y = data('train')
     # libsvm fit is a single blocking call. The RunManager also enforces the
     # cancellation grace period and deadline outside the worker process.
     estimator.fit(train_x, train_y)
     check()
-    metrics, rows = {}, []
-    labels = manifest.get('class_names', [])
+    metrics = {}
     for step, split in enumerate(splits, 2):
         emit(split, step)
         features, targets = (train_x, train_y) if split == 'train' else data(split)
-        predictions = estimator.predict(features).tolist()
+        predictions = predict(estimator, features)
+        metrics[split] = score(targets, predictions)
+    return metrics, splits['test'], predictions
+
+
+def run_classical(graph, config, artifact_directory, progress=None, cancelled=None):
+    """Evaluate one classical estimator against a frozen holdout."""
+    config = validate_supervised_config(config)
+    contract = classical_contract(graph, config)
+    kind = contract['kind']
+    classification = ESTIMATOR_TASKS[kind][0] == 'classification'
+    table = config['data']['kind'] == 'table_csv'
+    total_steps = config['data']['folds'] + 4 if table else 5
+    deadline = time.monotonic() + config['max_runtime_seconds']
+
+    def check():
+        if cancelled is not None and cancelled():
+            raise InterruptedError(f'{kind} experiment cancelled')
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f'{kind} experiment exceeded max_runtime_seconds')
+        return False
+
+    def emit(phase, step):
+        if progress is not None:
+            progress({'phase': phase, 'step': step, 'total': total_steps})
+        check()
+
+    def predict(model, features):
+        predictions = model.predict(features).tolist()
+        check()
         if not all(math.isfinite(value) for value in predictions):
             raise ValueError(f'{kind} emitted non-finite predictions')
-        metrics[split] = _scores(classification, targets, predictions)
-        if split == 'test':
-            for record, target, prediction in zip(splits[split], targets, predictions):
-                check()
-                if classification:
-                    rows.append({'sample_id': record['id'], 'label': int(target), 'label_name': labels[int(target)],
-                                 'prediction': int(prediction), 'prediction_name': labels[int(prediction)]})
-                else:
-                    rows.append({'sample_id': record['id'], 'target': float(target), 'prediction': float(prediction),
-                                 'residual': float(prediction) - float(target)})
+        return predictions
+
+    def score(targets, predictions):
+        return _scores(classification, targets, predictions)
+
+    check()
+    emit('inspect', 0)
+    manifest = inspect_dataset(config['data'], seed=config['seed'], cancelled=check)
+    expected_digest = config['expected_dataset_digest']
+    if expected_digest is not None and expected_digest != manifest['dataset_digest']:
+        raise ValueError('Dataset digest changed since inspection')
+    classical_contract(graph, config, manifest)
+    try:
+        import numpy as np
+        import sklearn
+        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+        from sklearn.svm import SVC, SVR
+    except ImportError as exc:
+        raise ValueError(f'The scikit-learn runtime is unavailable for {kind}. Install the desktop dependencies.') from exc
+    constructor = {'SVC': SVC, 'SVR': SVR, 'RandomForestClassifier': RandomForestClassifier,
+                   'RandomForestRegressor': RandomForestRegressor}[kind]
+    params = dict(contract['params'])
+    if kind in FOREST_KINDS:
+        params['random_state'] = config['seed']
+    estimator = constructor(**params)
+    if table:
+        from .table_cv import evaluate_table
+        metrics, test_records, predictions, fold_report = evaluate_table(manifest, estimator, score, predict, check, emit)
+    else:
+        metrics, test_records, predictions = _evaluate_csv(manifest, estimator, score, predict, check, emit)
+
+    rows = []
+    labels = manifest.get('class_names', [])
+    for record, prediction in zip(test_records, predictions):
+        check()
+        target = record['label']
+        row = {'sample_id': record['id']}
+        if table:
+            row['group'] = record['group']
+        if classification:
+            row.update(label=int(target), label_name=labels[int(target)],
+                       prediction=int(prediction), prediction_name=labels[int(prediction)])
+        else:
+            row.update(target=float(target), prediction=float(prediction), residual=float(prediction) - float(target))
+        rows.append(row)
 
     directory = Path(artifact_directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
@@ -185,11 +238,15 @@ def run_classical(graph, config, artifact_directory, progress=None, cancelled=No
     _write_json(artifacts['manifest'], manifest)
     _write_json(artifacts['run_spec'], spec)
     _write_json(artifacts['metrics'], {'algorithm': kind, 'metrics': metrics})
+    if table:
+        artifacts['cv_folds'] = str(directory / 'cv_folds.json')
+        _write_json(artifacts['cv_folds'], fold_report)
     text = io.StringIO(newline='')
     writer = csv.DictWriter(text, fieldnames=list(rows[0]))
     writer.writeheader()
     writer.writerows(rows)
     _atomic_write(Path(artifacts['predictions']), lambda stream: stream.write(text.getvalue().encode('utf-8')))
-    emit('complete', 5)
+    emit('complete', total_steps)
     return {'status': 'succeeded', 'execution': 'classical', 'algorithm': kind, 'device': 'cpu', 'profile': config['profile'],
-            'history': [], 'metrics': metrics, 'dataset': dataset, 'artifacts': artifacts, 'support_vectors': len(estimator.support_)}
+            'history': [], 'metrics': metrics, 'dataset': dataset, 'artifacts': artifacts,
+            **({'support_vectors': len(estimator.support_)} if hasattr(estimator, 'support_') else {})}

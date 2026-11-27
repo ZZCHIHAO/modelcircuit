@@ -22,7 +22,7 @@ def resolve_data_directory(override=None, environ=None):
             if isinstance(info, dict) and info.get('stage') in ('S7', 'S8', 'S9', 'S10') and info.get('runtime') == 'Unified':
                 name = 'ModelCircuitStudio-' + info['stage']
             # These releases share the S10 workspace schema and history.
-            if isinstance(info, dict) and info.get('stage') in ('S11', 'S12', 'S13') and info.get('runtime') == 'Unified':
+            if isinstance(info, dict) and info.get('stage') in ('S11', 'S12', 'S13', 'S14') and info.get('runtime') == 'Unified':
                 name = 'ModelCircuitStudio-S10'
             if isinstance(info, dict) and info.get('stage') == 'S6':
                 runtime = info.get('runtime')

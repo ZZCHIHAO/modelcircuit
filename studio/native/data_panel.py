@@ -11,6 +11,7 @@ import dearpygui.dearpygui as dpg
 from studio_core.experiment_spec import FITNETS_DEFAULTS, SUPERVISED_PROFILES
 from studio_core.medical_volume_data import MEDICAL_FORMATS
 
+from .cohort_panel import CohortPanel, KINDS as COHORT_KINDS
 from .medical_panel import MedicalPatchPanel
 
 from .experiment_panel import (BackgroundQueries, csv_columns, device_choices,
@@ -22,7 +23,8 @@ MUTED = (145, 154, 164)
 BLUE = (100, 200, 255)
 AMBER = (235, 190, 110)
 RED = (240, 143, 134)
-MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv", "2D / 3D 医学影像分割": "segmentation_csv"}
+MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv", "2D / 3D 医学影像分割": "segmentation_csv",
+         "表格机器学习（分组交叉验证）": "table_csv", "病例多模态分类": "multimodal_csv"}
 SEGMENTATION_FORMATS = {"二维图片 + PNG/TIFF 掩码": "image", "三维 NIfTI（固定网格）": "nifti",
                         "DICOM CT + NIfTI 掩码": "dicom_ct", "MRI NIfTI + NIfTI 掩码": "mri_nifti"}
 _SEQUENCE_NONE = '（不使用）'
@@ -37,6 +39,7 @@ class ExperimentControls:
     def _init_experiment(self, experiment=None):
         self.queries = BackgroundQueries()
         self.medical_patch_panel = MedicalPatchPanel(self)
+        self.cohort_panel = CohortPanel(self)
         self.manifest = None
         self.inspection_key = None
         self.inspect_request_key = None
@@ -186,6 +189,7 @@ class ExperimentControls:
                         dpg.add_input_float(tag='native_medical_overlap', label='滑窗重叠比例', default_value=.25,
                                             width=95, step=0, format='%.3f')
                     dpg.add_text('D × H × W 是补丁大小。分割评估会把整卷滑窗预测恢复到参考网格。', color=MUTED, wrap=730)
+            self.cohort_panel.build()
             with dpg.group(tag="native_image_settings", show=False):
                 with dpg.group(tag="native_image_directory_settings"):
                     dpg.add_combo(label="目录拆分", tag="native_image_split", items=["stratified", "directories"], default_value="stratified", width=230, callback=self.guarded(self._experiment_changed))
@@ -194,10 +198,10 @@ class ExperimentControls:
                     dpg.add_input_int(label="高 H", tag="native_image_height", default_value=32, width=145, min_value=8, max_value=512, min_clamped=True, max_clamped=True, callback=self.guarded(self._experiment_changed))
                     dpg.add_input_int(label="宽 W", tag="native_image_width", default_value=32, width=145, min_value=8, max_value=512, min_clamped=True, max_clamped=True, callback=self.guarded(self._experiment_changed))
                 dpg.add_combo(label="通道", tag="native_image_channels", items=["1", "3"], default_value="3", width=145, callback=self.guarded(self._experiment_changed))
-            with dpg.group(horizontal=True):
+            with dpg.group(tag="native_split_fractions", horizontal=True):
                 dpg.add_input_float(label="val 比例", tag="native_validation_fraction", default_value=0.2, format="%.3f", width=145, callback=self.guarded(self._experiment_changed))
                 dpg.add_input_float(label="test 比例", tag="native_test_fraction", default_value=0.2, format="%.3f", width=145, callback=self.guarded(self._experiment_changed))
-            dpg.add_text("比例用于自动划分；显式 split 列或目录按原有划分检查。", color=MUTED)
+            dpg.add_text("比例用于自动划分。显式划分列或目录按原有划分检查。", tag="native_split_help", color=MUTED)
             dpg.add_input_text(label="模型输入接口", tag="native_input_port", default_value="x", width=180, on_enter=True, callback=self.guarded(self._experiment_changed))
             with dpg.group(tag="native_paired_ports", show=False, horizontal=True):
                 dpg.add_input_text(label="图片输入端口", tag="native_image_port", default_value="image", width=170, on_enter=True, callback=self.guarded(self._experiment_changed))
@@ -285,6 +289,8 @@ class ExperimentControls:
             if self.experiment_mode == "paired_csv":
                 ports = config.get("input_ports") or {"image": "image", "tabular": "clinical"}
                 values.update({"native_paired_image_root": data.get("image_root", ""), "native_paired_image_column": data.get("image_column", "image_path"), "native_paired_id_column": data.get("id_column", "sample_id"), "native_image_port": ports["image"], "native_tabular_port": ports["tabular"]})
+            if self.experiment_mode in COHORT_KINDS:
+                self.cohort_panel.sync(config, self.csv_header)
             for tag, value in values.items():
                 dpg.set_value(tag, value)
         dpg.configure_item("native_csv_settings", show=self.experiment_mode in ("csv", "paired_csv", "regression_csv"))
@@ -297,7 +303,10 @@ class ExperimentControls:
         dpg.configure_item("native_image_directory_settings", show=self.experiment_mode == "image_folder")
         dpg.configure_item("native_paired_settings", show=self.experiment_mode == "paired_csv")
         dpg.configure_item("native_paired_ports", show=self.experiment_mode == "paired_csv")
-        dpg.configure_item("native_input_port", show=self.experiment_mode != "paired_csv")
+        dpg.configure_item("native_input_port", show=self.experiment_mode not in ('paired_csv', 'multimodal_csv'))
+        dpg.configure_item("native_split_fractions", show=self.experiment_mode not in COHORT_KINDS)
+        dpg.configure_item("native_split_help", show=self.experiment_mode not in COHORT_KINDS)
+        self.cohort_panel.layout(self.experiment_mode)
         self._render_experiment_summary()
 
     def _show_segmentation_dimension(self, fmt):
@@ -350,7 +359,9 @@ class ExperimentControls:
         if self.experiment_mode == "paired_csv":
             config["input_ports"] = {"image": dpg.get_value("native_image_port"), "tabular": dpg.get_value("native_tabular_port")}
         data = {"kind": self.experiment_mode, "path": dpg.get_value("native_data_path").strip(), "validation_fraction": float(format(dpg.get_value("native_validation_fraction"), ".7g")), "test_fraction": float(format(dpg.get_value("native_test_fraction"), ".7g"))}
-        if self.experiment_mode in ("csv", "paired_csv", "regression_csv"):
+        if self.experiment_mode in COHORT_KINDS:
+            data = self.cohort_panel.configuration(config, data)
+        elif self.experiment_mode in ("csv", "paired_csv", "regression_csv"):
             try:
                 features = json.loads(dpg.get_value("native_csv_features"))
             except json.JSONDecodeError as error:
@@ -455,7 +466,7 @@ class ExperimentControls:
     def _data_path_chosen(self, app_data=None, **_):
         dpg.set_value("native_data_path", app_data["file_path_name"])
         self._experiment_changed()
-        if self.experiment_mode in ("csv", "paired_csv", "regression_csv", "segmentation_csv"):
+        if self.experiment_mode in ("csv", "paired_csv", "regression_csv", "segmentation_csv", *COHORT_KINDS):
             self._read_columns()
 
     def _read_columns(self, **_):
@@ -531,6 +542,10 @@ class ExperimentControls:
                 if dpg.get_value("native_data_path").strip() != self._columns_path:
                     continue
                 self.csv_header = value
+                if self.experiment_mode in COHORT_KINDS:
+                    self.cohort_panel.columns(value)
+                    dpg.set_value('native_data_error', f'已读取 {len(value)} 列。请核对病例、患者和目标列。')
+                    continue
                 if self.experiment_mode == 'segmentation_csv':
                     missing = []
                     for key, label, default in SEGMENTATION_COLUMNS:
@@ -595,8 +610,9 @@ class ExperimentControls:
         dpg.set_value("native_dataset_summary", summary)
         dpg.configure_item("native_inspect", enabled=not self.inspecting)
         dpg.configure_item("native_data_inspect", enabled=not self.inspecting)
-        dpg.configure_item("native_starter", enabled=bool(manifest),
-                           label="创建分割起始图…" if self.experiment_mode == 'segmentation_csv' else "从数据创建起始模型…")
+        starter_label = {'segmentation_csv': '创建分割起始图…', 'table_csv': '创建随机森林起始图…',
+                         'multimodal_csv': '按所选端口创建分类图…'}.get(self.experiment_mode, '从数据创建起始模型…')
+        dpg.configure_item("native_starter", enabled=bool(manifest), label=starter_label)
         fit_templates = self.experiment_mode in ('csv','image_folder','research_csv')
         dpg.configure_item('native_fitnet_templates', show=fit_templates)
         for tag in ('native_teacher_starter','native_fitnets_starter'):
@@ -605,13 +621,25 @@ class ExperimentControls:
         svm = 'SVR' if self.experiment_mode == 'regression_csv' else 'SVC'
         dpg.configure_item('native_svm_starter', show=svm_available, enabled=bool(manifest), label=f'创建 {svm} 起始图…')
         classical = self._classical_graph()
-        dpg.configure_item('native_epoch_controls', show=not classical)
-        dpg.configure_item('native_gradient_controls', show=not classical)
-        dpg.configure_item('native_resume_checkpoint', show=not classical)
+        fit = classical or self.experiment_mode == 'table_csv'
+        dpg.configure_item('native_epoch_controls', show=not fit)
+        dpg.configure_item('native_gradient_controls', show=not fit)
+        dpg.configure_item('native_resume_checkpoint', show=not fit)
+        dpg.configure_item('native_device', enabled=self.experiment_mode != 'table_csv')
+        if self.experiment_mode == 'table_csv':
+            dpg.set_value('native_device', 'cpu')
         issue = compatibility_issue(self.document, manifest, config.get("input_port", "x"), input_ports=config.get("input_ports")) if real and manifest else ""
         dpg.set_value("native_data_compatibility", issue)
         if manifest:
-            if manifest.get("kind") == "regression_csv":
+            if manifest.get('kind') == 'table_csv':
+                recipe = manifest['data_spec']
+                details = (f"{recipe['folds']} 折分组验证 · {len(recipe['numeric_columns'])} 个数值列 · "
+                           f"{len(recipe['categorical_columns'])} 个类别列\n最终在独立测试集评估。")
+            elif manifest.get('kind') == 'multimodal_csv':
+                details = '\n'.join(
+                    f"{modality} → {config['input_ports'].get(modality, '本次不使用')} · {' × '.join(axes)}"
+                    for modality, axes in manifest['input_axes'].items())
+            elif manifest.get("kind") == "regression_csv":
                 details = "连续目标：" + manifest["target_column"] + " · 特征预处理仅使用训练集拟合。"
             elif manifest.get('kind') == 'segmentation_csv':
                 details = '各划分标签像素/体素数（标签顺序 ' + ', '.join(map(str, manifest['mask_values'])) + '）\n'
@@ -619,7 +647,12 @@ class ExperimentControls:
             else:
                 details = "类别分布：" + json.dumps(manifest.get("class_counts", {}), ensure_ascii=False)
             if manifest.get("warnings"):
-                details += "\n数据提示：" + "; ".join(str(item) for item in manifest["warnings"])
+                def warning_text(item):
+                    if isinstance(item, dict) and item.get('code') == 'missing_split_classes':
+                        stage = f"第 {item['fold']} 折验证集" if 'fold' in item else '测试集'
+                        return stage + '没有类别 ' + '、'.join(map(str, item['classes']))
+                    return str(item)
+                details += "\n数据提示：" + "。".join(map(warning_text, manifest["warnings"]))
             if manifest.get("ignored_files"):
                 details += "\n忽略文件（前 10 项）：" + json.dumps(manifest["ignored_files"][:10], ensure_ascii=False)
             dpg.set_value("native_data_details", details[:1800] + ("…（完整列表见 manifest 文件）" if len(details) > 1800 else ""))
@@ -628,7 +661,7 @@ class ExperimentControls:
         medical_ready = bool(manifest and manifest['data_spec'].get('format') in MEDICAL_FORMATS)
         dpg.configure_item('native_medical_patch_open', show=medical_ready)
         if dpg.does_item_exist("native_mode_summary"):
-            if classical:
+            if fit:
                 mode_text = '传统机器学习 · CPU 拟合与预测'
             else:
                 mode_text = (config.get('device', 'cpu') + ' · ' + self.experiment_mode) if real else 'CPU · S1 合成演示'
@@ -638,7 +671,7 @@ class ExperimentControls:
         config = self._configuration()
         if self.experiment_mode == "synthetic_s1":
             if self._classical_graph():
-                raise ValueError("支持向量机需要 CSV 数值分类或回归实验。")
+                raise ValueError("传统机器学习估计器需要 CSV 分类或回归实验。")
             self.experiment = config
             return config
         from studio_core.experiment_spec import validate_supervised_config
@@ -675,7 +708,7 @@ class ExperimentControls:
             from .fitnets_templates import starter
             self.pending_starter = starter(self.manifest, teacher=teacher)
         else:
-            self.pending_starter = starter_graph(self.manifest, estimator=estimator)
+            self.pending_starter = starter_graph(self.manifest, estimator=estimator, input_ports=config.get('input_ports'))
         candidate = Document(self.pending_starter)
         report = candidate.validation()
         if not report.get("valid"):

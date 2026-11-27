@@ -68,8 +68,11 @@ def _editable_experiment(experiment):
     data = experiment.get("data")
     require(type(data) is dict, "data must be an object")
     kind = data.get("kind", "csv")
-    allowed_kinds = {'regression-v1': ('regression_csv',), 'segmentation-v1': ('segmentation_csv',)}.get(
-        experiment['profile'], ('csv', 'image_folder', 'paired_csv', 'research_csv'))
+    allowed_kinds = {
+        'regression-v1': ('regression_csv', 'table_csv'),
+        'segmentation-v1': ('segmentation_csv',),
+        'classification-v2': ('csv', 'image_folder', 'paired_csv', 'research_csv', 'table_csv', 'multimodal_csv'),
+    }.get(experiment['profile'], ('csv', 'image_folder', 'research_csv'))
     require(kind in allowed_kinds, "unsupported data kind")
     mapping=experiment.get('input_ports')
     if kind=='paired_csv':
@@ -77,7 +80,23 @@ def _editable_experiment(experiment):
             require(type(mapping) is dict and set(mapping)=={'image','tabular'} and
                     all(type(value) is str and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',value) for value in mapping.values()) and
                     len(set(mapping.values()))==2,'input_ports must name two distinct graph inputs')
-    else:require(mapping is None,'input_ports is only supported for paired_csv')
+    elif kind == 'multimodal_csv':
+        from studio_core.experiment_spec import validate_multimodal_bindings
+        from studio_core.multimodal_data import validate_multimodal_spec
+        spec = validate_multimodal_spec(data, editable=True)
+        if mapping:
+            validate_multimodal_bindings(spec['modalities'], mapping)
+        else:
+            require(mapping is None or isinstance(mapping, dict), 'input_ports must be a port mapping')
+        return
+    else:
+        require(mapping is None, 'input_ports is only supported for paired and multimodal data')
+    if kind == 'table_csv':
+        from studio_core.table_data import validate_table_spec
+        table = validate_table_spec(data, editable=True)
+        require((table['task'] == 'regression') == (experiment['profile'] == 'regression-v1'),
+                'table task must match the experiment profile')
+        return
     if kind == 'segmentation_csv':
         from studio_core.medical_volume_data import MEDICAL_FORMATS, validate_medical_spec
         from studio_core.segmentation_data import validate_segmentation_spec
@@ -238,13 +257,28 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     inputs = document.graph.get("inputs", [])
     from studio_core.classical_task import classical_contract, contains_classical
     if contains_classical(document.graph):
-        profile = "regression-v1" if manifest.get("kind") == "regression_csv" else "classification-v2"
+        regression = manifest.get('kind') == 'regression_csv' or (
+            manifest.get('kind') == 'table_csv' and manifest.get('task') == 'regression')
+        profile = 'regression-v1' if regression else 'classification-v2'
         try:
             classical_contract(document.graph, {"profile": profile, "data": manifest["data_spec"],
                                                  "input_port": input_port, "device": "cpu"}, manifest)
         except ValueError as exc:
             return str(exc)
         return ""
+    if manifest.get('kind') == 'table_csv':
+        return '请创建随机森林起始图，或从传统机器学习模型库放置估计器。'
+    if manifest.get('kind') == 'multimodal_csv':
+        from studio_core.classification_task import ClassificationTask
+        from studio_core.experiment_spec import validate_multimodal_bindings
+        from studio_core.schema import prepare_graph
+        try:
+            mapping = validate_multimodal_bindings(manifest['input_shapes'], input_ports)
+            resolved, shapes, _ = prepare_graph(document.graph)
+            ClassificationTask({'data': manifest['data_spec'], 'input_ports': mapping}).validate_contract(resolved, shapes, manifest)
+        except ValueError as exc:
+            return '请核对病例输入端口或创建匹配的分类图。' + str(exc)
+        return ''
     if manifest.get('kind')=='paired_csv':
         mapping=input_ports or {'image':'image','tabular':'clinical'}
         if type(mapping) is not dict or set(mapping)!={'image','tabular'} or len(set(mapping.values()))!=2:
@@ -278,20 +312,17 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     return ""
 
 
-def starter_graph(manifest, estimator=None):
+def starter_graph(manifest, estimator=None, *, input_ports=None):
+    """Return an explicit supervised starter graph without changing the canvas."""
     if manifest.get('kind') == 'segmentation_csv':
         from studio_core.segmentation_templates import segmentation_graph
         return segmentation_graph(manifest)
-    """Return an explicit supervised starter graph; never mutate the current graph."""
-    if estimator is not None:
-        kind = manifest.get('kind')
-        if (kind, estimator) not in (('csv', 'SVC'), ('regression_csv', 'SVR')):
-            raise ValueError('SVC 需要 CSV 数值分类，SVR 需要 CSV 数值回归。')
-        return {'schema_version': 1, 'id': estimator.lower(), 'name': f'{estimator} · 支持向量机', 'revision': 1,
-                'inputs': [{'id': 'x', 'shape': manifest['input_shape'], 'dtype': 'float32', 'position': {'x': 20, 'y': 140}}],
-                'instances': [{'id': 'estimator', 'kind': estimator, 'params': {'C': 1.0, 'kernel': 'rbf'}}],
-                'calls': [{'id': 'fit_model', 'instance_id': 'estimator', 'inputs': {'x': 'input:x'}, 'position': {'x': 260, 'y': 140}}],
-                'outputs': [{'id': 'prediction', 'source': 'call:fit_model', 'position': {'x': 540, 'y': 140}}], 'definitions': []}
+    if manifest.get('kind') == 'multimodal_csv':
+        from studio_core.multimodal_templates import multimodal_graph
+        return multimodal_graph(manifest, input_ports)
+    if manifest.get('kind') == 'table_csv' or estimator is not None:
+        from studio_core.classical_task import estimator_graph
+        return estimator_graph(manifest, estimator)
     if manifest.get('kind')=='paired_csv':
         from .starter_models import paired_starter_graph
         return paired_starter_graph(manifest)

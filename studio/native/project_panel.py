@@ -8,6 +8,7 @@ from pathlib import Path
 import stat
 
 import dearpygui.dearpygui as dpg
+from studio_core.cohort_examples import EXAMPLES as COHORT_EXAMPLES
 
 from .experiment_panel import BackgroundQueries
 from .workspace_state import data_identity
@@ -18,9 +19,13 @@ _MUTED = (145, 154, 164)
 _TERMINAL = {'succeeded', 'failed', 'cancelled'}
 _RUN_LABELS = {'queued': '等待启动', 'preparing': '准备运行', 'running': '正在训练',
                'cancel_requested': '正在停止', 'succeeded': '运行完成', 'failed': '运行失败', 'cancelled': '已停止'}
-_RUN_PHASES = {'bind': '核对数据', 'train': '训练', 'val': '验证', 'test': '最终评估'}
-_KINDS = {'image_folder': 'ImageFolder 图片分类'}
-_SEGMENTATION_LABELS = {'image': '二维 PNG/TIFF 分割', 'nifti': '三维 NIfTI 分割'}
+_RUN_PHASES = {'bind': '核对数据', 'inspect': '检查数据', 'train': '训练', 'val': '验证', 'test': '最终评估',
+               'fit': '拟合模型', 'cv_fold': '分组交叉验证', 'dev': '评估开发集'}
+_KINDS = {'image_folder': 'ImageFolder 图片分类', 'table_csv': '表格分组交叉验证', 'multimodal_csv': '病例多模态分类'}
+_EXAMPLES = {'图片分类': 'image_folder', **COHORT_EXAMPLES}
+_SEGMENTATION_LABELS = {'image': '二维 PNG/TIFF 分割', 'nifti': '三维 NIfTI 分割',
+                        'dicom_ct': 'CT 分割', 'mri_nifti': 'MRI 分割'}
+_WITH_ROOT = {'segmentation_csv', 'multimodal_csv'}
 _REPORT_NAME = 'project-run.json'
 _HISTORY_LIMIT = 40
 _METRIC_LIMIT = 80
@@ -159,7 +164,9 @@ class ProjectPanel:
         with dpg.group(horizontal=True):
             self._button('选择上级目录…', 'choose_export', self._open, 'export')
             self._button('导出工程', 'export', self.export)
-        self._button('创建示例工程…', 'create_example', self._open, 'example')
+        with dpg.group(horizontal=True):
+            dpg.add_combo(list(_EXAMPLES), tag=_tag('example_kind'), default_value=next(iter(_EXAMPLES)), width=148)
+            self._button('创建示例…', 'create_example', self._open, 'example')
         dpg.add_separator()
         dpg.add_text('打开工程并重新绑定数据', color=_MUTED)
         dpg.add_input_text(tag=_tag('path'), hint='project.json', width=-1,
@@ -173,7 +180,7 @@ class ProjectPanel:
         self._button('选择数据…', 'choose_data', self._choose_data, enabled=False)
         with dpg.group(tag=_tag('source_root_group'), show=False):
             self._button('使用工程清单，选择影像目录…', 'choose_pair_directory', self._open, 'pair_directory')
-            dpg.add_input_text(tag=_tag('source_root'), hint='CSV 影像与掩码根目录（可选）', width=-1,
+            dpg.add_input_text(tag=_tag('source_root'), hint='CSV 文件引用根目录（可选）', width=-1,
                                callback=self.app.guarded(self._binding_changed))
             self._button('选择影像根目录…', 'choose_source_root', self._open, 'source_root')
         self._button('核对数据并恢复画布', 'bind', self.bind, enabled=False)
@@ -206,9 +213,9 @@ class ProjectPanel:
             ('export', '选择新工程的上级目录', None),
             ('example', '选择示例工程的上级目录', None),
             ('data_directory', '选择 ImageFolder 数据目录', None),
-            ('data_csv', '选择影像与掩码清单 CSV', '.csv'),
+            ('data_csv', '选择数据清单 CSV', '.csv'),
             ('pair_directory', '选择工程清单对应的影像与掩码目录', None),
-            ('source_root', '选择影像与掩码根目录', None),
+            ('source_root', '选择数据引用根目录', None),
             ('left', '选择 project-run.json 作为记录 A', '.json'),
             ('right', '选择 project-run.json 作为记录 B', '.json'),
         )
@@ -240,7 +247,8 @@ class ProjectPanel:
         dpg.hide_item(_tag('picker_' + key))
         if key == 'example':
             suffix = datetime.now().strftime('%Y%m%d-%H%M%S')
-            self.create_example(Path(path) / ('ModelCircuitExample-' + suffix))
+            scenario = _EXAMPLES[self._value('example_kind')]
+            self.create_example(Path(path) / ('ModelCircuitExample-' + suffix), scenario)
         elif key == 'export':
             dpg.set_value(_tag('export_path'), str(Path(path) / 'ModelCircuitProject'))
         elif key in self._reports:
@@ -283,7 +291,7 @@ class ProjectPanel:
             workbench = self.app.workbench.to_payload()
             manifest = self.app.manifest if self.app.inspection_key == data_identity(config) else None
             config['expected_dataset_digest'] = manifest['dataset_digest'] if manifest else None
-            with_weights = dpg.get_value(_tag('include_weights'))
+            with_weights = config['data']['kind'] != 'table_csv' and dpg.get_value(_tag('include_weights'))
             if with_weights:
                 result = self.app.result or {}
                 reports = [report for report in self._reports.values() if report]
@@ -315,7 +323,7 @@ class ProjectPanel:
         self._clear_project()
         self._submit('open', '正在读取工程与模型…', lambda _: (path, read_project(path)))
 
-    def create_example(self, destination):
+    def create_example(self, destination, scenario='image_folder'):
         from studio_core.project_examples import create_example_project
         from studio_core.research_project import read_project
 
@@ -323,8 +331,12 @@ class ProjectPanel:
             return
         runtime_source = self.app.project_runtime_source()
 
-        def create(_):
-            path, data, root = create_example_project(destination, runtime_source=runtime_source)
+        def create(cancelled):
+            if scenario == 'image_folder':
+                path, data, root = create_example_project(destination, runtime_source=runtime_source)
+            else:
+                from studio_core.cohort_examples import create_cohort_example
+                path, data, root = create_cohort_example(destination, scenario, runtime_source=runtime_source, cancelled=cancelled)
             return read_project(path), data, root
 
         self._submit('example', '正在创建示例工程与数据…', create)
@@ -336,7 +348,7 @@ class ProjectPanel:
         return self.project is not None and self._value('path') == str(self.project['path'])
 
     def _binding_fields(self):
-        root = self._value('source_root') if self._dataset_kind() == 'segmentation_csv' else ''
+        root = self._value('source_root') if self._dataset_kind() in _WITH_ROOT else ''
         return self._value('data'), root or None
 
     def _binding_changed(self, **_):
@@ -379,14 +391,14 @@ class ProjectPanel:
         dpg.set_value(_tag('path'), str(project['path']))
         dpg.set_value(_tag('data'), str(data))
         dpg.set_value(_tag('source_root'), str(root) if root else '')
-        dpg.configure_item(_tag('source_root_group'), show=kind == 'segmentation_csv')
+        dpg.configure_item(_tag('source_root_group'), show=kind in _WITH_ROOT)
         has_pairs = kind == 'segmentation_csv' and project.get('paired_csv') is not None
         dpg.configure_item(_tag('choose_pair_directory'), show=has_pairs)
-        dpg.configure_item(_tag('choose_data'), label='选择 CSV…' if kind == 'segmentation_csv' else '选择数据…')
+        dpg.configure_item(_tag('choose_data'), label='选择 CSV…' if kind != 'image_folder' else '选择数据…')
         if kind == 'image_folder':
             data_hint = 'ImageFolder 数据目录'
         else:
-            data_hint = '配对数据 CSV 或影像目录' if has_pairs else '配对数据 CSV'
+            data_hint = '配对数据 CSV 或影像目录' if has_pairs else '病例数据 CSV'
         dpg.configure_item(_tag('data'), hint=data_hint)
         label = _KINDS.get(kind, kind)
         if kind == 'segmentation_csv':
@@ -410,6 +422,10 @@ class ProjectPanel:
         elif name == 'bind':
             fields, config, manifest = value
             if self._project_selected() and fields == self._binding_fields():
+                if manifest['kind'] == 'multimodal_csv' and not fields[1]:
+                    # The loader records the resolved root, but a default in the
+                    # editor should continue to follow the selected CSV.
+                    config = {**config, 'data': {**config['data'], 'source_root': ''}}
                 self.app._install_portable_project(self.project, config, manifest)
                 self.binding = fields
                 counts = manifest['counts']
@@ -427,8 +443,13 @@ class ProjectPanel:
         busy = self._operation is not None
         selected = self._project_selected()
         for name in ('export', 'open', 'create_example', 'choose_export', 'choose_project', 'path', 'export_path',
-                     'include_weights', 'data', 'source_root'):
+                     'data', 'source_root'):
             dpg.configure_item(_tag(name), enabled=not busy)
+        dpg.configure_item(_tag('include_weights'), enabled=not busy and getattr(self.app, 'experiment_mode', None) != 'table_csv')
+        table = self._dataset_kind() == 'table_csv'
+        dpg.configure_item(_tag('device'), enabled=not table)
+        if table:
+            dpg.set_value(_tag('device'), 'cpu')
         for name in ('choose_data', 'choose_pair_directory', 'choose_source_root', 'bind'):
             dpg.configure_item(_tag(name), enabled=not busy and selected)
         dpg.configure_item(_tag('run'), enabled=self._can_run())
@@ -638,6 +659,8 @@ class ProjectPanel:
             else:
                 device = report.get('device') or '—'
             dpg.add_text(f'记录 {label} · {operation} · {status} · {device}', parent=parent)
+            if report.get('folds'):
+                dpg.add_text(f"{report.get('algorithm', '')} · {report['folds']} 折分组交叉验证", color=_MUTED, parent=parent)
             if is_ddp:
                 effective = _number(execution.get('effective_global_batch'))
                 dropped = _number(execution.get('train_samples_dropped_per_epoch'))

@@ -45,7 +45,7 @@ class RuntimePathsTests(unittest.TestCase):
                         self.assertEqual(resolve_data_directory(environ=env), parent / ('ModelCircuitStudio-S6-' + variant))
                 (assets / 'release-build.json').write_text('{"stage":"S6","runtime":"Unified"}', encoding='utf-8')
                 self.assertEqual(resolve_data_directory(environ=env), parent / 'ModelCircuitStudio-S6')
-                for stage in ('S10', 'S11', 'S12'):
+                for stage in ('S10', 'S11', 'S12', 'S13', 'S14'):
                     (assets / 'release-build.json').write_text(
                         '{"stage":"' + stage + '","runtime":"Unified"}', encoding='utf-8')
                     self.assertEqual(resolve_data_directory(environ=env), parent / 'ModelCircuitStudio-S10')

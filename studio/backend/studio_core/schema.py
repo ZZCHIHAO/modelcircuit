@@ -8,7 +8,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from .operators import operator_kinds, operator_spec
+from .operators import CLASSICAL_KINDS, operator_kinds, operator_spec
 from .operator_rules import normalize_operator, infer_operator, _parameter_count, _buffer_shapes
 from .ports import parse_source, output_port_ids, output_mode
 from .tensor_ops import TENSOR_KINDS, infer_tensor_operator, normalize_tensor_operator, tensor_input_ports, tensor_parameter_count
@@ -246,7 +246,7 @@ def _resolve_scope(graph, definitions, stack=(), budget=None):
         __dict__ __weakref__ __annotations__ __module__ __doc__ __call__ __contains__
         __getitem__ __setitem__ __delitem__ __iter__ __len__ __getattr__ __dir__
     """.split())
-    allowed_kinds = (PRIMITIVES - {"SVC", "SVR"} if budget.tensor_contracts else PRIMITIVES) | {'chip'} | (TENSOR_KINDS.keys() if budget.tensor_contracts else set())
+    allowed_kinds = (PRIMITIVES - CLASSICAL_KINDS if budget.tensor_contracts else PRIMITIVES) | {'chip'} | (TENSOR_KINDS.keys() if budget.tensor_contracts else set())
     for instance in instances:
         identifier, kind = instance["id"], instance.get("kind")
         _require(identifier not in reserved, "Instance identifier conflicts with a PyTorch module attribute", identifier, "id")

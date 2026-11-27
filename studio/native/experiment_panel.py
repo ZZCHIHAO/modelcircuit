@@ -85,7 +85,7 @@ def manifest_summary(manifest):
     shape = ("\n".join(name + " " + shape_text(value) for name, value in manifest["input_shapes"].items())
              if manifest.get("input_shapes") else shape_text(manifest.get("input_shape", [])))
     classes = manifest.get("class_names", [])
-    regression = manifest.get('kind') == 'regression_csv'
+    regression = manifest.get('kind') == 'regression_csv' or manifest.get('task') == 'regression'
     dataset_label = "CSV 数值回归" if regression else manifest.get('kind')
     target = ("目标 " + manifest['target_column'] if regression else
               f"{len(classes)} 类：" + ", ".join(str(value) for value in classes[:12]) + ("…" if len(classes) > 12 else ""))
@@ -99,6 +99,11 @@ def manifest_summary(manifest):
             for row in manifest['records']:
                 patients[row['split']].add(row['group'])
             target += '\n患者数 ' + ' / '.join(str(len(groups)) for groups in patients.values())
+    if manifest.get('kind') == 'table_csv':
+        dataset_label = '表格回归' if regression else '表格分类'
+        target += f" · {len(manifest['fold_plan'])} 折"
+    elif manifest.get('kind') == 'multimodal_csv':
+        dataset_label = '病例多模态分类'
     text = (f"{dataset_label} · 输入 {shape}\n"
             f"train {counts.get('train', 0)} / val {counts.get('val', 0)} / test {counts.get('test', 0)}\n"
             f"{target}\n摘要 " + str(manifest.get("dataset_digest", ""))[:16])
@@ -183,6 +188,11 @@ def result_view(result, progress_history=None):
             summary += f"\n测试集 MAE {_number(test.get('mae'))} · RMSE {_number(test.get('rmse'))}\nR² {r2} · n={test.get('count', '—')}"
         else:
             summary += f"\n测试集准确率 {_number(test.get('accuracy'))} · n={test.get('count', '—')}"
+        cv = result.get('metrics', {}).get('cv')
+        if cv and regression:
+            summary += f"\n分组交叉验证 MAE {_number(cv.get('mae'))} · RMSE {_number(cv.get('rmse'))} · n={cv.get('count', '—')}"
+        elif cv:
+            summary += f"\n分组交叉验证准确率 {_number(cv.get('accuracy'))} · n={cv.get('count', '—')}"
     elif real:
         test = result.get("metrics", {}).get("test")
         summary = f"{result.get('device', '—')} · 最佳 epoch {result.get('best_epoch', '—')}"

@@ -153,7 +153,7 @@ def check_s6(manager, directory, resources, output_directory, device='cpu'):
         assert _wait_ui(ui)['status'] == 'cancelled'
         invoke('native_catalog_category', '传统机器学习模型库')
         panel = ui.catalog_panel
-        assert panel.visible_ids == ['primitive.SVC', 'primitive.SVR']
+        assert {'primitive.SVC', 'primitive.SVR'} <= set(panel.visible_ids)
         from .catalog_panel import screen_rect
         view = ui.canvas_host.get('root')
         token = ui.canvas_host.token('root')

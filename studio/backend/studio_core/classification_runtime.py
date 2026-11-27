@@ -143,6 +143,8 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     if paired:
         input_ports = config["input_ports"]
         input_metadata = {"input_shapes": manifest["input_shapes"], "input_ports": dict(input_ports)}
+        if task_id == 'classification' and task.multimodal:
+            input_metadata['input_axes'] = manifest['input_axes']
     else:
         input_metadata = {"input_shape": manifest["input_shape"]}
     from .devices import resolve_device
@@ -154,6 +156,9 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
         if manifest['kind'] in ('csv', 'paired_csv', 'regression_csv'):
             feature_shape = manifest['input_shapes']['tabular'] if paired else manifest['input_shape']
             host_dataset_bytes = sum(manifest['counts'].values()) * math.prod(feature_shape[1:]) * 4
+        if manifest['kind'] == 'multimodal_csv':
+            batch_values = sum(math.prod(manifest['input_shapes'][name][1:]) for name in input_ports)
+            host_dataset_bytes = 2 * min(config['batch_size'], max(manifest['counts'].values())) * batch_values * 4
         # drop_last=False caps each loader at its inspected partition size.
         # The final probe is capped at 16 and cannot exceed the val loader.
         # Keep the configured batch in the experiment/checkpoint contract, but
@@ -179,7 +184,11 @@ def run_supervised(graph, config, artifact_directory, progress=None, cancelled=N
     import torch
     from torch.utils.data import DataLoader
     from .runtime import _shared_instances, build_model
-    datasets = build_datasets(manifest, cancelled=scanning_cancelled)
+    if manifest['kind'] == 'multimodal_csv':
+        from .multimodal_data import build_multimodal_datasets
+        datasets = build_multimodal_datasets(manifest, cancelled=scanning_cancelled, modalities=input_ports)
+    else:
+        datasets = build_datasets(manifest, cancelled=scanning_cancelled)
     check()
     train_batches = math.ceil(len(datasets["train"]) / config["batch_size"])
     total_steps = config["epochs"] * train_batches

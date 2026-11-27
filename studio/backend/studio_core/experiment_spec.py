@@ -5,8 +5,24 @@ import json
 import math
 import re
 
+MULTIMODAL_PORTS = {'image': 'image', 'volume': 'volume', 'tabular': 'clinical'}
+
+
+def multimodal_ports(data):
+    return {modality: MULTIMODAL_PORTS[modality] for modality in data['modalities']}
+
+
+def validate_multimodal_bindings(modalities, mapping):
+    _require(isinstance(mapping, dict) and bool(mapping) and mapping.keys() <= set(modalities),
+             'Select at least one available modality and bind it to a graph input')
+    _require(all(isinstance(port, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', port)
+                 for port in mapping.values()), 'Each modality needs a valid named graph input')
+    _require(len(set(mapping.values())) == len(mapping), 'Modalities must use distinct graph inputs')
+    return mapping
+
 
 def default_classification_config(data_kind='csv'):
+    ports = None
     if data_kind == 'csv':
         data = {'kind':'csv','path':'','target_column':'label','feature_columns':[],
                 'group_column':None,'split_column':None,'standardize':True,
@@ -21,10 +37,18 @@ def default_classification_config(data_kind='csv'):
         data = {'kind':'paired_csv','path':'','image_root':'','image_column':'image_path','id_column':'sample_id',
                 'target_column':'label','feature_columns':[],'group_column':'patient_id','split_column':None,
                 'standardize':True,'image_size':[32,32],'channels':3,'validation_fraction':0.2,'test_fraction':0.2}
+        ports = {'image': 'image', 'tabular': 'clinical'}
+    elif data_kind == 'table_csv':
+        from .table_data import table_defaults
+        data = table_defaults()
+    elif data_kind == 'multimodal_csv':
+        from .multimodal_data import multimodal_defaults
+        data = multimodal_defaults()
+        ports = multimodal_ports(data)
     else:
         raise ValueError('Unsupported classification data kind: '+str(data_kind))
     return {'profile':'classification-v2','data':data,'input_port':'x',
-            'input_ports':{'image':'image','tabular':'clinical'} if data_kind=='paired_csv' else None,'epochs':10,'batch_size':16,
+            'input_ports':ports,'epochs':10,'batch_size':16,
             'lr':0.001,'optimizer':'adamw','seed':42,'device':'cpu','max_runtime_seconds':3600,
             'resume_checkpoint':None,'expected_dataset_digest':None}
 
@@ -46,7 +70,12 @@ def validate_fitnets_options(value, *, editable=False):
     return value
 
 
-def default_regression_config():
+def default_regression_config(data_kind='regression_csv'):
+    if data_kind == 'table_csv':
+        from .table_data import table_defaults
+        config = default_classification_config()
+        config.update(profile='regression-v1', data=table_defaults('regression'))
+        return config
     config = default_classification_config()
     config.update(profile='regression-v1')
     config['data'].update(kind='regression_csv', target_column='')
@@ -90,8 +119,8 @@ def validate_supervised_config(config):
     data=config.get('data')
     _require(isinstance(data,dict),'data must be an object')
     if config['profile'] == 'regression-v1':
-        _require(data.get('kind') == 'regression_csv', 'Regression requires regression_csv data')
-        defaults = default_regression_config()
+        _require(data.get('kind') in ('regression_csv', 'table_csv'), 'Regression requires CSV table data')
+        defaults = default_regression_config(data['kind'])
     elif config['profile'] == 'segmentation-v1':
         _require(data.get('kind') == 'segmentation_csv', 'Segmentation requires image/mask CSV pairs')
         defaults = default_segmentation_config(data.get('format', 'image'))
@@ -122,6 +151,17 @@ def validate_supervised_config(config):
     if effective_data['kind'] == 'research_csv':
         from .research_data import validate_research_spec
         result['data'] = validate_research_spec(effective_data)
+    if effective_data['kind'] == 'table_csv':
+        from .table_data import validate_table_spec
+        result['data'] = validate_table_spec(effective_data)
+        task = 'regression' if result['profile'] == 'regression-v1' else 'classification'
+        _require(result['data']['task'] == task, 'The table task must match the experiment profile')
+        _require(result['device'] == 'cpu', 'Grouped table experiments use CPU execution')
+    if effective_data['kind'] == 'multimodal_csv':
+        from .multimodal_data import validate_multimodal_spec
+        result['data'] = validate_multimodal_spec(data)
+        if 'input_ports' not in config:
+            result['input_ports'] = multimodal_ports(result['data'])
     for field,low,high in [('epochs',1,1000),('batch_size',1,64),('seed',0,2**31-1),('max_runtime_seconds',10,604800)]:
         _require(type(result[field]) is int and low<=result[field]<=high,field+' is outside the supported integer range')
     _require(_number(result['lr']) and 1e-6<=result['lr']<=1,'lr must be between 0.000001 and 1')
@@ -135,17 +175,21 @@ def validate_supervised_config(config):
         _require(isinstance(mapping,dict) and set(mapping)=={'image','tabular'},'input_ports must map image and tabular exactly once')
         _require(all(isinstance(port,str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',port) for port in mapping.values()),'Invalid named input_ports')
         _require(len(set(mapping.values()))==2,'Paired graph input ports must be distinct')
+    elif data.get('kind') == 'multimodal_csv':
+        _require(result['input_port'] == 'x', 'Multimodal experiments bind named input_ports')
+        validate_multimodal_bindings(result['data']['modalities'], result['input_ports'])
     else:
-        _require(result['input_ports'] is None,'input_ports is only supported for paired_csv')
+        _require(result['input_ports'] is None,'input_ports is only supported for paired and multimodal data')
     for key in ('resume_checkpoint','expected_dataset_digest'):
         _require(result[key] is None or isinstance(result[key],str) and bool(result[key].strip()), key+' must be null or a nonempty string')
     if result['expected_dataset_digest'] is not None:
         _require(re.fullmatch(r'[0-9a-f]{64}',result['expected_dataset_digest']) is not None,'Invalid expected_dataset_digest')
     _require(isinstance(effective_data['path'],str) and bool(effective_data['path'].strip()),'Select a dataset path')
     _require(len(effective_data['path'])<=4096,'Dataset path is too long')
-    for key in ('validation_fraction','test_fraction'):
-        _require(_number(effective_data[key]) and 0<effective_data[key]<1,key+' must be between 0 and 1')
-    _require(effective_data['validation_fraction']+effective_data['test_fraction']<1,'Train fraction must be positive')
+    if effective_data['kind'] != 'table_csv':
+        for key in ('validation_fraction','test_fraction'):
+            _require(_number(effective_data[key]) and 0<effective_data[key]<1,key+' must be between 0 and 1')
+        _require(effective_data['validation_fraction']+effective_data['test_fraction']<1,'Train fraction must be positive')
     if effective_data['kind'] in ('csv','paired_csv','regression_csv'):
         target=effective_data['target_column'];features=effective_data['feature_columns']
         _require(isinstance(target,str) and bool(target.strip()),'Select a CSV target column')
@@ -322,7 +366,7 @@ def experiment_signature(graph,config,dataset_digest=None):
 
 
 def checkpoint_signature(graph,config,dataset_digest):
-    binding_key='input_ports' if config.get('data',{}).get('kind')=='paired_csv' else 'input_port'
+    binding_key='input_ports' if config.get('data',{}).get('kind') in ('paired_csv', 'multimodal_csv') else 'input_port'
     settings={key:config[key] for key in (binding_key,'optimizer','lr','batch_size','seed')}
     identity = {'model':model_digest(graph),'training':settings,'dataset_digest':dataset_digest}
     if config.get('profile') == 'regression-v1':

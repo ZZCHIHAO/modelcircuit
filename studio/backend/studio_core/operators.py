@@ -9,6 +9,11 @@ from dataclasses import dataclass, field
 
 from .shape_rules import CNN_DEFAULTS, CNN_PARAMETERS
 
+SVM_KINDS = frozenset({'SVC', 'SVR'})
+FOREST_KINDS = frozenset({'RandomForestClassifier', 'RandomForestRegressor'})
+CLASSICAL_KINDS = SVM_KINDS | FOREST_KINDS
+_FOREST_DEFAULTS = {'n_estimators': 100, 'max_depth': None, 'min_samples_leaf': 1}
+
 
 @dataclass(frozen=True)
 class OperatorSpec:
@@ -33,6 +38,7 @@ _EDITOR_DEFAULTS = {
     "Flatten": {"start_dim": 1, "end_dim": -1},
     "BatchNorm2d": {"num_features": 8}, "Identity": {}, "Sigmoid": {},
     "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {}, "SVC": {"C": 1.0, "kernel": "rbf"}, "SVR": {"C": 1.0, "kernel": "rbf"},
+    "RandomForestClassifier": _FOREST_DEFAULTS, "RandomForestRegressor": _FOREST_DEFAULTS,
 }
 
 
@@ -65,6 +71,8 @@ _SPECS.update({
     "OneMinus": _spec("OneMinus"),
     "SVC": _spec("SVC", defaults={"C": 1.0, "kernel": "rbf"}),
     "SVR": _spec("SVR", defaults={"C": 1.0, "kernel": "rbf"}),
+    "RandomForestClassifier": _spec("RandomForestClassifier", defaults=_FOREST_DEFAULTS),
+    "RandomForestRegressor": _spec("RandomForestRegressor", defaults=_FOREST_DEFAULTS),
 })
 
 

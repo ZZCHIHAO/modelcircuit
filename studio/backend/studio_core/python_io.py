@@ -758,7 +758,7 @@ def import_python(code):
         tree = ast.parse(code)
     except (SyntaxError, ValueError, RecursionError) as error:
         raise ValueError("Invalid Python syntax: " + str(error)) from None
-    if any(isinstance(node, ast.ImportFrom) and node.module == "sklearn.svm" for node in tree.body):
+    if any(isinstance(node, ast.ImportFrom) and node.module in ("sklearn.svm", "sklearn.ensemble") for node in tree.body):
         from .classical_python import import_classical
         return import_classical(tree)
     aliases = {}

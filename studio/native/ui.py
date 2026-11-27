@@ -1182,7 +1182,8 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             stage = {"hint":"提示训练", "distill":"蒸馏训练"}.get(progress.get("stage"), phase)
             phase_text = f"{stage} · epoch {progress.get('epoch', 0)}/{progress['epochs']}"
         else:
-            phase_text = str(phase) if phase else f"{step}/{total}"
+            phase_text = {'inspect': '检查数据', 'cv_fold': f'分组交叉验证 · 第 {step} 折',
+                          'fit': '拟合模型', 'dev': '评估开发集'}.get(phase, str(phase)) if phase else f"{step}/{total}"
         dpg.configure_item("native_progress", overlay=f"{RUN_LABELS.get(record['status'], record['status'])} · {phase_text} · r{record['revision']}")
         for event in record.get("events", []):
             if event.get("seq", 0) > self.last_event and event.get("type") != "progress":

@@ -478,6 +478,12 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     _cancel(cancelled)
     if type(seed) is not int or not 0 <= seed < 2 ** 31:
         raise ValueError("seed must be an integer in 0..2^31-1")
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'table_csv':
+        from .table_data import inspect_table_dataset
+        return inspect_table_dataset(data_spec, seed, cancelled)
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'multimodal_csv':
+        from .multimodal_data import inspect_multimodal_dataset
+        return inspect_multimodal_dataset(data_spec, seed, cancelled)
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'segmentation_csv':
         from .medical_volume_data import MEDICAL_FORMATS, inspect_medical_dataset
         if data_spec.get('format') in MEDICAL_FORMATS:
@@ -525,6 +531,11 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
 
 def build_datasets(manifest, cancelled=None):
     """Return Torch datasets; enforce the inspected source hashes before use."""
+    if manifest.get('kind') == 'multimodal_csv':
+        from .multimodal_data import build_multimodal_datasets
+        return build_multimodal_datasets(manifest, cancelled)
+    if manifest.get('kind') == 'table_csv':
+        raise ValueError('Grouped table data requires a classical estimator')
     if manifest.get('kind') == 'segmentation_csv':
         from .medical_volume_data import MEDICAL_FORMATS, build_medical_datasets
         if manifest['data_spec'].get('format') in MEDICAL_FORMATS:

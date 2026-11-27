@@ -11,8 +11,10 @@ class ClassificationTask:
     prediction_fields = ('sample_id', 'label', 'label_name', 'prediction', 'prediction_name', 'probabilities')
 
     def __init__(self, config):
-        self.mapping = config['input_ports'] or {'features': config['input_port']}
-        self.paired = config['data']['kind'] == 'paired_csv'
+        kind = config['data']['kind']
+        self.multimodal = kind == 'multimodal_csv'
+        self.paired = self.multimodal or kind == 'paired_csv'
+        self.mapping = config.get('input_ports') or {'features': config['input_port']}
 
     def validate_contract(self, resolved, shapes, manifest):
         ports = {port['id']: port for port in resolved['inputs']}
@@ -21,9 +23,16 @@ class ClassificationTask:
             raise ValueError('Classification requires exactly one root input')
         if set(ports) != set(self.mapping.values()):
             raise ValueError('Classification input names must match the dataset mapping')
+        if self.multimodal and resolved.get('schema_version') != 2:
+            raise ValueError('Multimodal classification requires tensor-v1 input axes')
         for modality, name in self.mapping.items():
-            if ports[name]['shape'] != expected[modality] or ports[name]['dtype'] != 'float32':
-                raise ValueError(f'Classification {modality} input shape/dtype must match {expected[modality]}')
+            if modality not in expected or ports[name]['shape'] != expected[modality] or ports[name]['dtype'] != 'float32':
+                raise ValueError(f'Classification {modality} input shape/dtype must match {expected.get(modality)}')
+            if self.multimodal:
+                spec = resolved['_tensor_specs']['input:' + name]
+                axes = manifest['input_axes'][modality]
+                if spec['axes'] != axes or spec['batch_axis'] != 0:
+                    raise ValueError(f'Classification {modality} input axes must match {axes}')
         sources = {output['id']: output['source'] for output in resolved['outputs']}
         logits = sources.get('logits')
         if shapes.get(logits) != [None, len(manifest['class_names'])]:
@@ -38,7 +47,9 @@ class ClassificationTask:
         import torch
         features, labels, identifiers = raw_batch
         if self.paired:
-            if not isinstance(features, dict) or set(features) != set(self.mapping):
+            if not isinstance(features, dict) or not self.mapping.keys() <= features.keys():
+                raise ValueError('Batch is missing a named modality mapped to the graph')
+            if not self.multimodal and features.keys() != self.mapping.keys():
                 raise ValueError('Paired batch must contain exactly image and tabular modalities')
         else:
             features = {'features': features}

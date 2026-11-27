@@ -32,6 +32,7 @@ _DISPLAY = {
     'Conv3d': ('layers', '三维卷积'), 'MaxPool3d': ('shape_pool', '三维最大池化'),
     'AdaptiveAvgPool3d': ('shape_pool', '三维自适应平均池化'),
     'SVC': ('classical', '支持向量分类'), 'SVR': ('classical', '支持向量回归'),
+    'RandomForestClassifier': ('classical', '随机森林分类'), 'RandomForestRegressor': ('classical', '随机森林回归'),
     'Linear': ('layers', '全连接层'), 'Conv2d': ('layers', '二维卷积'),
     'ReLU': ('activation', 'ReLU 激活'), 'GELU': ('activation', 'GELU 激活'),
     'Sigmoid': ('activation', 'Sigmoid 激活'),
@@ -82,6 +83,10 @@ _OPERATOR_ALIASES = {
     'Add': ('相加融合', '残差相加', '求和'),
     'Concat': ('拼接融合', '张量拼接', 'Concatenate'),
     'Linear': ('线性层', 'Dense', 'Fully Connected'),
+    'SVC': ('SVM', '支持向量机', 'Support Vector Machine'),
+    'SVR': ('SVM', '支持向量机', 'Support Vector Machine'),
+    'RandomForestClassifier': ('随机森林', 'Random Forest', 'RF classifier'),
+    'RandomForestRegressor': ('随机森林', 'Random Forest', 'RF regressor'),
 }
 
 
@@ -94,7 +99,7 @@ def list_components(query='', category=None, *, registry=None, include_tensor=Fa
         operator = operator_spec(kind)
         group, label = _DISPLAY.get(kind, ('layers', kind))
         classical = group == 'classical'
-        aliases = (kind, 'SVM', '支持向量机', 'Support Vector Machine') if classical else (kind, *_OPERATOR_ALIASES.get(kind, ()))
+        aliases = (kind, *_OPERATOR_ALIASES.get(kind, ()))
         description = label + (' · ' + kind + ' · CPU 拟合 · 单模型 CSV 实验' if classical else ' · ' + kind)
         result.append(ComponentSpec('primitive.' + kind, group, label, aliases, description,
             tuple(operator.required), {**_capabilities(False), 'forward': not classical}, {**operator.defaults, **operator_defaults(kind)}, tuple(operator.input_ports), ('out',)))
