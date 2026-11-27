@@ -110,6 +110,8 @@ class RunManager:
             config = validate_supervised_config(config)
             if classical:
                 classical_contract(graph, config)
+            elif config['data']['kind'] == 'table_csv':
+                raise ValueError('table_csv requires a classical estimator with a single prediction output')
         else:
             allowed = {"steps", "lr", "seed", "batch_size"}
             if not config.keys() <= allowed:
@@ -131,7 +133,7 @@ class RunManager:
         if not report['valid']:
             raise ValueError(report['errors'][0]['message'])
         if contains_classical(graph):
-            raise ValueError('SVM 请在实验页使用拟合和评估。调试单步用于 PyTorch 模型。')
+            raise ValueError('传统机器学习模型请在实验页使用拟合和评估。调试单步用于 PyTorch 模型。')
         require_executable_profile(graph)
         from studio_core.execution_policy import check_config_batch
         check_config_batch(graph, config['batch_size'])

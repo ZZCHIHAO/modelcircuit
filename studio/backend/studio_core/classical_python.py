@@ -1,8 +1,9 @@
-"""Python interchange for a single SVC or SVR fit graph."""
+"""Python interchange for a single classical fit graph."""
 import ast
 from copy import deepcopy
 
 from .operator_rules import normalize_operator
+from .operators import CLASSICAL_KINDS, FOREST_KINDS, operator_spec
 
 
 def export_classical(graph):
@@ -12,14 +13,19 @@ def export_classical(graph):
     instance = layout['instances'][0]
     kind = instance.pop('kind')
     params = normalize_operator(kind, instance.pop('params', {}))
-    return f'''"""ModelCircuit Studio support vector model. Pass preprocessed feature rows."""
-from sklearn.svm import {kind}
+    forest = kind in FOREST_KINDS
+    family, module = ('random forest', 'ensemble') if forest else ('support vector', 'svm')
+    constructor_args = ', '.join(f'{name}={params[name]!r}' for name in operator_spec(kind).defaults)
+    if forest:
+        constructor_args += ', random_state=42'
+    return f'''"""ModelCircuit Studio {family} model. Pass preprocessed feature rows."""
+from sklearn.{module} import {kind}
 
 STUDIO_CLASSICAL_LAYOUT = {layout!r}
 
 
 def build_estimator():
-    return {kind}(C={params['C']!r}, kernel={params['kernel']!r})
+    return {kind}({constructor_args})
 
 
 def fit_model(features, targets):
@@ -38,13 +44,19 @@ def import_classical(tree):
         layout = ast.literal_eval(body[2].value)
         call = body[3].body[0].value
         kind = call.func.id
-        keywords = {argument.arg: ast.literal_eval(argument.value) for argument in call.keywords}
-        if kind not in ('SVC', 'SVR') or len(call.keywords) != 2 or keywords.keys() != {'C', 'kernel'}:
+        if kind not in CLASSICAL_KINDS:
             raise ValueError('Unsupported estimator constructor')
+        accepted = set(operator_spec(kind).defaults)
+        if kind in FOREST_KINDS:
+            accepted.add('random_state')
+        keywords = {argument.arg: ast.literal_eval(argument.value) for argument in call.keywords}
+        if len(call.keywords) != len(accepted) or keywords.keys() != accepted:
+            raise ValueError('Unsupported estimator constructor')
+        keywords.pop('random_state', None)
         layout['instances'][0].update(kind=kind, params=normalize_operator(kind, keywords))
         canonical = ast.parse(export_classical(layout))
         if ast.dump(canonical) != ast.dump(tree):
-            raise ValueError('Only edits to the generated C and kernel values are supported')
+            raise ValueError('Only edits to the generated estimator parameters are supported')
         return layout
     except (ValueError, TypeError, AttributeError, KeyError, IndexError, RecursionError) as exc:
-        raise ValueError('Unsupported ModelCircuit SVM Python: ' + str(exc)) from None
+        raise ValueError('Unsupported ModelCircuit classical Python: ' + str(exc)) from None

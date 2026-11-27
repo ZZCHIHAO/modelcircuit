@@ -106,7 +106,11 @@ def _image_batch(resolved, shapes, config, device, cancelled):
     manifest = inspect_dataset(experiment['data'], config['seed'], cancelled)
     task = get_task_adapter('classification', 1)(experiment)
     task.validate_contract(resolved, shapes, manifest)
-    train = build_datasets(manifest, cancelled)['train']
+    if manifest['kind'] == 'multimodal_csv':
+        from .multimodal_data import build_multimodal_datasets
+        train = build_multimodal_datasets(manifest, cancelled, modalities=task.mapping)['train']
+    else:
+        train = build_datasets(manifest, cancelled)['train']
     loader = DataLoader(train, batch_size=config['batch_size'], shuffle=False, num_workers=0)
     batch = task.bind_batch(next(iter(loader)), device)
     return batch, task, manifest

@@ -218,7 +218,7 @@ def build_model(graph, device="cpu", capture=True, *, memory_report=None, captur
     """Create one module per instance on an explicit CPU or single CUDA device."""
     from .classical_task import contains_classical
     if contains_classical(graph):
-        raise ValueError("Support vector machines execute through the classical fit/predict worker")
+        raise ValueError("Classical estimators execute through the fit/predict worker")
     if type(capture) is not bool:
         raise ValueError("capture must be a boolean")
     device = torch.device(device)

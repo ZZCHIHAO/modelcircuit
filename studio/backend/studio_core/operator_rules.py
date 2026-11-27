@@ -2,7 +2,7 @@
 from copy import deepcopy
 import math
 
-from .operators import operator_spec
+from .operators import CLASSICAL_KINDS, FOREST_KINDS, SVM_KINDS, operator_spec
 from .shape_rules import CNN_PARAMETERS, cnn_output_shape, normalize_cnn_params
 
 _MAX_RANK = 8
@@ -66,10 +66,17 @@ def normalize_operator(kind, params):
         _require(momentum is None or (_finite(momentum) and 0 <= momentum <= 1), "BatchNorm2d momentum must be None or finite between 0 and 1")
         for name in ("affine", "track_running_stats"):
             _require(type(result[name]) is bool, "BatchNorm2d " + name + " must be a boolean")
-    elif kind in ("SVC", "SVR"):
+    elif kind in SVM_KINDS:
         result = {**spec.defaults, **result}
         _require(_finite(result["C"]) and result["C"] > 0, "SVM C must be positive and finite", "C")
         _require(result["kernel"] in ("rbf", "linear"), "SVM kernel must be rbf or linear", "kernel")
+    elif kind in FOREST_KINDS:
+        result = {**spec.defaults, **result}
+        _require(_positive(result['n_estimators']) and result['n_estimators'] <= 1000,
+                 'n_estimators must be a positive integer up to 1000', 'n_estimators')
+        _require(result['max_depth'] is None or _positive(result['max_depth']),
+                 'max_depth must be null or a positive integer', 'max_depth')
+        _require(_positive(result['min_samples_leaf']), 'min_samples_leaf must be a positive integer', 'min_samples_leaf')
     elif kind == "Scale":
         result = {**spec.defaults, **result}
         _require(_finite(result["factor"]), "Scale factor must be a finite scalar")
@@ -129,8 +136,8 @@ def infer_operator(kind, params, input_shapes):
         elif kind == "Upsample":
             _require(len(output) == 2 + len(params["size"]), "Upsample size must match the spatial input rank", "size")
             output = output[:2] + params["size"]
-        elif kind in ("SVC", "SVR"):
-            _require(len(output) == 2, "SVM requires tabular input [batch, feature]")
+        elif kind in CLASSICAL_KINDS:
+            _require(len(output) == 2, kind + " requires tabular input [batch, feature]")
             output[-1] = 1
         elif kind == "Linear":
             _require(output[-1] == params["in_features"], "Linear input dimension mismatch", "in_features")

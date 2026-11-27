@@ -1,4 +1,4 @@
-"""Portable experiment files and dataset binding for the first two S10 tasks."""
+"""Portable experiment files and binding to verified local datasets."""
 from collections.abc import Sequence
 from copy import deepcopy
 import csv
@@ -23,8 +23,17 @@ from .task_adapters import get_task_adapter
 
 PROJECT_FORMAT = 'ml-forge-research-project'
 PROJECT_VERSION = 1
-_TASKS = {'classification-v2': ('image_folder', 'classification'),
-          'segmentation-v1': ('segmentation_csv', 'segmentation')}
+_TASKS = {
+    ('classification-v2', 'image_folder'): 'classification',
+    ('segmentation-v1', 'segmentation_csv'): 'segmentation',
+    ('classification-v2', 'table_csv'): 'classical',
+    ('regression-v1', 'table_csv'): 'classical',
+    ('classification-v2', 'multimodal_csv'): 'classification',
+}
+_CASE_CSV_KINDS = frozenset({'table_csv', 'multimodal_csv'})
+_SOURCE_ROOT_KINDS = frozenset({'segmentation_csv', 'multimodal_csv'})
+_CASE_FIELDS = ('id', 'group', 'split', 'label', 'content_digest')
+_SOURCE_FIELDS = ('column', 'relative_path', 'source_digest', 'content_digest')
 _PATH_FIELDS = ('path', 'source_root')
 _HEX_DIGEST = re.compile(r'[0-9a-f]{64}')
 _MAX_PROJECT = 8 * 1024 ** 2
@@ -78,6 +87,48 @@ python run.py predict --source IMAGE_OR_FOLDER --out predictions-01 --weights ru
 If the project includes weights, `predict` can use them with `--weights` omitted.
 Each training command starts a new run and expects a new output directory.
 The workbench and runner statically parse supported edits to `model.py`.
+'''
+_TABLE_README = '''# ModelCircuit Studio table research project
+
+Use Python 3.12 and install the CPU runtime from `requirements.txt`.
+
+```
+python -m pip install -r requirements.txt
+python run.py check --data cases.csv
+python run.py train --data cases.csv --out run-01
+```
+
+Use a local copy of the original CSV. The project locks the CSV digest,
+patient groups, split assignments, preprocessing recipe and fold members.
+Each run fits preprocessing again on each fold's training cases and fits the
+final estimator on all development cases. The run writes fold results and
+predictions for the frozen test cases.
+'''
+_MULTIMODAL_README = '''# ModelCircuit Studio multimodal research project
+
+Use Python 3.12. Install the shared dependencies and a matching PyTorch
+wheel. For CPU training, use the following commands.
+
+```
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-torch.txt --index-url https://download.pytorch.org/whl/cpu
+python run.py check --data cases.csv
+python run.py train --data cases.csv --out run-01
+```
+
+Use a local copy of the original case CSV and sources. To move the dataset,
+use relative source paths in the original CSV. They're relative to the CSV
+directory by default. Add `--source-root` with the source directory if the
+CSV is stored separately. The project verifies ordered cases, source digests,
+geometry and preprocessing before training. Training uses the saved input
+port mapping and writes test case predictions.
+Select `--device cuda:0` for the first GPU in a compatible CUDA environment.
+'''
+_HELDOUT_README = '''
+Keep the run report, heldout.json, metrics.json and predictions.csv together
+to compare runs. The reader checks that the report and results describe the
+same test cases. These files carry checksums for consistency and are unsigned.
+Verify their source separately when authorship matters.
 '''
 
 
@@ -158,8 +209,9 @@ def _project_config(config):
     if not isinstance(config, dict) or not isinstance(config.get('data'), dict):
         raise ValueError('Project requires supervised experiment and data settings')
     profile = config.get('profile')
-    if not isinstance(profile, str) or profile not in _TASKS or config['data'].get('kind') != _TASKS[profile][0]:
-        raise ValueError('Research projects support ImageFolder classification and paired CSV segmentation')
+    kind = config['data'].get('kind')
+    if not isinstance(profile, str) or not isinstance(kind, str) or (profile, kind) not in _TASKS:
+        raise ValueError('Research projects support ImageFolder and multimodal classification, table classification and regression, and paired CSV segmentation')
     return validate_supervised_config(config)
 
 
@@ -184,21 +236,73 @@ def _validate_detached(config):
 
 
 def _validate_task(graph, config, manifest):
+    task = _TASKS[config['profile'], config['data']['kind']]
+    if task == 'classical':
+        from .classical_task import classical_contract
+
+        classical_contract(graph, config, manifest)
+        return
     check_config_batch(graph, config['batch_size'])
     resolved, shapes, _ = prepare_graph(graph)
-    task = get_task_adapter(_TASKS[config['profile']][1], 1)(config)
-    task.validate_contract(resolved, shapes, manifest)
+    get_task_adapter(task, 1)(config).validate_contract(resolved, shapes, manifest)
+
+
+def _portable_csv_cases(manifest, payload):
+    kind = manifest['kind']
+    records = [{field: record[field] for field in _CASE_FIELDS} for record in manifest['records']]
+    if kind == 'table_csv':
+        task = manifest['task']
+        label_field = 'class_names' if task == 'classification' else 'target_column'
+        payload.update(task=task, input_shape=manifest['input_shape'], source_digest=manifest['source_digest'],
+                       fold_plan=[{key: fold[key] for key in ('fold', 'train_ids', 'val_ids')}
+                                  for fold in manifest['fold_plan']])
+        payload[label_field] = manifest[label_field]
+    else:
+        payload.update({key: manifest[key] for key in ('class_names', 'class_counts', 'input_shapes', 'input_axes',
+                                                       'csv_source_digest')})
+        for record, local in zip(records, manifest['records']):
+            record['sources'] = {modality: [{key: source[key] for key in _SOURCE_FIELDS} for source in sources]
+                                 for modality, sources in local['sources'].items()}
+            record['geometry'] = local['geometry']
+    payload['records'] = records
+    _verify_csv_case_records(payload)
+    return {**payload, 'digest': _digest(payload)}
+
+
+def _verify_csv_case_records(lock):
+    for record in lock['records']:
+        if (not isinstance(record, dict) or not set(_CASE_FIELDS) <= record.keys()
+                or not _is_digest(record['content_digest'])):
+            raise ValueError('Invalid case record in the dataset lock')
+    if lock['kind'] == 'table_csv':
+        if not _is_digest(lock.get('source_digest')) or not isinstance(lock.get('fold_plan'), list):
+            raise ValueError('Invalid table CSV source or fold plan in the dataset lock')
+        return
+    if not _is_digest(lock.get('csv_source_digest')):
+        raise ValueError('Invalid multimodal CSV source digest in the dataset lock')
+    for record in lock['records']:
+        sources = record.get('sources')
+        if not isinstance(sources, dict) or not isinstance(record.get('geometry'), dict):
+            raise ValueError('Invalid modality sources or geometry in the dataset lock')
+        for entries in sources.values():
+            if not isinstance(entries, list) or not all(
+                    isinstance(source, dict) and _portable_relative(source.get('relative_path'))
+                    and _is_digest(source.get('source_digest')) and _is_digest(source.get('content_digest'))
+                    for source in entries):
+                raise ValueError('Invalid relative path or source digest in the multimodal dataset lock')
 
 
 def portable_dataset(manifest):
     """Return an ordered, location-independent lock from an inspected local manifest."""
     kind = manifest.get('kind')
-    if kind not in ('image_folder', 'segmentation_csv'):
+    if kind not in ('image_folder', 'segmentation_csv', 'table_csv', 'multimodal_csv'):
         raise ValueError('Dataset kind is not supported by research projects')
     settings = _portable_spec(manifest['data_spec'])
     payload = {'version': 1, 'kind': kind, 'logical_root': 'dataset', 'settings': settings,
-               'seed': manifest['seed'], 'counts': manifest['counts'], 'input_shape': manifest['input_shape'],
-               'preprocessing': manifest['preprocessing']}
+               'seed': manifest['seed'], 'counts': manifest['counts'], 'preprocessing': manifest['preprocessing']}
+    if kind in _CASE_CSV_KINDS:
+        return _portable_csv_cases(manifest, payload)
+    payload['input_shape'] = manifest['input_shape']
     records = []
     if kind == 'image_folder':
         payload.update(class_names=manifest['class_names'], class_counts=manifest['class_counts'])
@@ -248,6 +352,9 @@ def _verify_dataset_lock(lock, config, expected):
             or lock.get('kind') != config['data']['kind'] or lock.get('settings') != config['data']
             or lock.get('seed') != config['seed'] or not isinstance(lock.get('records'), list)):
         raise ValueError('Dataset lock does not match the project data settings')
+    if lock['kind'] in _CASE_CSV_KINDS:
+        _verify_csv_case_records(lock)
+        return
     paths = ('relative_path', 'mask_relative_path') if lock['kind'] == 'segmentation_csv' else ('relative_path',)
     if any(not isinstance(record, dict) or any(not _portable_relative(record.get(key)) for key in paths)
            for record in lock['records']):
@@ -275,7 +382,7 @@ def _file_digest(path):
 
 
 def _weight_identity(graph, training, dataset_id):
-    task = _TASKS[training['profile']][1]
+    task = _TASKS[training['profile'], training['data']['kind']]
     version = 3 if task == 'segmentation' or graph['schema_version'] == 2 else 2
     identity = {'version': version, 'profile': training['profile'], 'dataset_digest': dataset_id,
                 'model_digest': model_digest(graph), 'checkpoint_signature': checkpoint_signature(graph, training, dataset_id)}
@@ -302,8 +409,13 @@ def _check_origin_dataset(source, dataset_id, manifest, lock):
     # Re-export from a rebound dataset is safe for inference if the saved run's
     # lock has the original local digest and the exact same portable identity.
     try:
+        digest_manifest = _manifest_digest
+        if manifest['kind'] == 'multimodal_csv':
+            from .multimodal_data import _portable_digest
+
+            digest_manifest = _portable_digest
         original = _read_json(source.with_name('manifest.json'), _MAX_DATASET)
-        if original.get('dataset_digest') != dataset_id or _manifest_digest(original) != dataset_id:
+        if original.get('dataset_digest') != dataset_id or digest_manifest(original) != dataset_id:
             raise ValueError('Saved dataset manifest digest does not match the run specification')
         original_digest = portable_dataset(original)['digest']
     except (ValueError, KeyError, TypeError, AttributeError) as error:
@@ -330,6 +442,8 @@ def _training_run(source, config, manifest, lock, expected_model):
         _check_weight_identity(saved, identity)
         if identity['model_digest'] != expected_model or _portable_spec(training['data']) != lock['settings']:
             raise _CheckpointMismatch('Saved run model or dataset settings do not match the project')
+        if manifest['kind'] == 'multimodal_csv' and training['input_ports'] != config['input_ports']:
+            raise _CheckpointMismatch('Saved run input port mapping does not match the project')
         if _portable_spec(saved['data_spec']) != lock['settings']:
             raise ValueError(f'Saved effective data settings do not match the run configuration: {source}')
         _check_origin_dataset(source, dataset_id, manifest, lock)
@@ -370,12 +484,16 @@ def _export_weights(training_run, directory, config, manifest, lock):
     if not isinstance(state, dict):
         raise ValueError('Checkpoint must contain a state mapping')
     _check_weight_identity(state, identity)
-    fields = ('input_shape', 'preprocessing')
+    multimodal = manifest['kind'] == 'multimodal_csv'
+    fields = ('input_shapes', 'input_axes', 'preprocessing') if multimodal else ('input_shape', 'preprocessing')
     fields += ('mask_values', 'target_shape') if config['profile'] == 'segmentation-v1' else ('class_names',)
     model_state = state.get('model_state')
-    if (any(state.get(key) != manifest[key] for key in fields) or not isinstance(model_state, dict)
+    if (any(state.get(key) != manifest[key] for key in fields)
+            or (multimodal and state.get('input_ports') != training['input_ports']) or not isinstance(model_state, dict)
             or not all(isinstance(key, str) and isinstance(value, torch.Tensor) for key, value in model_state.items())):
         raise ValueError('Checkpoint weights or preprocessing do not match the dataset')
+    if multimodal:
+        fields += ('input_ports',)
     directory.mkdir()
     run_spec = directory / 'run_spec.json'
     weights = directory / 'best.pt'
@@ -411,9 +529,13 @@ def _read_weights(root, weights, initial_model):
     return result
 
 
-def _copy_runtime(destination, runtime_source):
+def _copy_runtime(destination, runtime_source, kind):
     source = Path(runtime_source).resolve() if runtime_source is not None else Path(__file__).resolve().parent
     required = ('__init__.py', 'research_project.py', 'project_runner.py', 'classification_runtime.py')
+    if kind == 'table_csv':
+        required += ('table_data.py', 'table_cv.py')
+    elif kind == 'multimodal_csv':
+        required += ('multimodal_data.py',)
     if not all((source / name).is_file() for name in required):
         raise ValueError('Could not locate the standalone studio_core source directory')
     runtime = destination / 'runtime' / 'studio_core'
@@ -429,6 +551,26 @@ def _copy_runtime(destination, runtime_source):
                 break
 
 
+def _runtime_requirements(data):
+    kind = data['kind']
+    if kind == 'table_csv':
+        return ('numpy==2.3.5\nscipy==1.15.3\nscikit-learn==1.7.2\n'
+                'joblib==1.5.2\nthreadpoolctl==3.6.0\n')
+    requirements = 'numpy==2.3.5\nPillow==12.3.0\n'
+    fmt = data.get('format')
+    if kind == 'multimodal_csv':
+        modalities = data['modalities']
+        if 'volume' in modalities or ('image' in modalities and data['image_source'] != 'raster'):
+            fmt = data['volume_format']
+    if fmt in ('nifti', 'mri_nifti') or (kind == 'segmentation_csv' and fmt == 'dicom_ct'):
+        requirements += 'nibabel==5.3.2\n'
+    if kind == 'segmentation_csv' and fmt in MEDICAL_FORMATS:
+        requirements += 'scipy==1.15.3\n'
+    if fmt == 'dicom_ct':
+        requirements += 'pydicom==3.0.1\n'
+    return requirements
+
+
 def export_project(destination, graph, config, *, workbench=None, checkpoint=None, runtime_source=None):
     """Create a standalone project; optional run specifications are in priority order."""
     requested = Path(destination).expanduser().absolute()
@@ -436,6 +578,9 @@ def export_project(destination, graph, config, *, workbench=None, checkpoint=Non
         raise FileExistsError(f'Project destination already exists: {requested}')
     destination = requested.parent.resolve() / requested.name
     config = _project_config(config)
+    kind = config['data']['kind']
+    if kind == 'table_csv' and checkpoint is not None:
+        raise ValueError('Table projects retrain from the locked CSV. Estimator serialization is unavailable.')
     manifest = inspect_dataset(config['data'], seed=config['seed'])
     if config['expected_dataset_digest'] not in (None, manifest['dataset_digest']):
         raise ValueError('Dataset digest changed since inspection')
@@ -467,19 +612,16 @@ def export_project(destination, graph, config, *, workbench=None, checkpoint=Non
         if manifest['kind'] == 'segmentation_csv':
             _write_pairs(stage / _PAIRED_CSV, lock)
             payload['paired_csv'] = _PAIRED_CSV
-        _copy_runtime(stage, runtime_source)
+        _copy_runtime(stage, runtime_source, kind)
         (stage / 'run.py').write_text(_RUN_ENTRY, encoding='utf-8', newline='\n')
-        (stage / 'README.md').write_text(_README, encoding='utf-8', newline='\n')
-        requirements = 'numpy==2.3.5\nPillow==12.3.0\n'
-        fmt = config['data'].get('format')
-        if fmt == 'nifti' or fmt in MEDICAL_FORMATS:
-            requirements += 'nibabel==5.3.2\n'
-        if fmt in MEDICAL_FORMATS:
-            requirements += 'scipy==1.15.3\n'
-        if fmt == 'dicom_ct':
-            requirements += 'pydicom==3.0.1\n'
+        readme = {'table_csv': _TABLE_README, 'multimodal_csv': _MULTIMODAL_README}.get(kind, _README)
+        if kind in _CASE_CSV_KINDS:
+            readme += _HELDOUT_README
+        (stage / 'README.md').write_text(readme, encoding='utf-8', newline='\n')
+        requirements = _runtime_requirements(config['data'])
         (stage / 'requirements.txt').write_text(requirements, encoding='utf-8', newline='\n')
-        (stage / 'requirements-torch.txt').write_text('torch==2.6.0\n', encoding='utf-8', newline='\n')
+        if kind != 'table_csv':
+            (stage / 'requirements-torch.txt').write_text('torch==2.6.0\n', encoding='utf-8', newline='\n')
         _write_json(stage / 'project.json', payload, _MAX_PROJECT)
         destination.mkdir()
         moved = []
@@ -525,6 +667,8 @@ def read_project(path):
             raise ValueError(f'Invalid {field} path reference in project')
     lock = _read_json(_project_file(root, payload['dataset'], 'dataset'), _MAX_DATASET)
     _verify_dataset_lock(lock, config, payload.get('dataset_digest'))
+    if lock['kind'] == 'table_csv' and payload.get('weights') is not None:
+        raise ValueError('Table projects retrain from the locked CSV. Estimator serialization is unavailable.')
     pair_reference = payload.get('paired_csv')
     paired_csv = None
     if pair_reference is not None:
@@ -556,15 +700,16 @@ def bind_project(project, data_path, *, source_root=None, cancelled=None):
         raise ValueError('Select a local dataset path')
     settings = deepcopy(project['config'])
     data_path = Path(data_path).expanduser().resolve()
-    if settings['data']['kind'] == 'segmentation_csv':
-        if data_path.is_dir():
-            paired_csv = project.get('paired_csv')
-            if paired_csv is None:
-                raise ValueError('This project has no bundled pair list. Select the segmentation CSV instead.')
-            source_root, data_path = data_path, paired_csv
+    kind = settings['data']['kind']
+    if kind == 'segmentation_csv' and data_path.is_dir():
+        paired_csv = project.get('paired_csv')
+        if paired_csv is None:
+            raise ValueError('This project has no bundled pair list. Select the segmentation CSV instead.')
+        source_root, data_path = data_path, paired_csv
+    if kind in _SOURCE_ROOT_KINDS:
         settings['data']['source_root'] = str(Path(source_root).expanduser().resolve()) if source_root else ''
     elif source_root:
-        raise ValueError('A separate source root applies only to paired segmentation CSV data')
+        raise ValueError('A separate source root applies to segmentation and multimodal CSV data')
     settings['data']['path'] = str(data_path)
     config = _project_config(settings)
     manifest = inspect_dataset(config['data'], seed=config['seed'], cancelled=cancelled)

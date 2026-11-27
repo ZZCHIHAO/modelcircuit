@@ -77,6 +77,13 @@ class ProjectRunTests(unittest.TestCase):
                     for lock in (a, b)]
             self.assertTrue(compare_project_runs(*rows)['comparable'])
 
+    def test_unverified_regression_report_cannot_be_compared(self):
+        origin = {'operation': 'train', 'status': 'succeeded', 'profile': 'regression-v1',
+                  'dataset_digest': 'a' * 64, 'evaluation': 'table-csv-regression-v1-heldout-v1',
+                  'metrics': {'test': {'mae': 2.0, 'rmse': 2.5, 'r2': None, 'count': 3}}}
+        latest = {**origin, 'metrics': {'test': {'mae': 1.5, 'rmse': 2.0, 'r2': .5, 'count': 3}}}
+        self.assertFalse(compare_project_runs(origin, latest)['comparable'])
+
     def test_reference_example_runs_in_new_paths_and_predicts_with_registered_weights(self):
         from shutil import copytree
         import torch
