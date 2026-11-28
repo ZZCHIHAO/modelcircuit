@@ -481,6 +481,9 @@ def inspect_dataset(data_spec, seed=42, cancelled=None):
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'table_csv':
         from .table_data import inspect_table_dataset
         return inspect_table_dataset(data_spec, seed, cancelled)
+    if isinstance(data_spec, dict) and data_spec.get('kind') == 'unsupervised_csv':
+        from .unsupervised_task import inspect_unlabeled_csv
+        return inspect_unlabeled_csv(data_spec, seed, cancelled)
     if isinstance(data_spec, dict) and data_spec.get('kind') == 'multimodal_csv':
         from .multimodal_data import inspect_multimodal_dataset
         return inspect_multimodal_dataset(data_spec, seed, cancelled)
@@ -558,7 +561,7 @@ def build_datasets(manifest, cancelled=None):
         source = record["source_path"]
         expected = record["source_digest"]
         if source not in checked:
-            raw = _read_source(source, MAX_CSV_BYTES if manifest["kind"] == "csv" else MAX_IMAGE_BYTES, cancelled)
+            raw = _read_source(source, MAX_CSV_BYTES if manifest["kind"] in ("csv", "regression_csv") else MAX_IMAGE_BYTES, cancelled)
             checked[source] = hashlib.sha256(raw).hexdigest()
         if checked[source] != expected:
             raise ValueError("Dataset source changed since inspection: " + source)

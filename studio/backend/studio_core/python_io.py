@@ -160,6 +160,10 @@ def export_python(graph):
             raise ValueError("Invalid graph: " + "; ".join(e["message"] for e in report["errors"]))
     from .classical_task import contains_classical
     if contains_classical(graph):
+        from .operators import UNSUPERVISED_KINDS
+        if any(item.get('kind') in UNSUPERVISED_KINDS for item in graph.get('instances', [])):
+            from .unsupervised_python import export_unsupervised
+            return export_unsupervised(graph)
         from .classical_python import export_classical
         return export_classical(graph)
     definitions = graph.get("definitions", [])
@@ -758,6 +762,9 @@ def import_python(code):
         tree = ast.parse(code)
     except (SyntaxError, ValueError, RecursionError) as error:
         raise ValueError("Invalid Python syntax: " + str(error)) from None
+    if any(isinstance(node, ast.ImportFrom) and node.module in ('sklearn.decomposition', 'sklearn.cluster') for node in tree.body):
+        from .unsupervised_python import import_unsupervised
+        return import_unsupervised(tree)
     if any(isinstance(node, ast.ImportFrom) and node.module in ("sklearn.svm", "sklearn.ensemble") for node in tree.body):
         from .classical_python import import_classical
         return import_classical(tree)

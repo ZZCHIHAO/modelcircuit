@@ -2,7 +2,7 @@
 from copy import deepcopy
 import math
 
-from .operators import CLASSICAL_KINDS, FOREST_KINDS, SVM_KINDS, operator_spec
+from .operators import CLASSICAL_KINDS, FOREST_KINDS, SVM_KINDS, UNSUPERVISED_KINDS, operator_spec
 from .shape_rules import CNN_PARAMETERS, cnn_output_shape, normalize_cnn_params
 
 _MAX_RANK = 8
@@ -77,6 +77,10 @@ def normalize_operator(kind, params):
         _require(result['max_depth'] is None or _positive(result['max_depth']),
                  'max_depth must be null or a positive integer', 'max_depth')
         _require(_positive(result['min_samples_leaf']), 'min_samples_leaf must be a positive integer', 'min_samples_leaf')
+    elif kind in UNSUPERVISED_KINDS:
+        result = {**spec.defaults, **result}
+        for name, value in result.items():
+            _require(_positive(value), name + ' must be a positive integer', name)
     elif kind == "Scale":
         result = {**spec.defaults, **result}
         _require(_finite(result["factor"]), "Scale factor must be a finite scalar")
@@ -138,7 +142,11 @@ def infer_operator(kind, params, input_shapes):
             output = output[:2] + params["size"]
         elif kind in CLASSICAL_KINDS:
             _require(len(output) == 2, kind + " requires tabular input [batch, feature]")
-            output[-1] = 1
+            if kind == 'PCA':
+                _require(params['n_components'] <= output[-1], 'PCA components cannot exceed the input feature count')
+                output[-1] = params['n_components']
+            else:
+                output[-1] = 1
         elif kind == "Linear":
             _require(output[-1] == params["in_features"], "Linear input dimension mismatch", "in_features")
             output[-1] = params["out_features"]

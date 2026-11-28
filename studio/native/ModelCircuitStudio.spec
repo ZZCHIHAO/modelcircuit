@@ -23,11 +23,11 @@ data = [
     (str(python_license), 'licenses/Python'),
 ]
 stage = json.loads(build_manifest.read_text(encoding='utf-8')).get('stage')
-if stage in ('S10', 'S11', 'S12', 'S13', 'S14'):
+if stage in ('S10', 'S11', 'S12', 'S13', 'S14', 'S14B'):
     data += [(str(source), 'assets/project_runtime/studio_core') for source in sorted((studio / 'backend' / 'studio_core').glob('*.py'))]
     data += [(str(repository / name), 'assets/project_runtime') for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'VERSION')]
-modern = stage in ('S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14')
-research = stage in ('S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14')
+modern = stage in ('S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S14B')
+research = stage in ('S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S14B')
 research_packages = ('pydicom', 'nibabel', 'opencv-python-headless') if research else ()
 classical_packages = ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl') if modern else ()
 for package in ('torch', 'dearpygui', 'numpy', 'Pillow', 'sympy', 'networkx', 'filelock',

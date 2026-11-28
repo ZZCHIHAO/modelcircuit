@@ -33,6 +33,10 @@ def _editable_experiment(experiment):
             raise ValueError("Workspace experiment: " + message)
     require(type(experiment) is dict, "must be an object")
     _encoded(experiment)
+    if experiment.get('profile') == 'unsupervised-v1':
+        from studio_core.unsupervised_task import validate_unsupervised_config
+        validate_unsupervised_config(experiment, editable=True)
+        return
     real = isinstance(experiment.get("profile"), str) and experiment["profile"] in SUPERVISED_PROFILES
     if "profile" in experiment:
         require(real, "unsupported profile")
@@ -245,6 +249,13 @@ def composite_key(document, experiment, manifest=None):
 def compatibility_issue(document, manifest, input_port="x", input_ports=None):
     if not manifest:
         return "请先检查数据。"
+    if manifest.get('kind') == 'unsupervised_csv':
+        from studio_core.unsupervised_task import unsupervised_contract
+        try:
+            unsupervised_contract(document.graph, manifest)
+        except ValueError as error:
+            return str(error)
+        return ''
     if manifest.get('kind') == 'segmentation_csv':
         from studio_core.schema import prepare_graph
         from studio_core.segmentation_task import SegmentationTask
@@ -314,6 +325,9 @@ def compatibility_issue(document, manifest, input_port="x", input_ports=None):
 
 def starter_graph(manifest, estimator=None, *, input_ports=None):
     """Return an explicit supervised starter graph without changing the canvas."""
+    if manifest.get('kind') == 'unsupervised_csv':
+        from studio_core.unsupervised_task import unsupervised_graph
+        return unsupervised_graph(manifest, estimator or 'PCA+KMeans')
     if manifest.get('kind') == 'segmentation_csv':
         from studio_core.segmentation_templates import segmentation_graph
         return segmentation_graph(manifest)

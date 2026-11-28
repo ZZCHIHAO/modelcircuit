@@ -11,8 +11,11 @@ from .shape_rules import CNN_DEFAULTS, CNN_PARAMETERS
 
 SVM_KINDS = frozenset({'SVC', 'SVR'})
 FOREST_KINDS = frozenset({'RandomForestClassifier', 'RandomForestRegressor'})
-CLASSICAL_KINDS = SVM_KINDS | FOREST_KINDS
+UNSUPERVISED_KINDS = frozenset({'PCA', 'KMeans'})
+CLASSICAL_KINDS = SVM_KINDS | FOREST_KINDS | UNSUPERVISED_KINDS
 _FOREST_DEFAULTS = {'n_estimators': 100, 'max_depth': None, 'min_samples_leaf': 1}
+_PCA_DEFAULTS = {'n_components': 2}
+_KMEANS_DEFAULTS = {'n_clusters': 2, 'n_init': 10, 'max_iter': 300}
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,7 @@ _EDITOR_DEFAULTS = {
     "BatchNorm2d": {"num_features": 8}, "Identity": {}, "Sigmoid": {},
     "Multiply": {}, "Scale": {"factor": 1.0}, "OneMinus": {}, "SVC": {"C": 1.0, "kernel": "rbf"}, "SVR": {"C": 1.0, "kernel": "rbf"},
     "RandomForestClassifier": _FOREST_DEFAULTS, "RandomForestRegressor": _FOREST_DEFAULTS,
+    "PCA": _PCA_DEFAULTS, "KMeans": _KMEANS_DEFAULTS,
 }
 
 
@@ -73,6 +77,8 @@ _SPECS.update({
     "SVR": _spec("SVR", defaults={"C": 1.0, "kernel": "rbf"}),
     "RandomForestClassifier": _spec("RandomForestClassifier", defaults=_FOREST_DEFAULTS),
     "RandomForestRegressor": _spec("RandomForestRegressor", defaults=_FOREST_DEFAULTS),
+    "PCA": _spec("PCA", defaults=_PCA_DEFAULTS),
+    "KMeans": _spec("KMeans", defaults=_KMEANS_DEFAULTS),
 })
 
 

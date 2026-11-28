@@ -24,7 +24,8 @@ BLUE = (100, 200, 255)
 AMBER = (235, 190, 110)
 RED = (240, 143, 134)
 MODES = {"S1 合成 CPU（演示）": "synthetic_s1", "CSV 数值分类": "csv", "CSV 数值回归": "regression_csv", "ImageFolder 图片分类": "image_folder", "配对图片与表格分类": "paired_csv", "科研影像 / 视频分类": "research_csv", "2D / 3D 医学影像分割": "segmentation_csv",
-         "表格机器学习（分组交叉验证）": "table_csv", "病例多模态分类": "multimodal_csv"}
+         "表格机器学习（分组交叉验证）": "table_csv", "无监督表格（PCA / K-means）": "unsupervised_csv",
+         "病例多模态分类": "multimodal_csv"}
 SEGMENTATION_FORMATS = {"二维图片 + PNG/TIFF 掩码": "image", "三维 NIfTI（固定网格）": "nifti",
                         "DICOM CT + NIfTI 掩码": "dicom_ct", "MRI NIfTI + NIfTI 掩码": "mri_nifti"}
 _SEQUENCE_NONE = '（不使用）'
@@ -33,6 +34,17 @@ SEGMENTATION_COLUMNS = (("id_column", "样本 ID 列", "sample_id"), ("group_col
                         ("image_column", "影像路径列", "image_path"), ("mask_column", "掩码路径列", "mask_path"),
                         ("split_column", "划分列（可选）", "自动划分"))
 IMAGE_MODES = ('image_folder', 'paired_csv', 'research_csv', 'segmentation_csv')
+CSV_MODES = ('csv', 'paired_csv', 'regression_csv', 'unsupervised_csv')
+FIT_MODES = ('table_csv', 'unsupervised_csv')
+UNSUPERVISED_PRESETS = {'PCA 主成分分析': 'PCA', 'K-means 聚类': 'KMeans', 'PCA → K-means': 'PCA+KMeans'}
+
+
+def _validate_real_config(config):
+    if config.get('profile') == 'unsupervised-v1':
+        from studio_core.unsupervised_task import validate_unsupervised_config
+        return validate_unsupervised_config(config)
+    from studio_core.experiment_spec import validate_supervised_config
+    return validate_supervised_config(config)
 
 
 class ExperimentControls:
@@ -58,11 +70,14 @@ class ExperimentControls:
         from studio_core.experiment_spec import default_classification_config, default_regression_config, default_segmentation_config
         if kind == 'segmentation_csv':
             return default_segmentation_config()
+        if kind == 'unsupervised_csv':
+            from studio_core.unsupervised_task import validate_unsupervised_config
+            return validate_unsupervised_config({}, editable=True)
         return default_regression_config() if kind == "regression_csv" else default_classification_config(data_kind=kind)
 
     def _install_experiment(self, experiment):
         experiment = deepcopy(experiment)
-        if experiment.get("profile") in SUPERVISED_PROFILES:
+        if experiment.get("profile") in SUPERVISED_PROFILES or experiment.get('profile') == 'unsupervised-v1':
             kind = experiment.get("data", {}).get("kind", "csv")
             defaults = self._supervised_defaults(kind)
             defaults.update({key: value for key, value in experiment.items() if key != "data"})
@@ -96,6 +111,8 @@ class ExperimentControls:
             dpg.add_text("尚未检查数据；运行前需检查。", tag="native_dataset_summary", color=MUTED, wrap=265)
             dpg.add_button(label='预览训练补丁…', tag='native_medical_patch_open', width=-1, show=False,
                            callback=self.guarded(self.medical_patch_panel.open))
+            dpg.add_combo(list(UNSUPERVISED_PRESETS), default_value='PCA → K-means', width=-1,
+                          tag='native_unsupervised_preset', show=False)
             dpg.add_button(label="从数据创建起始模型…", tag="native_starter", width=-1, callback=self.guarded(self._request_starter))
             dpg.add_button(label="创建支持向量机起始图…", tag="native_svm_starter", show=False, width=-1,
                            callback=self.guarded(self._request_svm_starter))
@@ -126,13 +143,14 @@ class ExperimentControls:
             with dpg.group(tag="native_csv_settings"):
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="读取 CSV 列", tag="native_csv_columns", callback=self.guarded(self._read_columns))
-                    dpg.add_text("先读取列，再选择标签、分组与 split。", color=MUTED)
+                    dpg.add_text("先读取 CSV 的列，再确认数值特征。", color=MUTED)
                 dpg.add_combo(label="标签列", tag="native_csv_target", items=[], width=310, callback=self.guarded(self._csv_selection_changed))
                 dpg.add_combo(label="分组列（可选）", tag="native_csv_group", items=["无"], default_value="无", width=310, callback=self.guarded(self._csv_selection_changed))
                 dpg.add_combo(label="split 列（可选）", tag="native_csv_split", items=["无"], default_value="无", width=310, callback=self.guarded(self._csv_selection_changed))
                 dpg.add_input_text(label="数值特征列（JSON 列表）", tag="native_csv_features", default_value="[]", width=500, on_enter=True, callback=self.guarded(self._experiment_changed))
                 dpg.add_checkbox(label="标准化（仅拟合 train）", tag="native_standardize", default_value=True, callback=self.guarded(self._experiment_changed))
-                dpg.add_text('例如 ["f1", "f2"]。split 列取 train / val / test；分组不得跨 split。', color=MUTED, wrap=745)
+                dpg.add_text('例如 ["f1", "f2"]。split 列取 train / val / test；分组不得跨 split。',
+                             tag='native_csv_help', color=MUTED, wrap=745)
             with dpg.group(tag="native_paired_settings", show=False):
                 dpg.add_input_text(label="图片根目录（空则 CSV 所在目录）", tag="native_paired_image_root", width=460, on_enter=True, callback=self.guarded(self._experiment_changed))
                 with dpg.group(horizontal=True):
@@ -244,10 +262,10 @@ class ExperimentControls:
                 dpg.set_value(tag, self.experiment[key])
         if real:
             config, data = self.experiment, self.experiment["data"]
-            values = {"native_epochs": config["epochs"], "native_optimizer": config["optimizer"], "native_device": config["device"], "native_data_path": data.get("path", ""),
+            values = {"native_epochs": config.get("epochs", 10), "native_optimizer": config.get("optimizer", "adamw"), "native_device": config["device"], "native_data_path": data.get("path", ""),
                       "native_validation_fraction": data.get("validation_fraction", 0.2), "native_test_fraction": data.get("test_fraction", 0.2),
                       "native_input_port": config.get("input_port", "x"), "native_max_runtime": config.get("max_runtime_seconds", 3600), "native_resume_checkpoint": config.get("resume_checkpoint") or ""}
-            if self.experiment_mode in ("csv", "paired_csv", "regression_csv"):
+            if self.experiment_mode in CSV_MODES:
                 values.update({"native_csv_target": data.get("target_column") or "", "native_csv_group": data.get("group_column") or "无", "native_csv_split": data.get("split_column") or "无", "native_csv_features": json.dumps(data.get("feature_columns") or [], ensure_ascii=False), "native_standardize": data.get("standardize", True)})
             if self.experiment_mode == 'research_csv':
                 values.update(native_research_root=data['source_root'], native_research_format=data['format'],
@@ -293,7 +311,14 @@ class ExperimentControls:
                 self.cohort_panel.sync(config, self.csv_header)
             for tag, value in values.items():
                 dpg.set_value(tag, value)
-        dpg.configure_item("native_csv_settings", show=self.experiment_mode in ("csv", "paired_csv", "regression_csv"))
+        unsupervised = self.experiment_mode == 'unsupervised_csv'
+        dpg.configure_item("native_csv_settings", show=self.experiment_mode in CSV_MODES)
+        dpg.configure_item('native_unsupervised_preset', show=unsupervised)
+        for tag in ('native_csv_target', 'native_csv_group', 'native_csv_split'):
+            dpg.configure_item(tag, show=not unsupervised)
+        dpg.set_value('native_csv_help', '例如 ["f1", "f2"]。留空时使用表中所有列。' if unsupervised else
+                      '例如 ["f1", "f2"]。split 列取 train / val / test；分组不得跨 split。')
+        dpg.configure_item('native_standardize', label='标准化数值特征' if unsupervised else '标准化（仅拟合 train）')
         dpg.configure_item("native_csv_target", label="连续目标列" if self.experiment_mode == "regression_csv" else "标签列")
         dpg.configure_item("native_csv_group", label="分组列（必选）" if self.experiment_mode == "paired_csv" else "分组列（可选）")
         dpg.configure_item("native_image_settings", show=self.experiment_mode in IMAGE_MODES)
@@ -303,9 +328,9 @@ class ExperimentControls:
         dpg.configure_item("native_image_directory_settings", show=self.experiment_mode == "image_folder")
         dpg.configure_item("native_paired_settings", show=self.experiment_mode == "paired_csv")
         dpg.configure_item("native_paired_ports", show=self.experiment_mode == "paired_csv")
-        dpg.configure_item("native_input_port", show=self.experiment_mode not in ('paired_csv', 'multimodal_csv'))
-        dpg.configure_item("native_split_fractions", show=self.experiment_mode not in COHORT_KINDS)
-        dpg.configure_item("native_split_help", show=self.experiment_mode not in COHORT_KINDS)
+        dpg.configure_item("native_input_port", show=self.experiment_mode not in ('paired_csv', 'multimodal_csv', 'unsupervised_csv'))
+        dpg.configure_item("native_split_fractions", show=self.experiment_mode not in (*COHORT_KINDS, 'unsupervised_csv'))
+        dpg.configure_item("native_split_help", show=self.experiment_mode not in (*COHORT_KINDS, 'unsupervised_csv'))
         self.cohort_panel.layout(self.experiment_mode)
         self._render_experiment_summary()
 
@@ -338,6 +363,15 @@ class ExperimentControls:
     def _configuration(self):
         if not self._widgets_available():
             return deepcopy(self.experiment)
+        if self.experiment_mode == 'unsupervised_csv':
+            try:
+                features = json.loads(dpg.get_value('native_csv_features'))
+            except json.JSONDecodeError as error:
+                raise ValueError('数值特征列须为 JSON 字符串列表。') from error
+            return {**self.experiment, 'seed': dpg.get_value('native_seed'),
+                    'max_runtime_seconds': dpg.get_value('native_max_runtime'),
+                    'data': {'kind': 'unsupervised_csv', 'path': dpg.get_value('native_data_path').strip(),
+                             'feature_columns': features, 'standardize': dpg.get_value('native_standardize')}}
         # DPG stores input_float as float32; remove representation noise so
         # entering the valid lower bound 1e-6 does not become 9.99999997e-7.
         common = {"lr": float(format(dpg.get_value("native_lr"), ".7g")), "seed": dpg.get_value("native_seed"), "batch_size": dpg.get_value("native_batch")}
@@ -466,7 +500,7 @@ class ExperimentControls:
     def _data_path_chosen(self, app_data=None, **_):
         dpg.set_value("native_data_path", app_data["file_path_name"])
         self._experiment_changed()
-        if self.experiment_mode in ("csv", "paired_csv", "regression_csv", "segmentation_csv", *COHORT_KINDS):
+        if self.experiment_mode in (*CSV_MODES, "segmentation_csv", *COHORT_KINDS):
             self._read_columns()
 
     def _read_columns(self, **_):
@@ -477,6 +511,8 @@ class ExperimentControls:
 
     def _csv_selection_changed(self, preserve=False, **_):
         excluded = {dpg.get_value("native_csv_target"), dpg.get_value("native_csv_group"), dpg.get_value("native_csv_split")}
+        if self.experiment_mode == 'unsupervised_csv':
+            excluded = set()
         if self.experiment_mode == "paired_csv":
             excluded.update((dpg.get_value("native_paired_image_column"), dpg.get_value("native_paired_id_column")))
         if self.csv_header:
@@ -496,13 +532,12 @@ class ExperimentControls:
     def _inspect_data(self, **_):
         if self.experiment_mode == "synthetic_s1":
             raise ValueError("请选择一个使用真实数据的实验任务。")
-        from studio_core.experiment_spec import validate_supervised_config
         editable = self._configuration()
         inspect_config = editable
         if editable.get('profile') == 'fitnets-v1':
             inspect_config = {key:value for key,value in editable.items() if key != 'fitnets'}
             inspect_config['profile'] = 'classification-v2'
-        config = validate_supervised_config(inspect_config)
+        config = _validate_real_config(inspect_config)
         self.experiment = editable
         self.manifest = None; self.inspection_key = None; self.inspecting = True
         self.medical_patch_panel.invalidate()
@@ -542,6 +577,10 @@ class ExperimentControls:
                 if dpg.get_value("native_data_path").strip() != self._columns_path:
                     continue
                 self.csv_header = value
+                if self.experiment_mode == 'unsupervised_csv':
+                    self._csv_selection_changed(preserve=True)
+                    dpg.set_value('native_data_error', f'已读取 {len(value)} 列。请保留用于拟合的数值特征。')
+                    continue
                 if self.experiment_mode in COHORT_KINDS:
                     self.cohort_panel.columns(value)
                     dpg.set_value('native_data_error', f'已读取 {len(value)} 列。请核对病例、患者和目标列。')
@@ -611,6 +650,7 @@ class ExperimentControls:
         dpg.configure_item("native_inspect", enabled=not self.inspecting)
         dpg.configure_item("native_data_inspect", enabled=not self.inspecting)
         starter_label = {'segmentation_csv': '创建分割起始图…', 'table_csv': '创建随机森林起始图…',
+                         'unsupervised_csv': '创建无监督起始图…',
                          'multimodal_csv': '按所选端口创建分类图…'}.get(self.experiment_mode, '从数据创建起始模型…')
         dpg.configure_item("native_starter", enabled=bool(manifest), label=starter_label)
         fit_templates = self.experiment_mode in ('csv','image_folder','research_csv')
@@ -621,12 +661,12 @@ class ExperimentControls:
         svm = 'SVR' if self.experiment_mode == 'regression_csv' else 'SVC'
         dpg.configure_item('native_svm_starter', show=svm_available, enabled=bool(manifest), label=f'创建 {svm} 起始图…')
         classical = self._classical_graph()
-        fit = classical or self.experiment_mode == 'table_csv'
+        fit = classical or self.experiment_mode in FIT_MODES
         dpg.configure_item('native_epoch_controls', show=not fit)
         dpg.configure_item('native_gradient_controls', show=not fit)
         dpg.configure_item('native_resume_checkpoint', show=not fit)
-        dpg.configure_item('native_device', enabled=self.experiment_mode != 'table_csv')
-        if self.experiment_mode == 'table_csv':
+        dpg.configure_item('native_device', enabled=self.experiment_mode not in FIT_MODES)
+        if self.experiment_mode in FIT_MODES:
             dpg.set_value('native_device', 'cpu')
         issue = compatibility_issue(self.document, manifest, config.get("input_port", "x"), input_ports=config.get("input_ports")) if real and manifest else ""
         dpg.set_value("native_data_compatibility", issue)
@@ -635,6 +675,8 @@ class ExperimentControls:
                 recipe = manifest['data_spec']
                 details = (f"{recipe['folds']} 折分组验证 · {len(recipe['numeric_columns'])} 个数值列 · "
                            f"{len(recipe['categorical_columns'])} 个类别列\n最终在独立测试集评估。")
+            elif manifest.get('kind') == 'unsupervised_csv':
+                details = '拟合使用所有选定样本 · 数值列 ' + '、'.join(manifest['data_spec']['feature_columns'])
             elif manifest.get('kind') == 'multimodal_csv':
                 details = '\n'.join(
                     f"{modality} → {config['input_ports'].get(modality, '本次不使用')} · {' × '.join(axes)}"
@@ -674,8 +716,7 @@ class ExperimentControls:
                 raise ValueError("传统机器学习估计器需要 CSV 分类或回归实验。")
             self.experiment = config
             return config
-        from studio_core.experiment_spec import validate_supervised_config
-        config = validate_supervised_config(config)
+        config = _validate_real_config(config)
         if not self.manifest or self.inspection_key != data_identity(config):
             raise ValueError("运行前请检查当前数据与划分设置。")
         issue = compatibility_issue(self.document, self.manifest, config["input_port"], input_ports=config.get("input_ports"))
@@ -683,7 +724,7 @@ class ExperimentControls:
             raise ValueError(issue)
         if config["device"] not in self.available_devices:
             raise ValueError("当前设备不可用，请刷新设备能力并选择 CPU 或可用的单个 CUDA 设备。")
-        if self._classical_graph():
+        if self._classical_graph() and self.experiment_mode != 'unsupervised_csv':
             from studio_core.classical_task import classical_contract
             classical_contract(self.document.graph, config, self.manifest)
         config["expected_dataset_digest"] = self.manifest["dataset_digest"]
@@ -708,6 +749,8 @@ class ExperimentControls:
             from .fitnets_templates import starter
             self.pending_starter = starter(self.manifest, teacher=teacher)
         else:
+            if self.experiment_mode == 'unsupervised_csv':
+                estimator = UNSUPERVISED_PRESETS[dpg.get_value('native_unsupervised_preset')]
             self.pending_starter = starter_graph(self.manifest, estimator=estimator, input_ports=config.get('input_ports'))
         candidate = Document(self.pending_starter)
         report = candidate.validation()

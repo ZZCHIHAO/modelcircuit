@@ -33,6 +33,7 @@ _DISPLAY = {
     'AdaptiveAvgPool3d': ('shape_pool', '三维自适应平均池化'),
     'SVC': ('classical', '支持向量分类'), 'SVR': ('classical', '支持向量回归'),
     'RandomForestClassifier': ('classical', '随机森林分类'), 'RandomForestRegressor': ('classical', '随机森林回归'),
+    'PCA': ('classical', 'PCA 主成分分析'), 'KMeans': ('classical', 'K-means 聚类'),
     'Linear': ('layers', '全连接层'), 'Conv2d': ('layers', '二维卷积'),
     'ReLU': ('activation', 'ReLU 激活'), 'GELU': ('activation', 'GELU 激活'),
     'Sigmoid': ('activation', 'Sigmoid 激活'),
@@ -87,6 +88,8 @@ _OPERATOR_ALIASES = {
     'SVR': ('SVM', '支持向量机', 'Support Vector Machine'),
     'RandomForestClassifier': ('随机森林', 'Random Forest', 'RF classifier'),
     'RandomForestRegressor': ('随机森林', 'Random Forest', 'RF regressor'),
+    'PCA': ('降维', '主成分', 'Principal Component Analysis'),
+    'KMeans': ('聚类', 'K-means', '无监督学习'),
 }
 
 
@@ -100,7 +103,9 @@ def list_components(query='', category=None, *, registry=None, include_tensor=Fa
         group, label = _DISPLAY.get(kind, ('layers', kind))
         classical = group == 'classical'
         aliases = (kind, *_OPERATOR_ALIASES.get(kind, ()))
-        description = label + (' · ' + kind + ' · CPU 拟合 · 单模型 CSV 实验' if classical else ' · ' + kind)
+        description = label + ' · ' + kind
+        if classical:
+            description += ' · CPU 拟合 · 无标签 CSV' if kind in ('PCA', 'KMeans') else ' · CPU 拟合 · 有标签 CSV'
         result.append(ComponentSpec('primitive.' + kind, group, label, aliases, description,
             tuple(operator.required), {**_capabilities(False), 'forward': not classical}, {**operator.defaults, **operator_defaults(kind)}, tuple(operator.input_ports), ('out',)))
     for identifier, label, aliases, required, defaults, inputs, outputs in _MODULES:

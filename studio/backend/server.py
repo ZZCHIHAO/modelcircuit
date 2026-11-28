@@ -97,6 +97,11 @@ class RunManager:
             raise ValueError("; ".join(issue["message"] for issue in report["errors"]))
         _wire_json({"graph": graph, "config": config}, MAX_BODY, "Run snapshot")
         # Validation never imports torch or scans a dataset on the UI thread.
+        if config.get('profile') == 'unsupervised-v1':
+            from studio_core.unsupervised_task import unsupervised_contract, validate_unsupervised_config
+            config = validate_unsupervised_config(config)
+            unsupervised_contract(graph)
+            return self._start_worker(graph, config, managed=True, classical=False)
         supervised = isinstance(config.get("profile"), str) and config["profile"] in SUPERVISED_PROFILES
         typed = graph.get('schema_version') == 2
         classical = contains_classical(graph)

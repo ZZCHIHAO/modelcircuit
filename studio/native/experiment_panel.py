@@ -84,6 +84,8 @@ def manifest_summary(manifest):
         return "×".join("N" if item is None else str(item) for item in shape)
     shape = ("\n".join(name + " " + shape_text(value) for name, value in manifest["input_shapes"].items())
              if manifest.get("input_shapes") else shape_text(manifest.get("input_shape", [])))
+    if manifest.get('kind') == 'unsupervised_csv':
+        return f"无标签 CSV · 输入 {shape}\n{counts['fit']} 行参与拟合"
     classes = manifest.get("class_names", [])
     regression = manifest.get('kind') == 'regression_csv' or manifest.get('task') == 'regression'
     dataset_label = "CSV 数值回归" if regression else manifest.get('kind')
@@ -180,7 +182,14 @@ def result_view(result, progress_history=None):
     if result.get("profile") == "fitnets-v1":
         history = [row for row in current_history if row.get("stage") != "hint"]
     train, val = series("train_loss" if real else "loss"), series("val_loss") if real else [[], []]
-    if result.get('execution') == 'classical':
+    if result.get('execution') == 'unsupervised':
+        fit = result['metrics']['fit']
+        summary = f"{result['algorithm']} · CPU · {fit['count']} 个样本"
+        if 'explained_variance' in fit:
+            summary += f"\n累计解释方差 {fit['explained_variance']:.1%}"
+        if 'inertia' in fit:
+            summary += f"\n簇内平方和 {_number(fit['inertia'])}"
+    elif result.get('execution') == 'classical':
         test = result.get('metrics', {}).get('test', {})
         summary = f"{result['algorithm']} · CPU · 已完成拟合"
         if regression:

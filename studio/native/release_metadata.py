@@ -11,7 +11,7 @@ import sys
 
 PRODUCT_NAME = 'ModelCircuit Studio'
 PRODUCT_STAGE = 'S4'
-_STAGES = ('S4', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14')
+_STAGES = ('S4', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S14B')
 
 
 def require_runtime_variant(runtime, torch_version):
@@ -26,7 +26,7 @@ def build_manifest(repository, runtime, stage=PRODUCT_STAGE):
     if stage not in _STAGES:
         raise ValueError('Unsupported desktop release stage')
     if (stage != 'S4') != (runtime == 'Unified'):
-        raise ValueError('S6–S14 use the unified desktop build; S4 uses the historical CPU or CUDA variants')
+        raise ValueError('Use the unified desktop build for S6 and newer')
     version_file = repository / 'VERSION'
     version = version_file.read_text(encoding='utf-8').strip() if version_file.is_file() else None
     torch_version = metadata.version('torch')

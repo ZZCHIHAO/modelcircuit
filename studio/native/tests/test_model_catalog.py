@@ -44,7 +44,8 @@ class ModelCatalogTests(unittest.TestCase):
             self.assertTrue(all(other not in panel.visible_ids for other in set(expected.values()) - {component}))
         self.invoke('native_catalog_category', '传统机器学习模型库')
         self.assertEqual(set(panel.visible_ids), {'primitive.SVC', 'primitive.SVR',
-                                                  'primitive.RandomForestClassifier', 'primitive.RandomForestRegressor'})
+                                                  'primitive.RandomForestClassifier', 'primitive.RandomForestRegressor',
+                                                  'primitive.PCA', 'primitive.KMeans'})
 
     def test_local_search_configuration_and_policy_insertion_are_atomic(self):
         self.assertIn('本地芯片', dpg.get_item_configuration('native_catalog_category')['items'])

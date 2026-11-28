@@ -60,7 +60,7 @@ class OperatorDeclarationTests(unittest.TestCase):
         operators = api("operators")
         expected = {"Linear", "ReLU", "GELU", "Add", "Concat", "LayerNorm", "Dropout",
                     "Conv2d", "MaxPool2d", "AdaptiveAvgPool2d", "Flatten", "Conv3d", "MaxPool3d", "AdaptiveAvgPool3d", "Upsample",
-                    "SVC", "SVR", "RandomForestClassifier", "RandomForestRegressor", *NEW_KINDS}
+                    "SVC", "SVR", "RandomForestClassifier", "RandomForestRegressor", "PCA", "KMeans", *NEW_KINDS}
         self.assertEqual(set(operators.operator_kinds()), expected)
         self.assertIsInstance(operators.operator_kinds(), tuple)
         self.assertEqual(operators.operator_spec("Dropout").defaults["p"], 0.5)

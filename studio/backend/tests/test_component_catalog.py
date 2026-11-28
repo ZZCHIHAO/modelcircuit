@@ -20,7 +20,7 @@ class CatalogTests(unittest.TestCase):
         specs = module.list_components()
         primitive_ids = ['primitive.' + kind for kind in operator_kinds()]
         n = len(primitive_ids)
-        self.assertEqual(len(specs), 44)
+        self.assertEqual(len(specs), 46)
         self.assertEqual([item.id for item in specs[:n]], primitive_ids)
         self.assertEqual([item.id for item in specs[n:n + 5]], ['head.mlp', 'fusion.concat_projection',
             'fusion.weighted_sum', 'fusion.gated', 'block.residual_basic'])
@@ -54,7 +54,8 @@ class CatalogTests(unittest.TestCase):
         module = catalog()
         expected = {'primitive.SVC', 'primitive.SVR'}
         self.assertEqual({item.id for item in module.list_components(category='classical')},
-                         expected | {'primitive.RandomForestClassifier', 'primitive.RandomForestRegressor'})
+                         expected | {'primitive.RandomForestClassifier', 'primitive.RandomForestRegressor',
+                                     'primitive.PCA', 'primitive.KMeans'})
         self.assertEqual({item.id for item in module.list_components('支持向量机')}, expected)
         self.assertEqual({item.id for item in module.list_components('svm')}, expected)
 

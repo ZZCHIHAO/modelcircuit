@@ -4,7 +4,9 @@
 
 ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) 持续开发的原生可视化 AI 架构设计与实验工作台。它将算子、网络、融合模块与自定义模型组织成具有明确端口的组件，让研究者通过连接、展开、封装和测量来理解模型并开展实验。
 
-**当前开发版本 `v0.9.5-alpha.1`。** S14 增加表格随机森林分类与回归、患者分组交叉验证和病例多模态分类。支持影像与表格融合、二维切片与三维体融合，并可迁移研究工程后用独立 Python 重跑。参见 [S14 表格与多模态指南](studio/native/S14_RESEARCH_GUIDE.md)。S13 支持 DICOM CT 和已配准 MRI 多序列的三维补丁分割。从患者级划分、几何校验和补丁预览，到整卷滑窗推理与原始空间评估均可在 Windows 桌面运行。参见 [S13 医学影像分割指南](studio/native/S13_MEDICAL_GUIDE.md)。S12 支持 Linux 服务器 CUDA DDP、按任务 ID 重新连接、停止续训和校验后下载实验结果。参见 [S12 多卡和远程执行指南](studio/native/S12_REMOTE_GUIDE.md)。S11 增加端口接线反馈、样例前向、训练单步、探针采样和参数扫描。参见 [S11 调试指南](studio/native/S11_DEBUG_GUIDE.md)。S10 新增可迁移的科研工程，ImageFolder 分类和配对影像分割可导出为独立 Python 工程。支持数据重绑、模型代码回写、训练与推理复跑和运行记录对比。参见 [S10 工程指南](studio/native/S10_PROJECT_GUIDE.md)。分割训练和独立滑窗推理见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md) 与 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。
+**当前开发版本 `v0.9.5-alpha.2`。** 完整工程增加数值 CSV 分类、回归与无监督实验。可随工程保存单个 CSV，指定样本采集探针并对照，或在画布上连接 PCA 与 K-means。参见 [工程迁移、样本探针与无监督实验](studio/native/S14B_EXPERIMENT_GUIDE.md)。
+
+S14 增加表格随机森林分类与回归、患者分组交叉验证和病例多模态分类。支持影像与表格融合、二维切片与三维体融合，并可迁移研究工程后用独立 Python 重跑。参见 [S14 表格与多模态指南](studio/native/S14_RESEARCH_GUIDE.md)。S13 支持 DICOM CT 和已配准 MRI 多序列的三维补丁分割。从患者级划分、几何校验和补丁预览，到整卷滑窗推理与原始空间评估均可在 Windows 桌面运行。参见 [S13 医学影像分割指南](studio/native/S13_MEDICAL_GUIDE.md)。S12 支持 Linux 服务器 CUDA DDP、按任务 ID 重新连接、停止续训和校验后下载实验结果。参见 [S12 多卡和远程执行指南](studio/native/S12_REMOTE_GUIDE.md)。S11 增加端口接线反馈、样例前向、训练单步、探针采样和参数扫描。参见 [S11 调试指南](studio/native/S11_DEBUG_GUIDE.md)。S10 新增可迁移的科研工程，ImageFolder 分类和配对影像分割可导出为独立 Python 工程。支持数据重绑、模型代码回写、训练与推理复跑和运行记录对比。参见 [S10 工程指南](studio/native/S10_PROJECT_GUIDE.md)。分割训练和独立滑窗推理见 [S8 分割指南](studio/native/S8_SEGMENTATION_GUIDE.md) 与 [S9 推理指南](studio/native/S9_INFERENCE_GUIDE.md)。
 
 本仓库公开提供 ModelCircuit Studio 源码，欢迎通过 Issues 反馈、通过 fork 和 Pull Request 贡献。`main` 当前对应 S4 源码。平台后续开发阶段按依赖通过 PR 接受审查。根目录 `pyproject.toml` 中的 `1.0.4` 是所保留的 ML Forge 上游包版本。
 
@@ -59,7 +61,7 @@ ModelCircuit Studio 是基于 [ML Forge](https://github.com/zaina-ml/ml_forge) �
 
 ### 源码与 EXE 的区别
 
-S14 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s14/ModelCircuitStudio/ModelCircuitStudio.exe`。在「调试」「实验」「推理」或「工程」页选择 `cpu` 或一张 `cuda:N`。服务器 DDP 从「实验」中的「服务器多卡…」进入。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S10`。移动时请保留整个应用目录。
+Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `studio/dist/s14b/ModelCircuitStudio/ModelCircuitStudio.exe`。在「调试」「实验」「推理」或「工程」页选择 `cpu` 或一张 `cuda:N`。服务器 DDP 从「实验」中的「服务器多卡…」进入。工作区保存在 `%LOCALAPPDATA%\ModelCircuitStudio-S10`。移动时请保留整个应用目录。
 
 ## 组件与模型库
 
@@ -69,7 +71,7 @@ S14 Windows 版使用统一 EXE。双击 `studio/启动模路.cmd`，或打开 `
 | --- | --- |
 | 基础组件库 | 全连接层（Linear）、二维卷积、激活层、归一化、池化、张量运算 |
 | 深度学习模型库 | ResNet、VGG、SqueezeNet、Transformer Encoder、小型 ViT |
-| 传统机器学习模型库 | 支持向量分类（SVC）、支持向量回归（SVR）、随机森林分类与回归 |
+| 传统机器学习模型库 | 支持向量分类（SVC）、支持向量回归（SVR）、随机森林分类与回归、PCA、K-means |
 | 网络结构与融合库 | 基础残差块、MLP 分类头、拼接投影、加权求和、门控融合 |
 | 工程芯片与本地芯片 | 当前工程的定义，以及已存入本地库的组件 |
 

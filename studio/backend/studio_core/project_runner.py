@@ -285,6 +285,9 @@ def _write_evaluation_proof(directory, report, identity, origin, cancelled):
 
 def evaluation_dataset_digest(dataset):
     """Identify comparable test cases independently of the training seed."""
+    if dataset.get('kind') == 'unsupervised_csv':
+        return _json_digest({'features': dataset['settings']['feature_columns'],
+                             **{key: dataset[key] for key in ('kind', 'input_shape', 'preprocessing', 'source_digest')}})
     if dataset.get('kind') in ('table_csv', 'multimodal_csv'):
         profile = 'regression-v1' if dataset.get('task') == 'regression' else 'classification-v2'
         return _json_digest(_heldout_identity(dataset, profile))
@@ -312,6 +315,17 @@ def compare_project_runs(left, right):
         return rejected('测试样本、标签或预处理不一致。')
     if not left.get('evaluation') or any(left.get(key) != right.get(key) for key in ('profile', 'evaluation')):
         return rejected('任务或评估协议不一致。')
+    if left['profile'] == 'unsupervised-v1':
+        a, b = (report.get('metrics', {}).get('fit', {}) for report in (left, right))
+        space_a, space_b = ((report.get('analysis') or {}).get('clustering_space_digest') for report in (left, right))
+        names = ('explained_variance', 'inertia') if space_a and space_a == space_b else ('explained_variance',)
+        result = {}
+        for name in names:
+            x, y = a.get(name), b.get(name)
+            if type(x) in (int, float) and type(y) in (int, float) and math.isfinite(x) and math.isfinite(y):
+                result[name] = {'left': x, 'right': y, 'delta': y - x}
+        return {'comparable': bool(result), 'reason': '' if result else '两次拟合没有共同指标或聚类特征空间不同。',
+                'metrics': result}
     a, b = (row.get('metrics', {}).get('test', {}) for row in (left, right))
     if not isinstance(a, dict) or not isinstance(b, dict) or a.get('count') != b.get('count'):
         return rejected('测试集样本数不一致。')
@@ -361,7 +375,9 @@ def _environment(device, *, classical, torch_threads=None):
 
 
 def _record_project(report, project, profile, device, *, torch_threads=None):
-    classical = project['dataset']['kind'] == 'table_csv'
+    from .classical_task import contains_classical
+
+    classical = contains_classical(project['graph'])
     report.update(project_id=project['project_id'], model_digest=project['model_digest'],
                   initial_model_digest=project['initial_model_digest'], profile=profile, device=device,
                   dataset_digest=project['dataset']['digest'],
@@ -451,6 +467,7 @@ def _progress(log, forward):
 
 def train_project(project_path, data_path, artifact_directory, *, source_root=None, device='cpu',
                   progress=None, cancelled=None, expected_model_digest=None, defer_report=False, torch_threads=None):
+    from .classical_task import contains_classical
     from .research_project import bind_project, read_project
 
     directory, report = _new_run(artifact_directory, 'train', {'project': str(project_path), 'data_path': str(data_path),
@@ -463,8 +480,9 @@ def train_project(project_path, data_path, artifact_directory, *, source_root=No
             raise ValueError('Project model changed; reopen the project before starting the run')
         kind = project['dataset']['kind']
         _record_project(report, project, project['config']['profile'], device, torch_threads=torch_threads)
-        if kind == 'table_csv' and device != 'cpu':
-            raise ValueError('Table projects require CPU execution')
+        classical = contains_classical(project['graph'])
+        if classical and device != 'cpu':
+            raise ValueError('Classical machine learning projects require CPU execution')
         emit = _progress(log, progress)
         emit({'phase': 'bind'})
         config, manifest = bind_project(project, data_path, source_root=source_root, cancelled=cancelled)
@@ -479,16 +497,24 @@ def train_project(project_path, data_path, artifact_directory, *, source_root=No
             report.update(version=2, dataset_kind=kind)
         elif config['data'].get('format') in MEDICAL_FORMATS:
             evaluation = 'segmentation-native-test-v1'
+        elif profile == 'unsupervised-v1':
+            evaluation = 'unsupervised-fit-v1'
         else:
             evaluation = profile + '-test-v1'
         if identity is None:
             evaluation_digest = evaluation_dataset_digest(project['dataset'])
         report.update(seed=config['seed'], local_dataset_digest=manifest['dataset_digest'],
                       evaluation=evaluation, evaluation_dataset_digest=evaluation_digest)
-        if kind == 'table_csv':
+        if profile == 'unsupervised-v1':
+            from .unsupervised_task import run_unsupervised
+
+            result = run_unsupervised(project['graph'], config, directory, emit, cancelled)
+            report.update(algorithm=result['algorithm'], analysis=result['analysis'])
+        elif classical:
             from .classical_task import run_classical
 
-            report['folds'] = len(manifest['fold_plan'])
+            if kind == 'table_csv':
+                report['folds'] = len(manifest['fold_plan'])
             result = run_classical(project['graph'], config, directory, emit, cancelled)
             report['algorithm'] = result['algorithm']
         else:
@@ -631,7 +657,7 @@ def main(project_dir=None, argv=None):
     train = commands.add_parser('train', help='Start training in a new run directory')
     predict = commands.add_parser('predict', help='Predict unlabelled images or segmentation volumes with saved weights')
     for command in (validate, train):
-        command.add_argument('--data', type=Path, required=True, help='ImageFolder, table or multimodal CSV, or segmentation CSV or root')
+        command.add_argument('--data', type=Path, help='Dataset location; omit when the project bundles its CSV')
         command.add_argument('--source-root', type=Path, help='Root of source paths referenced by the segmentation or multimodal CSV')
     for command in (train, predict):
         command.add_argument('--out', type=Path, required=True)
