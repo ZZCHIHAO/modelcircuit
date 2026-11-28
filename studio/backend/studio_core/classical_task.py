@@ -10,7 +10,7 @@ from .classification_data import inspect_dataset
 from .classification_runtime import _atomic_write, _write_json
 from .experiment_spec import model_digest, validate_supervised_config
 from .operator_rules import normalize_operator
-from .operators import FOREST_KINDS
+from .operators import CLASSICAL_KINDS, FOREST_KINDS
 from .ports import parse_source
 
 ESTIMATOR_TASKS = {
@@ -49,7 +49,7 @@ def contains_classical(graph):
         if isinstance(instances, list):
             for item in instances:
                 kind = item.get('kind') if isinstance(item, dict) else None
-                if isinstance(kind, str) and kind in ESTIMATOR_TASKS:
+                if isinstance(kind, str) and kind in CLASSICAL_KINDS:
                     return True
         definitions = scope.get('definitions')
         if isinstance(definitions, list):

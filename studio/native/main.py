@@ -95,6 +95,7 @@ def main(argv=None):
     parser.add_argument('--s12-render-check', type=Path, help='Verify native remote DDP through OpenSSH')
     parser.add_argument('--s13-render-check', type=Path, help='Verify CT and MRI through native controls')
     parser.add_argument('--s14-render-check', type=Path, help='Verify grouped table and multimodal experiments through native controls')
+    parser.add_argument('--s14b-render-check', type=Path, help='Verify portable CSV projects, selected probes, and unsupervised fitting')
     parser.add_argument('--remote-check-settings', type=Path, help='Local settings for the authorized S12 diagnostic')
     args = parser.parse_args(argv)
     if bool(args.s12_render_check) != bool(args.remote_check_settings):
@@ -102,7 +103,7 @@ def main(argv=None):
     diagnostics = [args.self_test, args.render_check, args.classification_check, args.classification_render_check,
                    args.s3_check, args.s3_render_check, args.s4_check, args.s4_render_check, args.s6_render_check, args.s7_render_check,
                    args.s8_render_check, args.s9_render_check, args.s10_render_check, args.s11_render_check, args.s12_render_check,
-                   args.s13_render_check, args.s14_render_check]
+                   args.s13_render_check, args.s14_render_check, args.s14b_render_check]
     if sum(bool(item) for item in diagnostics) > 1:
         parser.error('Choose only one diagnostic mode')
     output_report = next((item for item in diagnostics if item), None)
@@ -168,6 +169,9 @@ def main(argv=None):
         elif args.s14_render_check:
             from .s14_acceptance import check_s14
             report = check_s14(manager, paths['data'], resource_root(), args.s14_render_check.parent, args.check_device)
+        elif args.s14b_render_check:
+            from .s14b_acceptance import check_s14b
+            report = check_s14b(manager, paths['data'], resource_root(), args.s14b_render_check.parent, args.check_device)
         else:
             document, experiment, workbench_payload = load_saved_workspace_full(paths)
             from .ui import NativeWorkbench

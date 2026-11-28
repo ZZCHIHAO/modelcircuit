@@ -321,6 +321,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
                     with dpg.tab(label="最终评估与文件", tag="native_artifact_tab"):
                         with dpg.child_window(height=-1, width=-1, horizontal_scrollbar=True):
                             dpg.add_text("尚未采集", tag="native_final_metrics", color=MUTED, wrap=1250)
+                            dpg.add_group(tag='native_analysis')
                             dpg.add_text("", tag="native_artifacts", color=MUTED, wrap=1250)
                     self.segmentation_panel.build()
                     self.inference_panel.build_results()
@@ -778,6 +779,12 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
         dpg.set_value("native_loss_summary", text)
         dpg.set_value("native_final_metrics", view["summary"])
         dpg.set_value("native_artifacts", view["artifacts"])
+        analysis = self.result.get('analysis') if self.result else None
+        if analysis is not getattr(self, '_last_analysis', None):
+            from .analysis_panel import render_analysis
+            dpg.delete_item('native_analysis', children_only=True)
+            render_analysis('native_analysis', analysis)
+            self._last_analysis = analysis
         self.segmentation_panel.sync(self.result, self.experiment_mode == 'segmentation_csv', stale)
         if view["train"][0] or view["val"][0]:
             dpg.fit_axis_data("native_loss_x"); dpg.fit_axis_data("native_loss_y")
@@ -1021,14 +1028,15 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             return self.resource_directory / 'project_runtime' / 'studio_core'
         return None
 
-    def _install_portable_project(self, project, config, manifest):
+    def _install_portable_project(self, project, config, manifest, *, restore_graph=True):
         from .workspace_state import data_identity
 
-        self.document.replace_graph(project['graph'])
-        self._reset_canvas_document()
-        self._restore_workbench(project.get('workbench'))
-        self.python_initialized = False
-        self.python_dirty = False
+        if restore_graph:
+            self.document.replace_graph(project['graph'])
+            self._reset_canvas_document()
+            self._restore_workbench(project.get('workbench'))
+            self.python_initialized = False
+            self.python_dirty = False
         self._install_experiment(config)
         self.manifest = manifest
         self.inspection_key = data_identity(config) if manifest is not None else None
@@ -1191,7 +1199,7 @@ class NativeWorkbench(CanvasCommands, ExperimentControls, ChipControls):
             self.last_event = max(self.last_event, event.get("seq", 0))
         if record.get("result"):
             self.result = record["result"]; self.result_key = self.run_key
-            if self.result.get('execution') == 'classical':
+            if self.result.get('execution') in ('classical', 'unsupervised'):
                 dpg.set_value('native_bottom_tabs', dpg.get_alias_id('native_artifact_tab'))
             self._render_probe(); self._render_parameters()
         self._render_loss()

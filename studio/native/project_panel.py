@@ -9,7 +9,10 @@ import stat
 
 import dearpygui.dearpygui as dpg
 from studio_core.cohort_examples import EXAMPLES as COHORT_EXAMPLES
+from studio_core.classical_task import contains_classical
+from studio_core.research_project import EMBEDDABLE_CSV_KINDS
 
+from .analysis_panel import render_analysis
 from .experiment_panel import BackgroundQueries
 from .workspace_state import data_identity
 
@@ -21,7 +24,8 @@ _RUN_LABELS = {'queued': '等待启动', 'preparing': '准备运行', 'running':
                'cancel_requested': '正在停止', 'succeeded': '运行完成', 'failed': '运行失败', 'cancelled': '已停止'}
 _RUN_PHASES = {'bind': '核对数据', 'inspect': '检查数据', 'train': '训练', 'val': '验证', 'test': '最终评估',
                'fit': '拟合模型', 'cv_fold': '分组交叉验证', 'dev': '评估开发集'}
-_KINDS = {'image_folder': 'ImageFolder 图片分类', 'table_csv': '表格分组交叉验证', 'multimodal_csv': '病例多模态分类'}
+_KINDS = {'image_folder': 'ImageFolder 图片分类', 'table_csv': '表格分组交叉验证', 'multimodal_csv': '病例多模态分类',
+          'csv': '数值 CSV 分类', 'regression_csv': '数值 CSV 回归', 'unsupervised_csv': '无监督表格'}
 _EXAMPLES = {'图片分类': 'image_folder', **COHORT_EXAMPLES}
 _SEGMENTATION_LABELS = {'image': '二维 PNG/TIFF 分割', 'nifti': '三维 NIfTI 分割',
                         'dicom_ct': 'CT 分割', 'mri_nifti': 'MRI 分割'}
@@ -161,6 +165,7 @@ class ProjectPanel:
         dpg.add_text('导出当前模型与实验设置', color=_MUTED)
         dpg.add_input_text(tag=_tag('export_path'), hint='新工程目录', width=-1)
         dpg.add_checkbox(label='附带最近匹配训练的最佳权重', tag=_tag('include_weights'))
+        dpg.add_checkbox(label='附带数据 CSV', tag=_tag('include_data'), show=False)
         with dpg.group(horizontal=True):
             self._button('选择上级目录…', 'choose_export', self._open, 'export')
             self._button('导出工程', 'export', self.export)
@@ -291,7 +296,8 @@ class ProjectPanel:
             workbench = self.app.workbench.to_payload()
             manifest = self.app.manifest if self.app.inspection_key == data_identity(config) else None
             config['expected_dataset_digest'] = manifest['dataset_digest'] if manifest else None
-            with_weights = config['data']['kind'] != 'table_csv' and dpg.get_value(_tag('include_weights'))
+            with_weights = not contains_classical(graph) and dpg.get_value(_tag('include_weights'))
+            include_data = config['data']['kind'] in EMBEDDABLE_CSV_KINDS and dpg.get_value(_tag('include_data'))
             if with_weights:
                 result = self.app.result or {}
                 reports = [report for report in self._reports.values() if report]
@@ -308,7 +314,7 @@ class ProjectPanel:
             if with_weights:
                 checkpoint = _export_checkpoint(candidates, opened, run_directory, cancelled, inspected_paths=known)
             return export_project(destination, graph, config, workbench=workbench, checkpoint=checkpoint,
-                                  runtime_source=runtime_source)
+                                  runtime_source=runtime_source, include_data=include_data)
 
         self._submit('export', '正在检查数据并导出工程…', save)
 
@@ -388,6 +394,7 @@ class ProjectPanel:
         self.project = project
         self.binding = None
         kind = self._dataset_kind()
+        data = data or project.get('bundled_data') or ''
         dpg.set_value(_tag('path'), str(project['path']))
         dpg.set_value(_tag('data'), str(data))
         dpg.set_value(_tag('source_root'), str(root) if root else '')
@@ -398,13 +405,23 @@ class ProjectPanel:
         if kind == 'image_folder':
             data_hint = 'ImageFolder 数据目录'
         else:
-            data_hint = '配对数据 CSV 或影像目录' if has_pairs else '病例数据 CSV'
+            data_hint = '配对数据 CSV 或影像目录' if has_pairs else '本机数据 CSV'
         dpg.configure_item(_tag('data'), hint=data_hint)
         label = _KINDS.get(kind, kind)
         if kind == 'segmentation_csv':
             label = _SEGMENTATION_LABELS.get(project['config']['data'].get('format'), '配对影像分割')
         dpg.set_value(_tag('summary'), f"{label} · 工程 {project['project_id'][:12]}")
-        dpg.set_value(_tag('status'), project.get('graph_error') or '已读取工程，请绑定本机数据以恢复画布。')
+        dpg.set_value(_tag('status'), project.get('graph_error') or '已打开模型。运行前请核对数据路径。')
+
+    def _open_canvas(self):
+        project = self.project
+        data, root = self._binding_fields()
+        config = deepcopy(project['config'])
+        config['data']['path'] = data
+        if self._dataset_kind() in _WITH_ROOT:
+            config['data']['source_root'] = root or ''
+        self.app._install_portable_project(project, config, None)
+        self._canvas_epoch = self.app.canvas_host.document_epoch
 
     def _finish_operation(self, name, value):
         if name == 'export':
@@ -416,8 +433,12 @@ class ProjectPanel:
             requested, project = value
             if self._value('path') == requested:
                 self._set_project(project)
+                self._open_canvas()
+                if project.get('bundled_data') and not project.get('graph_error'):
+                    self.bind()
         elif name == 'example':
             self._set_project(*value)
+            self._open_canvas()
             self.bind()
         elif name == 'bind':
             fields, config, manifest = value
@@ -426,10 +447,14 @@ class ProjectPanel:
                     # The loader records the resolved root, but a default in the
                     # editor should continue to follow the selected CSV.
                     config = {**config, 'data': {**config['data'], 'source_root': ''}}
-                self.app._install_portable_project(self.project, config, manifest)
+                restore = self.app.canvas_host.document_epoch != self._canvas_epoch
+                self.app._install_portable_project(self.project, config, manifest, restore_graph=restore)
+                self._canvas_epoch = self.app.canvas_host.document_epoch
                 self.binding = fields
                 counts = manifest['counts']
-                dpg.set_value(_tag('status'), f"数据已核对，画布已恢复。训练 {counts['train']} / 验证 {counts['val']} / 测试 {counts['test']}")
+                summary = f"拟合 {counts['fit']} 行" if 'fit' in counts else (
+                    f"训练 {counts['train']} / 验证 {counts['val']} / 测试 {counts['test']}")
+                dpg.set_value(_tag('status'), '数据已核对 · ' + summary)
                 self.app.log(f"科研工程已绑定 {self.project['path']}", '完成')
 
     def _can_run(self):
@@ -445,8 +470,12 @@ class ProjectPanel:
         for name in ('export', 'open', 'create_example', 'choose_export', 'choose_project', 'path', 'export_path',
                      'data', 'source_root'):
             dpg.configure_item(_tag(name), enabled=not busy)
-        dpg.configure_item(_tag('include_weights'), enabled=not busy and getattr(self.app, 'experiment_mode', None) != 'table_csv')
-        table = self._dataset_kind() == 'table_csv'
+        edit_kind = getattr(self.app, 'experiment_mode', None)
+        dpg.configure_item(_tag('include_weights'),
+                           enabled=not busy and edit_kind not in ('table_csv', 'unsupervised_csv')
+                           and not contains_classical(getattr(getattr(self.app, 'document', None), 'graph', {})))
+        dpg.configure_item(_tag('include_data'), show=edit_kind in EMBEDDABLE_CSV_KINDS, enabled=not busy)
+        table = bool(self.project and contains_classical(self.project.get('graph', {})))
         dpg.configure_item(_tag('device'), enabled=not table)
         if table:
             dpg.set_value(_tag('device'), 'cpu')
@@ -682,6 +711,8 @@ class ProjectPanel:
                     for name, value in islice(_metric_values(report.get('metrics') or {}), _METRIC_LIMIT)]
             if rows:
                 self._table(parent, ('指标', '结果'), rows)
+            if report.get('profile') == 'unsupervised-v1' and report.get('status') == 'succeeded':
+                render_analysis(parent, report.get('analysis'))
             if history:
                 with dpg.collapsing_header(label=f'记录 {label} 的训练周期', parent=parent) as header:
                     self._table(header, ('周期', '训练损失', '验证损失'), [

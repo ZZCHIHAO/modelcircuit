@@ -40,6 +40,12 @@ def experiment_worker(graph, config, messages, stop, artifact_directory=None):
             torch.set_num_threads(1)
             messages.put({'type': 'status', 'status': 'running'})
             result = run_segmentation_inference(config, artifact_directory, defer_report=True, **options)
+        elif config.get('profile') == 'unsupervised-v1':
+            if artifact_directory is None:
+                raise ValueError('Unsupervised fitting requires a managed artifact directory')
+            from studio_core.unsupervised_task import run_unsupervised
+            messages.put({'type': 'status', 'status': 'running'})
+            result = run_unsupervised(graph, config, artifact_directory, **options)
         elif contains_classical(graph):
             if artifact_directory is None:
                 raise ValueError("Classical worker requires a managed artifact directory")

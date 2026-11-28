@@ -24,12 +24,18 @@ from .task_adapters import get_task_adapter
 PROJECT_FORMAT = 'ml-forge-research-project'
 PROJECT_VERSION = 1
 _TASKS = {
+    ('classification-v2', 'csv'): 'classification',
+    ('regression-v1', 'regression_csv'): 'regression',
+    ('unsupervised-v1', 'unsupervised_csv'): 'unsupervised',
     ('classification-v2', 'image_folder'): 'classification',
     ('segmentation-v1', 'segmentation_csv'): 'segmentation',
     ('classification-v2', 'table_csv'): 'classical',
     ('regression-v1', 'table_csv'): 'classical',
     ('classification-v2', 'multimodal_csv'): 'classification',
 }
+_NUMERIC_CSV_KINDS = frozenset({'csv', 'regression_csv'})
+EMBEDDABLE_CSV_KINDS = _NUMERIC_CSV_KINDS | {'table_csv', 'unsupervised_csv'}
+_BUNDLED_CSV = 'data/source.csv'
 _CASE_CSV_KINDS = frozenset({'table_csv', 'multimodal_csv'})
 _SOURCE_ROOT_KINDS = frozenset({'segmentation_csv', 'multimodal_csv'})
 _CASE_FIELDS = ('id', 'group', 'split', 'label', 'content_digest')
@@ -211,7 +217,10 @@ def _project_config(config):
     profile = config.get('profile')
     kind = config['data'].get('kind')
     if not isinstance(profile, str) or not isinstance(kind, str) or (profile, kind) not in _TASKS:
-        raise ValueError('Research projects support ImageFolder and multimodal classification, table classification and regression, and paired CSV segmentation')
+        raise ValueError('This task and data format cannot be exported as an independent project')
+    if profile == 'unsupervised-v1':
+        from .unsupervised_task import validate_unsupervised_config
+        return validate_unsupervised_config(config)
     return validate_supervised_config(config)
 
 
@@ -236,10 +245,14 @@ def _validate_detached(config):
 
 
 def _validate_task(graph, config, manifest):
-    task = _TASKS[config['profile'], config['data']['kind']]
-    if task == 'classical':
-        from .classical_task import classical_contract
+    from .classical_task import classical_contract, contains_classical
 
+    task = _TASKS[config['profile'], config['data']['kind']]
+    if task == 'unsupervised':
+        from .unsupervised_task import unsupervised_contract
+        unsupervised_contract(graph, manifest)
+        return
+    if task == 'classical' or contains_classical(graph):
         classical_contract(graph, config, manifest)
         return
     check_config_batch(graph, config['batch_size'])
@@ -295,7 +308,7 @@ def _verify_csv_case_records(lock):
 def portable_dataset(manifest):
     """Return an ordered, location-independent lock from an inspected local manifest."""
     kind = manifest.get('kind')
-    if kind not in ('image_folder', 'segmentation_csv', 'table_csv', 'multimodal_csv'):
+    if kind not in ('image_folder', 'segmentation_csv', 'multimodal_csv', *EMBEDDABLE_CSV_KINDS):
         raise ValueError('Dataset kind is not supported by research projects')
     settings = _portable_spec(manifest['data_spec'])
     payload = {'version': 1, 'kind': kind, 'logical_root': 'dataset', 'settings': settings,
@@ -303,6 +316,16 @@ def portable_dataset(manifest):
     if kind in _CASE_CSV_KINDS:
         return _portable_csv_cases(manifest, payload)
     payload['input_shape'] = manifest['input_shape']
+    if kind == 'unsupervised_csv':
+        payload.update(source_digest=manifest['source_digest'], records=[
+            {key: record[key] for key in ('id', 'content_digest')} for record in manifest['records']])
+        return {**payload, 'digest': _digest(payload)}
+    if kind in _NUMERIC_CSV_KINDS:
+        fields = ('class_names', 'class_counts') if kind == 'csv' else ('target_column',)
+        payload.update({field: manifest[field] for field in fields})
+        keys = ('row_number', 'group', 'split', 'label', 'content_digest', 'source_digest')
+        payload['records'] = [{key: row[key] for key in keys} for row in manifest['records']]
+        return {**payload, 'digest': _digest(payload)}
     records = []
     if kind == 'image_folder':
         payload.update(class_names=manifest['class_names'], class_counts=manifest['class_counts'])
@@ -354,6 +377,19 @@ def _verify_dataset_lock(lock, config, expected):
         raise ValueError('Dataset lock does not match the project data settings')
     if lock['kind'] in _CASE_CSV_KINDS:
         _verify_csv_case_records(lock)
+        return
+    if lock['kind'] == 'unsupervised_csv':
+        if not _is_digest(lock.get('source_digest')) or not lock['records'] or any(
+                not isinstance(row, dict) or not isinstance(row.get('id'), str) or not _is_digest(row.get('content_digest'))
+                for row in lock['records']):
+            raise ValueError('Invalid unlabeled CSV dataset lock')
+        return
+    if lock['kind'] in _NUMERIC_CSV_KINDS:
+        rows = lock['records']
+        if not rows or any(not isinstance(row, dict) or type(row.get('row_number')) is not int
+                           or not _is_digest(row.get('content_digest')) or not _is_digest(row.get('source_digest'))
+                           or row.get('split') not in ('train', 'val', 'test') for row in rows):
+            raise ValueError('Invalid numeric CSV row in the dataset lock')
         return
     paths = ('relative_path', 'mask_relative_path') if lock['kind'] == 'segmentation_csv' else ('relative_path',)
     if any(not isinstance(record, dict) or any(not _portable_relative(record.get(key)) for key in paths)
@@ -534,6 +570,8 @@ def _copy_runtime(destination, runtime_source, kind):
     required = ('__init__.py', 'research_project.py', 'project_runner.py', 'classification_runtime.py')
     if kind == 'table_csv':
         required += ('table_data.py', 'table_cv.py')
+    elif kind == 'unsupervised_csv':
+        required += ('unsupervised_task.py', 'unsupervised_python.py')
     elif kind == 'multimodal_csv':
         required += ('multimodal_data.py',)
     if not all((source / name).is_file() for name in required):
@@ -551,9 +589,9 @@ def _copy_runtime(destination, runtime_source, kind):
                 break
 
 
-def _runtime_requirements(data):
+def _runtime_requirements(data, *, classical=False):
     kind = data['kind']
-    if kind == 'table_csv':
+    if kind == 'table_csv' or classical:
         return ('numpy==2.3.5\nscipy==1.15.3\nscikit-learn==1.7.2\n'
                 'joblib==1.5.2\nthreadpoolctl==3.6.0\n')
     requirements = 'numpy==2.3.5\nPillow==12.3.0\n'
@@ -571,7 +609,8 @@ def _runtime_requirements(data):
     return requirements
 
 
-def export_project(destination, graph, config, *, workbench=None, checkpoint=None, runtime_source=None):
+def export_project(destination, graph, config, *, workbench=None, checkpoint=None, runtime_source=None,
+                   include_data=False):
     """Create a standalone project; optional run specifications are in priority order."""
     requested = Path(destination).expanduser().absolute()
     if requested.exists() or requested.is_symlink():
@@ -579,11 +618,17 @@ def export_project(destination, graph, config, *, workbench=None, checkpoint=Non
     destination = requested.parent.resolve() / requested.name
     config = _project_config(config)
     kind = config['data']['kind']
-    if kind == 'table_csv' and checkpoint is not None:
+    from .classical_task import contains_classical
+
+    classical = contains_classical(graph)
+    if (kind == 'table_csv' or classical) and checkpoint is not None:
         raise ValueError('Table projects retrain from the locked CSV. Estimator serialization is unavailable.')
+    if include_data and kind not in EMBEDDABLE_CSV_KINDS:
+        raise ValueError('Embedding data is available for single-file numeric and table CSV projects')
     manifest = inspect_dataset(config['data'], seed=config['seed'])
     if config['expected_dataset_digest'] not in (None, manifest['dataset_digest']):
         raise ValueError('Dataset digest changed since inspection')
+    config['data'] = manifest['data_spec']
     if manifest['kind'] == 'image_folder' and destination.is_relative_to(Path(manifest['data_spec']['path'])):
         raise ValueError('Place the project outside the ImageFolder dataset')
     if workbench is not None and not isinstance(workbench, dict):
@@ -609,18 +654,37 @@ def export_project(destination, graph, config, *, workbench=None, checkpoint=Non
             payload['weights'] = _export_weights(training_run, stage / 'weights', config, manifest, lock)
         (stage / 'model.py').write_text(code, encoding='utf-8', newline='\n')
         _write_json(stage / 'dataset.json', lock, _MAX_DATASET, pretty=False)
+        if include_data:
+            bundled = stage / _BUNDLED_CSV
+            bundled.parent.mkdir()
+            shutil.copyfile(manifest['data_spec']['path'], bundled)
+            expected = manifest.get('source_digest') or manifest['records'][0]['source_digest']
+            if _file_digest(bundled) != expected:
+                raise ValueError('CSV contents changed while the project was being exported')
+            payload['bundled_data'] = _BUNDLED_CSV
         if manifest['kind'] == 'segmentation_csv':
             _write_pairs(stage / _PAIRED_CSV, lock)
             payload['paired_csv'] = _PAIRED_CSV
         _copy_runtime(stage, runtime_source, kind)
         (stage / 'run.py').write_text(_RUN_ENTRY, encoding='utf-8', newline='\n')
         readme = {'table_csv': _TABLE_README, 'multimodal_csv': _MULTIMODAL_README}.get(kind, _README)
+        if kind in _NUMERIC_CSV_KINDS:
+            readme = (_TABLE_README if classical else _README) + (
+                '\nUse the matching numeric CSV with `run.py check --data FILE` and '
+                '`run.py train --data FILE --out DIRECTORY`.\n')
+        if kind == 'unsupervised_csv':
+            readme = ('# ModelCircuit Studio PCA / K-means project\n\n'
+                      'Install `requirements.txt`. Run `python run.py check --data FILE` to verify the CSV, '
+                      'then `python run.py train --data FILE --out DIRECTORY` to fit the pipeline and write '
+                      '`projection.csv` and `metrics.json`. Open `project.json` in ModelCircuit Studio to edit the graph.\n')
+        if include_data:
+            readme += '\nThis project includes its CSV at `data/source.csv`. Omit `--data` to use that copy.\n'
         if kind in _CASE_CSV_KINDS:
             readme += _HELDOUT_README
         (stage / 'README.md').write_text(readme, encoding='utf-8', newline='\n')
-        requirements = _runtime_requirements(config['data'])
+        requirements = _runtime_requirements(config['data'], classical=classical)
         (stage / 'requirements.txt').write_text(requirements, encoding='utf-8', newline='\n')
-        if kind != 'table_csv':
+        if kind != 'table_csv' and not classical:
             (stage / 'requirements-torch.txt').write_text('torch==2.6.0\n', encoding='utf-8', newline='\n')
         _write_json(stage / 'project.json', payload, _MAX_PROJECT)
         destination.mkdir()
@@ -667,10 +731,15 @@ def read_project(path):
             raise ValueError(f'Invalid {field} path reference in project')
     lock = _read_json(_project_file(root, payload['dataset'], 'dataset'), _MAX_DATASET)
     _verify_dataset_lock(lock, config, payload.get('dataset_digest'))
-    if lock['kind'] == 'table_csv' and payload.get('weights') is not None:
+    if lock['kind'] in ('table_csv', 'unsupervised_csv') and payload.get('weights') is not None:
         raise ValueError('Table projects retrain from the locked CSV. Estimator serialization is unavailable.')
     pair_reference = payload.get('paired_csv')
     paired_csv = None
+    bundled_data = None
+    if payload.get('bundled_data') is not None:
+        if lock['kind'] not in EMBEDDABLE_CSV_KINDS or payload['bundled_data'] != _BUNDLED_CSV:
+            raise ValueError('Invalid bundled data path in project')
+        bundled_data = _project_file(root, _BUNDLED_CSV, 'bundled CSV')
     if pair_reference is not None:
         if lock['kind'] != 'segmentation_csv' or pair_reference != _PAIRED_CSV:
             raise ValueError('Invalid paired CSV path reference in project')
@@ -688,14 +757,17 @@ def read_project(path):
         graph_error = f'{model_path}: {error}'
     return {'project_id': project_id, 'config': config, 'dataset': lock, 'workbench': workbench,
             'graph': graph, 'graph_error': graph_error, 'path': path, 'model_path': model_path, 'paired_csv': paired_csv,
+            'bundled_data': bundled_data,
             'model_digest': model_digest(graph), 'initial_model_digest': initial,
             'weights': _read_weights(root, payload.get('weights'), initial),
             'source_digests': {'project_manifest_sha256': hashlib.sha256(project_bytes).hexdigest(),
                                'model_source_sha256': hashlib.sha256(model_bytes).hexdigest()}}
 
 
-def bind_project(project, data_path, *, source_root=None, cancelled=None):
+def bind_project(project, data_path=None, *, source_root=None, cancelled=None):
     """Verify a local dataset matches the project and return runnable config and manifest."""
+    if data_path is None:
+        data_path = project.get('bundled_data')
     if data_path is None or not os.fspath(data_path):
         raise ValueError('Select a local dataset path')
     settings = deepcopy(project['config'])

@@ -98,25 +98,31 @@ def _synthetic_batch(resolved, config, device):
     return {'features': features, 'sample_ids': [f'synthetic:{i}' for i in range(config['batch_size'])]}, None, None
 
 
-def _image_batch(resolved, shapes, config, device, cancelled):
-    from torch.utils.data import DataLoader
+def _experiment_batch(resolved, shapes, config, device, cancelled):
+    from torch.utils.data import DataLoader, Subset
     from .classification_data import build_datasets, inspect_dataset
     from .task_adapters import get_task_adapter
     experiment = config['experiment']
-    manifest = inspect_dataset(experiment['data'], config['seed'], cancelled)
-    task = get_task_adapter('classification', 1)(experiment)
+    manifest = inspect_dataset(experiment['data'], experiment['seed'], cancelled)
+    if experiment['expected_dataset_digest'] not in (None, manifest['dataset_digest']):
+        raise ValueError('数据在检查后已改变，请重新检查再选择样本')
+    task_id = 'regression' if experiment['profile'] == 'regression-v1' else 'classification'
+    task = get_task_adapter(task_id, 1)(experiment)
     task.validate_contract(resolved, shapes, manifest)
-    if manifest['kind'] == 'multimodal_csv':
-        from .multimodal_data import build_multimodal_datasets
-        train = build_multimodal_datasets(manifest, cancelled, modalities=task.mapping)['train']
-    else:
-        train = build_datasets(manifest, cancelled)['train']
-    loader = DataLoader(train, batch_size=config['batch_size'], shuffle=False, num_workers=0)
+    split = config['split']
+    dataset = build_datasets(manifest, cancelled)[split]
+    if config['sample_ids']:
+        by_id = {record['id']: index for index, record in enumerate(dataset.records)}
+        missing = next((item for item in config['sample_ids'] if item not in by_id), None)
+        if missing is not None:
+            raise ValueError(f'样本 {missing} 不在 {split} 划分内，请重新选择')
+        dataset = Subset(dataset, [by_id[item] for item in config['sample_ids']])
+    loader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=False, num_workers=0)
     batch = task.bind_batch(next(iter(loader)), device)
     return batch, task, manifest
 
 
-def _classification_loss(outputs, batch, task, manifest):
+def _batch_loss(outputs, batch, task, manifest):
     if task is not None:
         task.validate_outputs(outputs, batch, manifest)
         return task.loss(outputs, batch)
@@ -172,7 +178,7 @@ def _sweep(graph, config, device, batch, task, manifest, check):
             raise ValueError('扫描值改变了模型权重形状，请选择保持权重结构的参数')
         with torch.inference_mode():
             outputs = model(**batch['features'])
-            loss = None if task is None else float(_classification_loss(outputs, batch, task, manifest))
+            loss = None if task is None else float(_batch_loss(outputs, batch, task, manifest))
             comparison.append({'value': value, 'loss': loss, 'outputs': _output_samples(outputs),
                                'outputs_omitted': max(0, len(outputs) - MAX_OUTPUTS)})
         del model, outputs
@@ -202,12 +208,18 @@ def run_debug(graph, config, progress=None, cancelled=None):
         if config['experiment'] is None:
             batch, task, manifest = _synthetic_batch(resolved, config, device)
         else:
-            batch, task, manifest = _image_batch(resolved, shapes, config, device, cancelled)
+            batch, task, manifest = _experiment_batch(resolved, shapes, config, device, cancelled)
         check()
         mode = config['mode']
         result = {'mode': mode, 'device': str(device), 'model_digest': model_digest(graph),
-                  'batch_kind': 'synthetic' if task is None else 'image_folder', 'seed': config['seed'],
-                  'sample_count': len(batch['sample_ids']), 'optimizer_steps': 0, 'loss': None,
+                  'batch_kind': 'synthetic' if manifest is None else manifest['kind'], 'seed': config['seed'],
+                  'split': config['split'] if manifest is not None else None, 'sample_ids': batch['sample_ids'],
+                  'input_shapes': {key: list(value.shape) for key, value in batch['features'].items()},
+                  'input_dtypes': {key: str(value.dtype) for key, value in batch['features'].items()},
+                  'task_profile': config['experiment']['profile'] if task is not None else None,
+                  'optimizer_settings': {key: config[key] for key in ('optimizer', 'lr')} if mode == 'step' else None,
+                  'probe_offset': config['probe_offset'], 'sample_count': len(batch['sample_ids']),
+                  'optimizer_steps': 0, 'loss': None,
                   'dataset_digest': None if manifest is None else manifest['dataset_digest'], 'outputs': {},
                   'batch_digest': hashlib.sha256('\n'.join(batch['sample_ids']).encode('utf-8')).hexdigest(),
                   'probes': {}, 'parameters': [], 'sweep': []}
@@ -229,7 +241,7 @@ def run_debug(graph, config, progress=None, cancelled=None):
                 measured = sorted(named, key=lambda pair: not pair[0].startswith(prefixes))[:MAX_PARAMETER_ROWS]
                 before = {name: _brief(value) for name, value in measured}
                 outputs = model.forward_observed(batch['features'], probes)
-                loss = _classification_loss(outputs, batch, task, manifest)
+                loss = _batch_loss(outputs, batch, task, manifest)
                 if not bool(torch.isfinite(loss)):
                     raise ValueError('损失为非有限值')
                 loss.backward()

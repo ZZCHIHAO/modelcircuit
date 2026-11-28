@@ -46,7 +46,7 @@ class HardwareModelFamilyTests(unittest.TestCase):
         from studio_core.component_catalog import list_components
         specs = list_registered_models()
         self.assertEqual(tuple(spec.id for spec in specs), M2_IDS)
-        self.assertEqual(len(list_components()), 44)
+        self.assertEqual(len(list_components()), 46)
         for spec in specs:
             with self.subTest(model=spec.id):
                 self.assertEqual(spec.config_defaults['resource_profile'], 'hardware-v5')
